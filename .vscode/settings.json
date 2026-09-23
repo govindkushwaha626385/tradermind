@@ -1,0 +1,35 @@
+{
+  // ── TypeScript ─────────────────────────────────────────
+  // Ensure VS Code uses the correct tsconfig for each
+  // workspace folder instead of inferring from parent dirs.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+
+  // Disable automatic type acquisition for monorepo packages
+  // (they are linked via npm workspaces).
+  "typescript.disableAutomaticTypeAcquisition": true,
+
+  // ── Explorer ────────────────────────────────────────────
+  "explorer.compactFolders": false,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js, ${capture}.d.ts",
+    "tsconfig.json": "tsconfig.*.json",
+    "package.json": "package-lock.json, .npmrc"
+  },
+
+  // ── Formatting ──────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // ── Files ───────────────────────────────────────────────
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true
+  }
+}

@@ -1,0 +1,56 @@
+# ──────────────────────────────────────────────
+# TradeMind — Docker Build Ignore File
+# Keeps Docker contexts lean and fast
+# ──────────────────────────────────────────────
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+out
+
+# Cache (incl. turborepo & npm)
+.turbo
+**/.turbo
+.cache
+.pnpm-store
+**/.npm/_cacache
+
+# Environment — never bake secrets into images
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+next-debug.log*
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Test & coverage
+coverage
+**/coverage
+
+# Misc (keep everything else)
+*.md5
+*.dll
+
+# Do NOT ignore migration SQL — needed by db-setup
+!/packages/database/src/migrations/**/*.sql

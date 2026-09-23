@@ -1,0 +1,62 @@
+{
+  "name": "TradeMind — Automated Trading Journal",
+  "short_name": "TradeMind",
+  "description": "Connect your Indian broker, sync trades automatically, and discover the behavioral patterns behind your P&L.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "TradeMind Dashboard — Automated Trading Journal"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to your trading dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "description": "Open your trade journal",
+      "url": "/dashboard/journal",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Analytics",
+      "short_name": "Analytics",
+      "description": "View your trading analytics",
+      "url": "/dashboard/analytics",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Partners",
+      "short_name": "Partners",
+      "description": "Browse zero-brokerage broker deals",
+      "url": "/partners",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ],
+  "related_applications": [],
+  "id": "trademind-app"
+}

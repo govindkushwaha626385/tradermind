@@ -1,0 +1,42 @@
+{
+  "name": "@trademind/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.46.0",
+    "@trademind/config": "*",
+    "@trademind/database": "*",
+    "@trademind/shared": "*",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^11.11.0",
+    "lightweight-charts": "^5.2.1",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.13.0",
+    "tailwind-merge": "^2.5.0",
+    "tailwindcss-animate": "^1.0.0"
+  },
+  "devDependencies": {
+    "@next/bundle-analyzer": "^16.3.5",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0"
+  }
+}

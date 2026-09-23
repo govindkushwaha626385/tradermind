@@ -1,0 +1,32 @@
+{
+  "name": "trademind",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TradeMind — Automated Trading Journal & Behavioral Analytics Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:generate": "npm run db:generate --workspace=@trademind/database",
+    "db:push": "npm run db:push --workspace=@trademind/database",
+    "db:migrate": "npm run db:migrate --workspace=@trademind/database",
+    "db:seed": "npm run db:seed --workspace=@trademind/database",
+    "db:setup": "bash scripts/db-setup.sh",
+    "clean": "turbo run clean && rm -rf node_modules package-lock.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.8.2"
+}

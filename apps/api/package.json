@@ -1,0 +1,31 @@
+{
+  "name": "@trademind/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@trademind/config": "*",
+    "@trademind/database": "*",
+    "@trademind/shared": "*",
+    "bcryptjs": "^2.4.3",
+    "hono": "^4.6.0",
+    "razorpay": "^2.9.8",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.1"
+  }
+}
