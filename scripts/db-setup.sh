@@ -15,10 +15,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATION_FILE="$(ls "${ROOT_DIR}"/packages/database/src/migrations/0000_*.sql 2>/dev/null || true)"
+MASTER_SCHEMA="${ROOT_DIR}/packages/database/src/migrations/MASTER_SCHEMA.sql"
 
-if [[ -z "${MIGRATION_FILE}" ]]; then
-  echo "❌ No Drizzle migration found. Run: npx drizzle-kit generate in packages/database"
+if [[ ! -f "${MASTER_SCHEMA}" ]]; then
+  echo "❌ MASTER_SCHEMA.sql not found at ${MASTER_SCHEMA}"
   exit 1
 fi
 
@@ -34,7 +34,7 @@ if [[ -z "${DATABASE_URL}" ]]; then
   exit 1
 fi
 
-echo "🌱 Applying TradeMind complete Supabase schema, RLS, and seed data..."
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${ROOT_DIR}/packages/database/src/migrations/supabase-complete-setup.sql"
+echo "🌱 Applying TradeMind Master Schema (39 tables, RLS, indexes, seeds)..."
+psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${MASTER_SCHEMA}"
 
-echo "✅ Database setup complete! All 34 tables, RLS policies, and seed records are active."
+echo "✅ Database setup complete! All 39 tables, RLS policies, indexes, and seed records are active."

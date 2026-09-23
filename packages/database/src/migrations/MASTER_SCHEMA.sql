@@ -23,26 +23,37 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- LOCAL POSTGRES & SUPABASE COMPATIBILITY LAYER
 -- (Enables this script to run seamlessly on both local vanilla PostgreSQL & Supabase)
 -- ═══════════════════════════════════════════════════════════════════════════
-CREATE SCHEMA IF NOT EXISTS auth;
-
-CREATE TABLE IF NOT EXISTS auth.users (
-  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email              VARCHAR(255) UNIQUE,
-  raw_user_meta_data JSONB DEFAULT '{}'::jsonb,
-  created_at         TIMESTAMPTZ DEFAULT NOW(),
-  updated_at         TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE OR REPLACE FUNCTION auth.uid()
-RETURNS UUID LANGUAGE sql STABLE AS $$
-  SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-$$;
-
 DO $$
 BEGIN
+  -- If we're on vanilla local Postgres, provision the mock auth schema if missing.
+  -- On Supabase, the auth schema, auth.users table, auth.uid() function, and
+  -- service_role already exist natively, so this block safely skips.
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth'
+  ) THEN
+    EXECUTE 'CREATE SCHEMA auth';
+    EXECUTE $cmd$
+      CREATE TABLE auth.users (
+        id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email              VARCHAR(255) UNIQUE,
+        raw_user_meta_data JSONB DEFAULT '{}'::jsonb,
+        created_at         TIMESTAMPTZ DEFAULT NOW(),
+        updated_at         TIMESTAMPTZ DEFAULT NOW()
+      );
+    $cmd$;
+    EXECUTE $cmd$
+      CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID LANGUAGE sql STABLE AS $fn$
+        SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+      $fn$;
+    $cmd$;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
     CREATE ROLE service_role;
   END IF;
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    NULL; -- On Supabase, auth is already managed with full privileges
 END;
 $$;
 

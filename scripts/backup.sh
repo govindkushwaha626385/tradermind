@@ -19,8 +19,9 @@ if [ -f .env ]; then
   set +a
 fi
 
-if [ -z "${SUPABASE_DATABASE_URL:-}" ]; then
-  echo "❌ SUPABASE_DATABASE_URL not set. Add it to .env"
+DB_URL="${DATABASE_URL:-${SUPABASE_DATABASE_URL:-}}"
+if [ -z "$DB_URL" ]; then
+  echo "❌ DATABASE_URL or SUPABASE_DATABASE_URL not set. Add it to .env"
   exit 1
 fi
 
@@ -31,7 +32,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/trademind_$TIMESTAMP.sql"
 
 echo "📦 Backing up database to $BACKUP_FILE ..."
-pg_dump "$SUPABASE_DATABASE_URL" --no-owner --no-privileges > "$BACKUP_FILE"
+pg_dump "$DB_URL" --no-owner --no-privileges > "$BACKUP_FILE"
 
 # Compress
 gzip "$BACKUP_FILE"
