@@ -24,8 +24,8 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/kill-switch',
-    headers := '{"Authorization": "Bearer <INTERNAL_WORKER_SECRET>", "Content-Type": "application/json"}'::jsonb,
+    url     := 'https://djsohdhjxpbhknxlkxlm.supabase.co/functions/v1/kill-switch',
+    headers := '{"Authorization": "Bearer 12caced2540a285cbc624bc38c5fd8aa77bd876a027567b23599dd2c407fb63d", "Content-Type": "application/json"}'::jsonb,
     body    := '{}'::jsonb
   );
   $$
@@ -37,8 +37,8 @@ SELECT cron.schedule(
   '*/15 * * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/token-refresh',
-    headers := '{"Authorization": "Bearer <INTERNAL_WORKER_SECRET>", "Content-Type": "application/json"}'::jsonb,
+    url     := 'https://djsohdhjxpbhknxlkxlm.supabase.co/functions/v1/token-refresh',
+    headers := '{"Authorization": "Bearer 12caced2540a285cbc624bc38c5fd8aa77bd876a027567b23599dd2c407fb63d", "Content-Type": "application/json"}'::jsonb,
     body    := '{}'::jsonb
   );
   $$
@@ -50,8 +50,8 @@ SELECT cron.schedule(
   '30 12 * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/report-generator',
-    headers := '{"Authorization": "Bearer <INTERNAL_WORKER_SECRET>", "Content-Type": "application/json"}'::jsonb,
+    url     := 'https://djsohdhjxpbhknxlkxlm.supabase.co/functions/v1/report-generator',
+    headers := '{"Authorization": "Bearer 12caced2540a285cbc624bc38c5fd8aa77bd876a027567b23599dd2c407fb63d", "Content-Type": "application/json"}'::jsonb,
     body    := '{"type": "daily"}'::jsonb
   );
   $$
@@ -63,8 +63,8 @@ SELECT cron.schedule(
   '30 12 * * 0',
   $$
   SELECT net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/report-generator',
-    headers := '{"Authorization": "Bearer <INTERNAL_WORKER_SECRET>", "Content-Type": "application/json"}'::jsonb,
+    url     := 'https://djsohdhjxpbhknxlkxlm.supabase.co/functions/v1/report-generator',
+    headers := '{"Authorization": "Bearer 12caced2540a285cbc624bc38c5fd8aa77bd876a027567b23599dd2c407fb63d", "Content-Type": "application/json"}'::jsonb,
     body    := '{"type": "weekly"}'::jsonb
   );
   $$
@@ -76,8 +76,8 @@ SELECT cron.schedule(
   '0 2 * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/cleanup',
-    headers := '{"Authorization": "Bearer <INTERNAL_WORKER_SECRET>", "Content-Type": "application/json"}'::jsonb,
+    url     := 'https://djsohdhjxpbhknxlkxlm.supabase.co/functions/v1/cleanup',
+    headers := '{"Authorization": "Bearer 12caced2540a285cbc624bc38c5fd8aa77bd876a027567b23599dd2c407fb63d", "Content-Type": "application/json"}'::jsonb,
     body    := '{}'::jsonb
   );
   $$
