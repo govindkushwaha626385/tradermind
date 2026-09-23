@@ -1,24 +1,18 @@
-import type { NextConfig } from 'next';
-import path from 'path';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** Absolute path to the trademind monorepo root (two levels up from this file). */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const monorepoRoot = path.resolve(__dirname, '../..');
 
-// ── Bundle Analyzer (optional, run with ANALYZE=true) ──
-// Inline conditional — no wrapper needed for optional plugin.
-// To analyze: ANALYZE=true next build
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   transpilePackages: [
     '@trademind/shared',
     '@trademind/database',
     '@trademind/config',
   ],
-  // Explicitly tell Next.js where the monorepo root is so it can resolve
-  // the correct lockfile and workspace packages.
   outputFileTracingRoot: monorepoRoot,
-  // Point Next.js at the correct app/ directory inside the web workspace.
-  distDir: '.next',
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -36,13 +30,10 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '5mb',
     },
-    // Tree-shake large packages for faster cold starts and smaller bundles
     optimizePackageImports: ['lucide-react', 'recharts'],
   },
-  // ── Security & Caching headers ──────────────────────
   async headers() {
     return [
-      // Global Security Headers for all routes
       {
         source: '/(.*)',
         headers: [
@@ -65,21 +56,18 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Caching headers for static media
       {
         source: '/:path*.(ico|png|jpg|jpeg|gif|svg|webp|woff2?)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Caching headers for compiled JS / CSS
       {
         source: '/:path*.(js|css)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Caching headers for JSON & XML manifests
       {
         source: '/:path*.(json|xml)',
         headers: [

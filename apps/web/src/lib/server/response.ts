@@ -134,8 +134,8 @@ export async function parseBody<T>(
             success: false,
             error: {
               message: 'Validation failed',
-              details: result.error.errors.map((e) => ({
-                path: e.path.join('.'),
+              details: result.error.issues.map((e: any) => ({
+                path: Array.isArray(e.path) ? e.path.join('.') : String(e.path),
                 message: e.message,
               })),
             },
@@ -177,8 +177,8 @@ export function parseQuery<T extends Record<string, unknown>>(
           success: false,
           error: {
             message: 'Invalid query parameters',
-            details: result.error.errors.map((e) => ({
-              path: e.path.join('.'),
+            details: result.error.issues.map((e: any) => ({
+              path: Array.isArray(e.path) ? e.path.join('.') : String(e.path),
               message: e.message,
             })),
           },

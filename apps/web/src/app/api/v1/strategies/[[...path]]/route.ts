@@ -26,7 +26,7 @@ const strategyBodySchema = z.object({
   timeframe: z.enum(['SCALPING', 'INTRADAY', 'SWING', 'POSITIONAL', 'LONG_TERM']).optional().nullable(),
   entryCriteria: z.string().max(4000).optional().nullable(),
   exitCriteria: z.string().max(4000).optional().nullable(),
-  riskRules: z.record(z.unknown()).optional().nullable(),
+  riskRules: z.record(z.string(), z.unknown()).optional().nullable(),
   tags: z.array(z.string().max(50)).max(10).optional().nullable(),
   isActive: z.boolean().default(true),
 });
