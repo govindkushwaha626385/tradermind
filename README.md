@@ -106,19 +106,16 @@ See `.env.example` for all required variables. Key ones:
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Payments
 - `FRONTEND_URL` — Your frontend domain
 
-### Production Build
+### Production Build & Running
 
 ```bash
-# Build all packages
+# Build the entire platform
 npm run build
 
-# Start API server
-cd apps/api && node dist/index.js
+# Start the unified web application and API server
+npm run start --workspace=@trademind/web
 
-# Build frontend
-cd apps/web && npx next build
-
-# Or — run the full stack in Docker (Supabase is the only external dependency)
+# Or — run in Docker (Supabase is the only external dependency)
 docker compose --env-file .env.docker.example up --build
 ```
 

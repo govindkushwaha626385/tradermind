@@ -21,7 +21,13 @@ import type {
   RiskStatus,
 } from '@trademind/shared';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Phase 5 — Single deployment: API now lives inside the same Next.js app.
+// • Browser: use a relative URL (same-origin, no CORS needed)
+// • Server-side (SSR/RSC): use NEXT_PUBLIC_APP_URL or fallback to localhost:3000
+const API_URL =
+  typeof window !== 'undefined'
+    ? '' // relative → same origin
+    : (process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000');
 
 interface ApiOptions extends RequestInit {
   params?: Record<string, string | number | undefined>;

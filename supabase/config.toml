@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────
+# TradeMind — Supabase Config
+# ──────────────────────────────────────────────
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+openai_api_key = "env(OPENAI_API_KEY)"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["https://trademind.in", "https://www.trademind.in"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[auth.sms]
+enable_signup = false
+
+[functions.sync-worker]
+verify_jwt = false  # Uses custom INTERNAL_WORKER_SECRET auth
+
+[functions.kill-switch]
+verify_jwt = false
+
+[functions.token-refresh]
+verify_jwt = false
+
+[functions.report-generator]
+verify_jwt = false
+
+[functions.cleanup]
+verify_jwt = false
+
+[analytics]
+enabled = false
