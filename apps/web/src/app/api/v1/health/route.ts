@@ -7,6 +7,8 @@ import { NextResponse } from 'next/server';
 import { getDatabase, backgroundJobs } from '@trademind/database';
 import { sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 export const runtime = 'nodejs';
 
 async function healthHandler() {
