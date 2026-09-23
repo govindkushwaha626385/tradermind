@@ -11,30 +11,25 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # Database
-      DATABASE_URL: ${DATABASE_URL:-${SUPABASE_DATABASE_URL}}
-      # Supabase Auth & Storage
+      # Database (Supabase PostgreSQL via Drizzle ORM)
+      DATABASE_URL: ${DATABASE_URL}
+      # Supabase Auth, Storage & Database
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      # Application URL (Single source of truth)
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       # Security & Internal Worker Secret
       INTERNAL_WORKER_SECRET: ${INTERNAL_WORKER_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      JWT_SECRET: ${JWT_SECRET}
-      # Payments (Razorpay)
+      # Optional: Payments (Razorpay)
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
       NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
-      # Email & AI
+      # Optional: Email & AI
       RESEND_API_KEY: ${RESEND_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
-      # URLs
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://tradermind-web.vercel.app}
     ports:
       - "3000:3000"

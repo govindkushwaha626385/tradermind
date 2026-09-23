@@ -9,3 +9,5 @@ dist/
 .DS_Store
 .turbo
 coverage/
+supabase/.temp/
+supabase/.branches/

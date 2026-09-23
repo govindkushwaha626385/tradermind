@@ -49,12 +49,12 @@ let supabaseAdminClient: ReturnType<typeof createClient<SupabaseDatabase>> | nul
 export function getSupabaseAdmin() {
   if (supabaseAdminClient) return supabaseAdminClient;
 
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
-      'Supabase admin credentials not set. Provide SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+      'Supabase admin credentials not set. Provide NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
     );
   }
 

@@ -4,7 +4,7 @@
 
 import type { Metadata } from 'next';
 
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://trademind.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trademind.app';
 
 export const metadata: Metadata = {
   title: 'Best Indian Stockbrokers & Zero Brokerage Accounts — TradeMind',

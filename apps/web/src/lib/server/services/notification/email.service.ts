@@ -8,6 +8,8 @@
 import { getDatabase, notifications, userOnboarding } from '@trademind/database';
 import { eq, and } from 'drizzle-orm';
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.FRONTEND_URL ?? 'http://localhost:3000';
+
 async function sendEmail(params: {
   to: string;
   subject: string;
@@ -149,7 +151,7 @@ export async function sendTokenExpiryWarning(
       <h2 style="color: #f59e0b;">⚠️ Token Expiring Soon</h2>
       <p>Your connection to <strong>${brokerName}</strong> will expire soon.</p>
       <p>To continue syncing trades automatically, please reconnect your broker.</p>
-      <a href="${process.env.FRONTEND_URL}/dashboard/brokers" style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;margin-top:16px;">
+      <a href="${APP_URL}/dashboard/brokers" style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;margin-top:16px;">
         Reconnect Now
       </a>
     </div>
@@ -187,7 +189,7 @@ export async function sendSyncNotification(
       </h2>
       <p>Broker: <strong>${brokerName}</strong></p>
       ${details ? `<p>${details}</p>` : ''}
-      <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;margin-top:16px;">
+      <a href="${APP_URL}/dashboard" style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;margin-top:16px;">
         View Dashboard
       </a>
     </div>
