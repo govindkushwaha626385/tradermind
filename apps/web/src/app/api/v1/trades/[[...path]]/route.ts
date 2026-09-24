@@ -105,7 +105,7 @@ async function handleList(req: NextRequest, userId: string) {
   if (cursorCondition) conditions.push(cursorCondition);
   const offset = cursorCondition ? 0 : (page - 1) * limit;
 
-  const [rawRows, totalResult] = await Promise.all([
+  let [rawRows, totalResult] = await Promise.all([
     db.select().from(tradeExecutions)
       .where(and(...conditions))
       .orderBy(
@@ -119,9 +119,52 @@ async function handleList(req: NextRequest, userId: string) {
       .where(and(...conditions.filter((c) => c !== cursorCondition))),
   ]);
 
+  let total = Number(totalResult[0]?.count ?? 0);
+
+  // If no trade_executions found, query journal_trades so CSV-imported trades appear seamlessly
+  if (total === 0) {
+    const jConditions = [eq(journalTrades.userId, userId)];
+    if (q.symbol) jConditions.push(eq(journalTrades.tradingsymbol, q.symbol.toUpperCase()));
+    if (q.exchange) jConditions.push(eq(journalTrades.exchange, q.exchange));
+    if (q.startDate) jConditions.push(gte(journalTrades.openedAt, new Date(q.startDate)));
+    if (q.endDate) jConditions.push(lte(journalTrades.openedAt, new Date(q.endDate)));
+
+    const [jRows, jTotal] = await Promise.all([
+      db.select().from(journalTrades)
+        .where(and(...jConditions))
+        .orderBy(q.sortOrder === 'desc' ? desc(journalTrades.openedAt) : journalTrades.openedAt)
+        .limit(limit + 1)
+        .offset(offset),
+      db.select({ count: sql<number>`COUNT(*)` })
+        .from(journalTrades)
+        .where(and(...jConditions)),
+    ]);
+
+    total = Number(jTotal[0]?.count ?? 0);
+    rawRows = jRows.map((t) => ({
+      id: t.id,
+      userId: t.userId,
+      brokerConnectionId: t.brokerConnectionId,
+      tradingsymbol: t.tradingsymbol,
+      exchange: t.exchange,
+      segment: t.assetClass,
+      transactionType: t.direction === 'LONG' ? 'BUY' : 'SELL',
+      orderType: 'MARKET',
+      quantity: t.totalQuantity,
+      executionPrice: t.avgEntryPrice,
+      executionTimestamp: t.openedAt,
+      brokerExecutionId: t.id,
+      totalCharges: t.totalFeesAndTaxes,
+      grossPnl: t.grossPnl,
+      netPnl: t.netPnl,
+      currency: t.currency ?? 'INR',
+      status: t.status,
+      createdAt: t.createdAt,
+    })) as any;
+  }
+
   const hasMore = rawRows.length > limit;
   const data = hasMore ? rawRows.slice(0, limit) : rawRows;
-  const total = Number(totalResult[0]?.count ?? 0);
   const lastItem = data[data.length - 1];
   const nextCursor = hasMore && lastItem?.executionTimestamp
     ? Buffer.from(`${new Date(lastItem.executionTimestamp).getTime()}::${lastItem.id}`).toString('base64')
@@ -139,10 +182,41 @@ async function handleDetail(userId: string, id: string) {
     .where(and(eq(tradeExecutions.id, id), eq(tradeExecutions.userId, userId)))
     .limit(1);
 
-  if (!execution) return notFound('Execution not found');
+  if (execution) {
+    const links = await db.select().from(tradeExecutionLinks).where(eq(tradeExecutionLinks.executionId, id));
+    return ok({ ...execution, journalLinks: links });
+  }
 
-  const links = await db.select().from(tradeExecutionLinks).where(eq(tradeExecutionLinks.executionId, id));
-  return ok({ ...execution, journalLinks: links });
+  const [trade] = await db.select().from(journalTrades)
+    .where(and(eq(journalTrades.id, id), eq(journalTrades.userId, userId)))
+    .limit(1);
+
+  if (!trade) return notFound('Trade not found');
+
+  return ok({
+    id: trade.id,
+    userId: trade.userId,
+    brokerConnectionId: trade.brokerConnectionId,
+    tradingsymbol: trade.tradingsymbol,
+    exchange: trade.exchange,
+    segment: trade.assetClass,
+    transactionType: trade.direction === 'LONG' ? 'BUY' : 'SELL',
+    quantity: trade.totalQuantity,
+    executionPrice: trade.avgEntryPrice,
+    executionTimestamp: trade.openedAt,
+    totalCharges: trade.totalFeesAndTaxes,
+    grossPnl: trade.grossPnl,
+    netPnl: trade.netPnl,
+    currency: trade.currency,
+    status: trade.status,
+    avgExitPrice: trade.avgExitPrice,
+    closedAt: trade.closedAt,
+    rMultiple: trade.rMultiple,
+    notes: trade.traderNotes,
+    emotions: trade.emotions,
+    mistakes: trade.mistakeTags,
+    journalLinks: [],
+  });
 }
 
 // ── Export CSV ────────────────────────────────────────────────
@@ -153,26 +227,29 @@ async function handleExportCsv(req: NextRequest, userId: string) {
   const endDate = url.searchParams.get('endDate');
 
   const db = getDatabase();
-  const conditions = [eq(tradeExecutions.userId, userId)];
-  if (startDate) conditions.push(gte(tradeExecutions.executionTimestamp, new Date(startDate)));
-  if (endDate) conditions.push(lte(tradeExecutions.executionTimestamp, new Date(endDate)));
+  const conditions = [eq(journalTrades.userId, userId)];
+  if (startDate) conditions.push(gte(journalTrades.openedAt, new Date(startDate)));
+  if (endDate) conditions.push(lte(journalTrades.openedAt, new Date(endDate)));
 
-  const executions = await db.select().from(tradeExecutions)
+  const trades = await db.select().from(journalTrades)
     .where(and(...conditions))
-    .orderBy(desc(tradeExecutions.executionTimestamp));
+    .orderBy(desc(journalTrades.openedAt));
 
-  const headers = ['Date', 'Symbol', 'Exchange', 'Segment', 'Type', 'Order Type', 'Quantity', 'Price', 'Fees', 'Net Value'];
-  const rows = executions.map((e) => [
-    e.executionTimestamp.toISOString(),
-    e.tradingsymbol,
-    e.exchange,
-    e.segment,
-    e.transactionType,
-    e.orderType,
-    e.quantity,
-    e.executionPrice,
-    (e.totalCharges ?? 0).toFixed(2),
-    ((e.executionPrice * e.quantity) - (e.totalCharges ?? 0)).toFixed(2),
+  const headers = ['Trade ID', 'Date', 'Symbol', 'Exchange', 'Asset Class', 'Direction', 'Status', 'Quantity', 'Entry Price', 'Exit Price', 'Gross PnL', 'Fees & Taxes', 'Net PnL'];
+  const rows = trades.map((t) => [
+    t.id,
+    t.openedAt?.toISOString() ?? '',
+    t.tradingsymbol,
+    t.exchange,
+    t.assetClass,
+    t.direction,
+    t.status,
+    t.totalQuantity,
+    t.avgEntryPrice.toFixed(2),
+    t.avgExitPrice ? t.avgExitPrice.toFixed(2) : '',
+    t.grossPnl.toFixed(2),
+    t.totalFeesAndTaxes.toFixed(2),
+    t.netPnl.toFixed(2),
   ]);
 
   const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -180,7 +257,7 @@ async function handleExportCsv(req: NextRequest, userId: string) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="trademind-export-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Content-Disposition': `attachment; filename="trademind-trades-${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }

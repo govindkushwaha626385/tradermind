@@ -26,7 +26,7 @@ async function sendEmail(params: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'TradeMind <journal@trademind.app>',
+          from: process.env.RESEND_FROM_EMAIL ?? 'TradeMind <onboarding@resend.dev>',
           to: params.to,
           subject: params.subject,
           html: params.html,

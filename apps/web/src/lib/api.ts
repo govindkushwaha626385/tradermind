@@ -232,7 +232,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ csv }),
     }),
-  importCsv: (csv: string, brokerConnectionId: string) =>
+  importCsv: (csv: string, brokerConnectionId?: string) =>
     request<{
       broker: string;
       inserted: number;
@@ -241,7 +241,7 @@ export const api = {
       errors: string[];
     }>('/brokers/import/csv', {
       method: 'POST',
-      body: JSON.stringify({ csv, brokerConnectionId }),
+      body: JSON.stringify({ csv, ...(brokerConnectionId ? { brokerConnectionId } : {}) }),
     }),
 
   // Trades

@@ -241,18 +241,54 @@ async function handleCsvImport(req: NextRequest, userId: string) {
   try {
     const body = await req.json().catch(() => ({}));
     const csvContent: string = body.csv ?? '';
-    const brokerConnectionId: string = body.brokerConnectionId ?? '';
+    const brokerConnectionId: string | undefined = body.brokerConnectionId;
 
     if (!csvContent || typeof csvContent !== 'string') return apiError('Missing csv field');
-    if (!brokerConnectionId) return apiError('brokerConnectionId is required');
-
-    const db = getDatabase();
-    const [connection] = await db.select({ id: brokerConnections.id, brokerId: brokerConnections.brokerId })
-      .from(brokerConnections).where(and(eq(brokerConnections.id, brokerConnectionId), eq(brokerConnections.userId, userId))).limit(1);
-    if (!connection) return notFound('Broker connection not found or not authorized');
 
     const result = parseCsvTrades(csvContent);
     if (result.parsedTrades.length === 0) return apiError(result.errors.length > 0 ? result.errors[0] : 'No trades could be parsed from this CSV');
+
+    const db = getDatabase();
+    let targetConnectionId = brokerConnectionId;
+
+    if (targetConnectionId) {
+      const [connection] = await db.select({ id: brokerConnections.id, brokerId: brokerConnections.brokerId })
+        .from(brokerConnections).where(and(eq(brokerConnections.id, targetConnectionId), eq(brokerConnections.userId, userId))).limit(1);
+      if (!connection) return notFound('Broker connection not found or not authorized');
+    } else {
+      // Find existing connection for this broker or auto-create one
+      const [existing] = await db.select({ id: brokerConnections.id })
+        .from(brokerConnections)
+        .where(and(eq(brokerConnections.userId, userId), eq(brokerConnections.brokerId, result.broker)))
+        .limit(1);
+
+      if (existing) {
+        targetConnectionId = existing.id;
+      } else {
+        const brokerNames: Record<string, string> = {
+          zerodha: 'Zerodha Kite',
+          upstox: 'Upstox',
+          angelone: 'Angel One',
+          dhan: 'Dhan',
+          fyers: 'Fyers',
+          groww: 'Groww',
+        };
+        const label = `${brokerNames[result.broker] ?? result.broker.toUpperCase()} (CSV)`;
+        const [created] = await db.insert(brokerConnections).values({
+          userId,
+          brokerId: result.broker,
+          brokerClientId: `${result.broker}_import`,
+          label,
+          authType: 'csv_import',
+          accessToken: 'csv_placeholder',
+          status: 'ACTIVE',
+          isActive: true,
+        }).returning({ id: brokerConnections.id });
+
+        if (!created) return apiError('Failed to initialize broker connection for import', 500);
+        targetConnectionId = created.id;
+      }
+    }
 
     const BATCH_SIZE = 50;
     let inserted = 0;
@@ -261,13 +297,26 @@ async function handleCsvImport(req: NextRequest, userId: string) {
     for (let i = 0; i < result.parsedTrades.length; i += BATCH_SIZE) {
       const batch = result.parsedTrades.slice(i, i + BATCH_SIZE);
       const records = batch.map((t) => ({
-        userId, brokerConnectionId, tradingsymbol: t.tradingsymbol, exchange: t.exchange,
-        assetClass: t.assetClass, direction: t.direction, status: t.status,
-        totalQuantity: t.totalQuantity, openQuantity: t.status === 'OPEN' ? t.totalQuantity : 0,
-        avgEntryPrice: t.avgEntryPrice, avgExitPrice: t.avgExitPrice ?? null,
-        openedAt: t.openedAt, closedAt: t.closedAt ?? null, grossPnl: t.grossPnl,
-        totalFeesAndTaxes: t.totalFeesAndTaxes, netPnl: t.netPnl,
-        holdingPeriodMinutes: t.holdingPeriodMinutes ?? null, tradeType: t.tradeType, createdAt: now, updatedAt: now,
+        userId,
+        brokerConnectionId: targetConnectionId!,
+        tradingsymbol: t.tradingsymbol,
+        exchange: t.exchange,
+        assetClass: t.assetClass,
+        direction: t.direction,
+        status: t.status,
+        totalQuantity: t.totalQuantity,
+        openQuantity: t.status === 'OPEN' ? t.totalQuantity : 0,
+        avgEntryPrice: t.avgEntryPrice,
+        avgExitPrice: t.avgExitPrice ?? null,
+        openedAt: t.openedAt,
+        closedAt: t.closedAt ?? null,
+        grossPnl: t.grossPnl,
+        totalFeesAndTaxes: t.totalFeesAndTaxes,
+        netPnl: t.netPnl,
+        holdingPeriodMinutes: t.holdingPeriodMinutes ?? null,
+        tradeType: t.tradeType,
+        createdAt: now,
+        updatedAt: now,
       }));
       await db.insert(journalTrades).values(records).onConflictDoNothing();
       inserted += batch.length;

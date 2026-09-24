@@ -54,6 +54,7 @@ const BROKER_DISPLAY_NAMES: Record<string, string> = {
   zerodha: 'Zerodha Kite',
   upstox: 'Upstox',
   angelone: 'Angel One',
+  dhan: 'Dhan',
   fyers: 'Fyers',
   groww: 'Groww',
   unknown: 'Unknown Broker',
@@ -63,6 +64,7 @@ const SAMPLE_FORMAT_DOCS: Record<string, string> = {
   zerodha: 'Console → Reports → Tradebook → Download CSV',
   upstox: 'Reports → Trade History → Export CSV',
   angelone: 'Reports → Order Book → Download CSV',
+  dhan: 'Trader Web → Trade Book → Export CSV',
   fyers: 'Account → Reports → Trade Log → Export',
   groww: 'Reports → Trade History → Export',
 };
@@ -121,12 +123,12 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
   );
 
   const handleImport = async () => {
-    if (!csvContent || !selectedConnectionId) return;
+    if (!csvContent) return;
     setLoading(true);
     setError(null);
 
     try {
-      const res = await api.importCsv(csvContent, selectedConnectionId);
+      const res = await api.importCsv(csvContent, selectedConnectionId || undefined);
       if (res.success && res.data) {
         setImportResult({ inserted: res.data.inserted, broker: res.data.broker });
         setStep('success');
@@ -391,14 +393,16 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Link to Broker Connection <span className="text-red-400">*</span>
+                  Link to Broker Connection
                 </label>
                 <select
                   value={selectedConnectionId}
                   onChange={(e) => setSelectedConnectionId(e.target.value)}
                   className="w-full rounded-lg bg-slate-800/80 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="">Select broker connection…</option>
+                  <option value="">
+                    ⚡ Auto-link or create {BROKER_DISPLAY_NAMES[preview.broker] ?? preview.broker} connection
+                  </option>
                   {connections.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label || c.brokerId} ({c.status})
@@ -406,7 +410,7 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Imported trades will be associated with the selected connection.
+                  Imported trades will be automatically linked to this broker in your analytics.
                 </p>
               </div>
 
@@ -427,7 +431,7 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
                 </button>
                 <button
                   onClick={handleImport}
-                  disabled={!selectedConnectionId || loading}
+                  disabled={loading}
                   className="flex-1 py-2 px-4 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors shadow-md disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   {loading ? (

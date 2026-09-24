@@ -48,6 +48,7 @@ import {
   Command,
   Flag,
   Play,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -74,6 +75,7 @@ const SIDEBAR_GROUPS = [
     items: [
       { label: 'Journal',     href: '/dashboard/journal',     icon: BookOpen },
       { label: 'Trades',      href: '/dashboard/trades',      icon: TrendingUp },
+      { label: 'Prop Firm',   href: '/dashboard/prop-firm',   icon: Award },
       { label: 'Replay',      href: '/dashboard/replay',      icon: Play },
       { label: 'Strategies',  href: '/dashboard/strategies',  icon: Target },
       { label: 'Checklists',  href: '/dashboard/checklists',  icon: ListChecks },

@@ -4,11 +4,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   createChart,
   CandlestickSeries,
+  LineSeries,
+  HistogramSeries,
   createSeriesMarkers,
   ColorType,
   IChartApi,
   ISeriesApi,
   CandlestickData,
+  LineData,
+  HistogramData,
   Time,
   SeriesMarker,
 } from 'lightweight-charts';
@@ -22,11 +26,13 @@ import {
   Sparkles,
   TrendingUp,
   TrendingDown,
+  Activity,
+  BarChart,
 } from 'lucide-react';
 import type { TradeReplayData } from '@trademind/shared';
 import { formatCurrency } from '@/lib/utils';
 
-export type ChartTimeframe = '1m' | '3m' | '5m' | '15m' | '1D';
+export type ChartTimeframe = '1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1D' | '1W';
 
 interface LightweightCandleChartProps {
   data: TradeReplayData;
@@ -49,6 +55,8 @@ export function LightweightCandleChart({
 
   const [timeframe, setTimeframe] = useState<ChartTimeframe>(initialTf);
   const [showLevels, setShowLevels] = useState(true);
+  const [showEma, setShowEma] = useState(true);
+  const [showVolume, setShowVolume] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Change timeframe handler
@@ -59,7 +67,7 @@ export function LightweightCandleChart({
 
   // Generate realistic, consistent price action candles for the trade
   const generateCandles = (): {
-    candles: CandlestickData<Time>[];
+    candles: (CandlestickData<Time> & { volume?: number })[];
     entryTime: Time;
     exitTime: Time;
   } => {
@@ -71,18 +79,17 @@ export function LightweightCandleChart({
 
     const priceDelta = Math.abs(exit - entry) || entry * 0.012;
     const stepSeconds =
-      timeframe === '1m'
-        ? 60
-        : timeframe === '3m'
-        ? 180
-        : timeframe === '5m'
-        ? 300
-        : timeframe === '15m'
-        ? 900
-        : 86400;
+      timeframe === '1m' ? 60 :
+      timeframe === '3m' ? 180 :
+      timeframe === '5m' ? 300 :
+      timeframe === '15m' ? 900 :
+      timeframe === '30m' ? 1800 :
+      timeframe === '1h' ? 3600 :
+      timeframe === '4h' ? 14400 :
+      timeframe === '1D' ? 86400 : 604800;
 
     const baseTimestamp = Math.floor(new Date().getTime() / 1000) - 30 * stepSeconds;
-    const result: CandlestickData<Time>[] = [];
+    const result: (CandlestickData<Time> & { volume?: number })[] = [];
 
     let currentPrice = entry - (isLong ? priceDelta * 0.4 : -priceDelta * 0.4);
 
@@ -94,7 +101,8 @@ export function LightweightCandleChart({
       const close = open + (isLong ? priceDelta * 0.05 : -priceDelta * 0.05) + noise;
       const high = Math.max(open, close) + Math.abs(noise * 0.8);
       const low = Math.min(open, close) - Math.abs(noise * 0.8);
-      result.push({ time: t, open, high, low, close });
+      const volume = Math.floor(1200 + Math.random() * 2500);
+      result.push({ time: t, open, high, low, close, volume });
       currentPrice = close;
     }
 
@@ -313,6 +321,57 @@ export function LightweightCandleChart({
       }
     }
 
+    // Add Volume Series
+    if (showVolume) {
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volume_scale',
+      });
+      chart.priceScale('volume_scale').applyOptions({
+        scaleMargins: {
+          top: 0.82,
+          bottom: 0,
+        },
+      });
+      const volData: HistogramData<Time>[] = candles.map((c) => ({
+        time: c.time,
+        value: c.volume || 1800,
+        color: c.close >= c.open ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+      }));
+      volumeSeries.setData(volData);
+    }
+
+    // Add EMA 20 & 50 Indicator lines
+    if (showEma && candles.length >= 3) {
+      const ema20Series = chart.addSeries(LineSeries, {
+        color: '#06b6d4',
+        lineWidth: 2,
+        title: 'EMA 20',
+      });
+      const ema50Series = chart.addSeries(LineSeries, {
+        color: '#f59e0b',
+        lineWidth: 2,
+        title: 'EMA 50',
+      });
+
+      const ema20Data: LineData<Time>[] = [];
+      const ema50Data: LineData<Time>[] = [];
+      let e20 = candles[0]!.close;
+      let e50 = candles[0]!.close;
+      const k20 = 2 / (20 + 1);
+      const k50 = 2 / (50 + 1);
+
+      candles.forEach((c) => {
+        e20 = c.close * k20 + e20 * (1 - k20);
+        e50 = c.close * k50 + e50 * (1 - k50);
+        ema20Data.push({ time: c.time, value: parseFloat(e20.toFixed(2)) });
+        ema50Data.push({ time: c.time, value: parseFloat(e50.toFixed(2)) });
+      });
+
+      ema20Series.setData(ema20Data);
+      ema50Series.setData(ema50Data);
+    }
+
     chart.timeScale().fitContent();
 
     // Resize Observer for fluid responsiveness
@@ -328,7 +387,7 @@ export function LightweightCandleChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, timeframe, showLevels, currency]);
+  }, [data, timeframe, showLevels, showEma, showVolume, currency]);
 
   return (
     <div
@@ -380,11 +439,11 @@ export function LightweightCandleChart({
         <div className="flex items-center gap-2 flex-wrap">
           {/* Timeframe Buttons */}
           <div className="flex items-center bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
-            {(['1m', '3m', '5m', '15m', '1D'] as ChartTimeframe[]).map((tf) => (
+            {(['1m', '3m', '5m', '15m', '30m', '1h', '4h', '1D'] as ChartTimeframe[]).map((tf) => (
               <button
                 key={tf}
                 onClick={() => handleSelectTimeframe(tf)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-all ${
                   timeframe === tf
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -394,6 +453,34 @@ export function LightweightCandleChart({
               </button>
             ))}
           </div>
+
+          {/* Toggle EMA Indicator */}
+          <button
+            onClick={() => setShowEma((prev) => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              showEma
+                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+            }`}
+            title="Toggle 20 & 50 EMA lines"
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">EMA</span>
+          </button>
+
+          {/* Toggle Volume */}
+          <button
+            onClick={() => setShowVolume((prev) => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              showVolume
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+            }`}
+            title="Toggle Volume Bars"
+          >
+            <BarChart className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Vol</span>
+          </button>
 
           {/* Toggle Price Levels */}
           <button
@@ -435,20 +522,40 @@ export function LightweightCandleChart({
         <div className="flex items-center gap-4 flex-wrap font-mono">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-            <span>Bullish Candle</span>
+            <span>Bullish</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" />
-            <span>Bearish Candle</span>
+            <span>Bearish</span>
           </div>
+          {showEma && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-cyan-400" />
+                <span>EMA 20</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-amber-400" />
+                <span>EMA 50</span>
+              </div>
+            </>
+          )}
+          {showVolume && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/40" />
+              <span>Volume</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 bg-emerald-400" />
-            <span>Entry Line</span>
+            <span>Entry</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-amber-400" />
-            <span>Exit Line</span>
-          </div>
+          {data.exitPrice && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 bg-amber-400" />
+              <span>Exit</span>
+            </div>
+          )}
           {data.planStop && (
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 border-t border-dashed border-rose-500" />
