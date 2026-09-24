@@ -29,8 +29,16 @@ import {
   ArrowRight,
   Flame,
   ShieldAlert,
+  RefreshCw,
+  HelpCircle,
+  Coins,
+  FileSpreadsheet,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
+import { toast } from '@/components/Toast';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface CommandItem {
   id: string;
@@ -52,6 +60,7 @@ interface QuickCommandPaletteProps {
 
 export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }: QuickCommandPaletteProps) {
   const router = useRouter();
+  const { setCurrency, currency } = useCurrency();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,8 +83,47 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-settings', title: 'Preferences & Currency Settings', category: 'Navigation', icon: Settings, href: '/dashboard/settings' },
 
       // Quick Actions
-      { id: 'act-import', title: 'Import Broker CSV (Tradebook)', category: 'Actions', icon: Plug, href: '/dashboard/brokers/import', badge: '8 Brokers' },
-      { id: 'act-new-trade', title: 'Log a Manual Trade', category: 'Actions', icon: TrendingUp, href: '/dashboard/trades' },
+      {
+        id: 'act-sync-now',
+        title: 'Instant Broker Sync (Groww, Zerodha, Dhan, Angel One)',
+        category: 'Actions',
+        icon: RefreshCw,
+        action: async () => {
+          onClose();
+          toast.info('Starting broker trade sync...');
+          try {
+            const list = await api.getBrokers();
+            const connList = (list as any)?.data ?? [];
+            if (connList.length > 0) {
+              const active = connList.find((c: any) => c.status === 'ACTIVE') || connList[0];
+              await api.syncBroker(active.id);
+              toast.success(`Synced trades with ${active.label || active.brokerId}`);
+              window.dispatchEvent(new CustomEvent('broker-synced'));
+            } else {
+              toast.warning('No active broker connected yet. Redirecting to Broker Hub...');
+              router.push('/dashboard/brokers');
+            }
+          } catch (e: any) {
+            toast.error(e?.message || 'Sync failed');
+          }
+        },
+        badge: 'Sync',
+        shortcut: 'Cmd+S',
+      },
+      {
+        id: 'act-start-tour',
+        title: 'Launch Interactive Platform Tour & Learning Guide',
+        category: 'Actions',
+        icon: HelpCircle,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-platform-tour'));
+        },
+        badge: 'Academy',
+        shortcut: '?',
+      },
+      { id: 'act-import', title: 'Import Broker CSV (Tradebook / Orders)', category: 'Actions', icon: Plug, href: '/dashboard/brokers', badge: 'CSV' },
+      { id: 'act-new-trade', title: 'Log a Manual Trade Execution', category: 'Actions', icon: TrendingUp, href: '/dashboard/trades' },
       { id: 'act-store', title: 'Browse Store & Playbooks', category: 'Actions', icon: ShoppingBag, href: '/dashboard/purchases' },
       {
         id: 'act-tilt',
@@ -87,6 +135,57 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
           onTriggerTilt?.();
         },
         badge: 'Shield',
+      },
+
+      // Tools & Currency
+      {
+        id: 'tool-calendar',
+        title: 'P&L Calendar Heatmap & Day Drilldown',
+        category: 'Tools',
+        icon: Calendar,
+        href: '/dashboard/analytics?tab=calendar',
+        badge: 'Heatmap',
+      },
+      {
+        id: 'tool-tax',
+        title: 'Tax Report & Statutory Charges (STT, GST, SEBI)',
+        category: 'Tools',
+        icon: FileSpreadsheet,
+        href: '/dashboard/analytics?tab=tax',
+        badge: 'Tax P&L',
+      },
+      {
+        id: 'cur-inr',
+        title: `Switch Display Currency to INR (₹) ${currency === 'INR' ? '• Active' : ''}`,
+        category: 'Tools',
+        icon: Coins,
+        action: () => {
+          setCurrency('INR');
+          toast.success('Display currency switched to INR (₹)');
+          onClose();
+        },
+      },
+      {
+        id: 'cur-usd',
+        title: `Switch Display Currency to USD ($) ${currency === 'USD' ? '• Active' : ''}`,
+        category: 'Tools',
+        icon: Coins,
+        action: () => {
+          setCurrency('USD');
+          toast.success('Display currency switched to USD ($)');
+          onClose();
+        },
+      },
+      {
+        id: 'cur-usdt',
+        title: `Switch Display Currency to USDT (₮) ${currency === 'USDT' ? '• Active' : ''}`,
+        category: 'Tools',
+        icon: Coins,
+        action: () => {
+          setCurrency('USDT');
+          toast.success('Display currency switched to USDT (₮)');
+          onClose();
+        },
       },
     ];
 

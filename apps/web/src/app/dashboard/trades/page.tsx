@@ -74,6 +74,14 @@ export default function TradesPage() {
     fetchTrades();
   }, [page, segment, direction, sortKey, sortOrder]);
 
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      fetchTrades();
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
+  }, [page, segment, direction, sortKey, sortOrder]);
+
   async function fetchTrades() {
     setLoading(true);
     try {

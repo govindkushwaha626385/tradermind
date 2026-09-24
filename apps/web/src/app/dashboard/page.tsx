@@ -116,6 +116,14 @@ export default function DashboardPage() {
   useEffect(() => { fetchDashboard(false, timeframe); }, [timeframe]);
 
   useEffect(() => {
+    const handleBrokerSynced = () => {
+      fetchDashboard(true, timeframe);
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
+  }, [timeframe]);
+
+  useEffect(() => {
     api.getProfile().then((res) => {
       if (res.success) {
         const p = res.data as any;

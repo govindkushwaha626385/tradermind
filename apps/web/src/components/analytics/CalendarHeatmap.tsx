@@ -16,6 +16,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 
@@ -91,6 +92,7 @@ function getPnlColor(pnl: number, max: number): string {
 }
 
 function CalendarHeatmapComponent() {
+  const { currency } = useCurrency();
   const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -117,6 +119,14 @@ function CalendarHeatmapComponent() {
 
   useEffect(() => {
     fetchCalendar();
+  }, [fetchCalendar]);
+
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      fetchCalendar();
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
   }, [fetchCalendar]);
 
   const openDayDetail = async (dateStr: string) => {
@@ -195,7 +205,7 @@ function CalendarHeatmapComponent() {
               'text-sm font-semibold mt-0.5',
               monthNetPnl > 0 ? 'text-emerald-500' : monthNetPnl < 0 ? 'text-red-500' : 'text-muted-foreground',
             )}>
-              {monthNetPnl >= 0 ? '+' : ''}{formatCurrency(monthNetPnl)}
+              {monthNetPnl >= 0 ? '+' : ''}{formatCurrency(monthNetPnl, currency)}
             </div>
           </div>
           <button
@@ -271,7 +281,7 @@ function CalendarHeatmapComponent() {
                     <button
                       key={cell.date}
                       onClick={() => openDayDetail(cell.date!)}
-                      title={`${cell.date}: ${formatCurrency(cell.data.netPnl)} (${cell.data.tradeCount} trades)`}
+                      title={`${cell.date}: ${formatCurrency(cell.data.netPnl, currency)} (${cell.data.tradeCount} trades)`}
                       className={cn(
                         'aspect-square rounded-lg flex flex-col items-center justify-center text-[10px] transition-all duration-150',
                         'hover:scale-105 hover:shadow-md cursor-pointer',
@@ -279,7 +289,7 @@ function CalendarHeatmapComponent() {
                         isToday && 'ring-2 ring-primary',
                         isSelected && 'ring-2 ring-white/60 scale-105',
                       )}
-                      aria-label={`${cell.date} P&L: ${formatCurrency(cell.data.netPnl)}`}
+                      aria-label={`${cell.date} P&L: ${formatCurrency(cell.data.netPnl, currency)}`}
                     >
                       <span className="font-semibold">{day}</span>
                       {cell.data.tradeCount > 0 && (
@@ -321,7 +331,7 @@ function CalendarHeatmapComponent() {
                     'text-sm font-semibold',
                     dayDetail.summary.netPnl >= 0 ? 'text-emerald-500' : 'text-red-500',
                   )}>
-                    {dayDetail.summary.netPnl >= 0 ? '+' : ''}{formatCurrency(dayDetail.summary.netPnl)} net P&L
+                    {dayDetail.summary.netPnl >= 0 ? '+' : ''}{formatCurrency(dayDetail.summary.netPnl, currency)} net P&L
                   </p>
                 )}
               </div>
@@ -339,9 +349,9 @@ function CalendarHeatmapComponent() {
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {[
-                    { label: 'Gross P&L', value: formatCurrency(dayDetail.summary.grossPnl), icon: TrendingUp, positive: dayDetail.summary.grossPnl >= 0 },
-                    { label: 'Net P&L', value: formatCurrency(dayDetail.summary.netPnl), icon: Activity, positive: dayDetail.summary.netPnl >= 0 },
-                    { label: 'Charges', value: formatCurrency(dayDetail.summary.charges), icon: Zap, positive: false },
+                    { label: 'Gross P&L', value: formatCurrency(dayDetail.summary.grossPnl, currency), icon: TrendingUp, positive: dayDetail.summary.grossPnl >= 0 },
+                    { label: 'Net P&L', value: formatCurrency(dayDetail.summary.netPnl, currency), icon: Activity, positive: dayDetail.summary.netPnl >= 0 },
+                    { label: 'Charges', value: formatCurrency(dayDetail.summary.charges, currency), icon: Zap, positive: false },
                     { label: 'Win Rate', value: `${(dayDetail.summary.winRate * 100).toFixed(0)}%`, icon: TrendingDown, positive: dayDetail.summary.winRate >= 0.5 },
                   ].map((s) => (
                     <div key={s.label} className="bg-accent/40 rounded-xl p-2.5 flex items-center gap-2">
@@ -418,7 +428,7 @@ function CalendarHeatmapComponent() {
                           </div>
                           <div className="text-right">
                             <div className={cn('font-bold', t.netPnl >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                              {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl)}
+                              {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl, currency)}
                             </div>
                             {t.emotions.length > 0 && (
                               <div className="text-muted-foreground text-[10px] truncate max-w-24">

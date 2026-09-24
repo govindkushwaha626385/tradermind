@@ -56,8 +56,10 @@ export function LightweightCandleChart({
   const [timeframe, setTimeframe] = useState<ChartTimeframe>(initialTf);
   const [showLevels, setShowLevels] = useState(true);
   const [showEma, setShowEma] = useState(true);
+  const [showVwap, setShowVwap] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hoveredCandle, setHoveredCandle] = useState<{ open: number; high: number; low: number; close: number; changePct: number } | null>(null);
 
   // Change timeframe handler
   const handleSelectTimeframe = (tf: ChartTimeframe) => {
@@ -374,6 +376,51 @@ export function LightweightCandleChart({
       ema50Series.setData(ema50Data);
     }
 
+    // Add VWAP Indicator (Volume Weighted Average Price)
+    if (showVwap && candles.length >= 2) {
+      const vwapSeries = chart.addSeries(LineSeries, {
+        color: '#eab308',
+        lineWidth: 2,
+        title: 'VWAP',
+      });
+
+      let cumVol = 0;
+      let cumTypicalVol = 0;
+      const vwapData: LineData<Time>[] = [];
+
+      candles.forEach((c) => {
+        const vol = c.volume || 1800;
+        const typical = (c.high + c.low + c.close) / 3;
+        cumVol += vol;
+        cumTypicalVol += typical * vol;
+        const vwap = cumVol > 0 ? cumTypicalVol / cumVol : typical;
+        vwapData.push({ time: c.time, value: parseFloat(vwap.toFixed(2)) });
+      });
+
+      vwapSeries.setData(vwapData);
+    }
+
+    // Crosshair inspection listener
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time || !param.seriesData) {
+        setHoveredCandle(null);
+        return;
+      }
+      const bar = param.seriesData.get(candleSeries) as any;
+      if (bar && typeof bar.open === 'number') {
+        const changePct = bar.open > 0 ? ((bar.close - bar.open) / bar.open) * 100 : 0;
+        setHoveredCandle({
+          open: bar.open,
+          high: bar.high,
+          low: bar.low,
+          close: bar.close,
+          changePct,
+        });
+      } else {
+        setHoveredCandle(null);
+      }
+    });
+
     chart.timeScale().fitContent();
 
     // Resize Observer for fluid responsiveness
@@ -389,7 +436,7 @@ export function LightweightCandleChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, timeframe, showLevels, showEma, showVolume, currency]);
+  }, [data, timeframe, showLevels, showEma, showVwap, showVolume, currency]);
 
   return (
     <div
@@ -470,6 +517,20 @@ export function LightweightCandleChart({
             <span className="hidden sm:inline">EMA</span>
           </button>
 
+          {/* Toggle VWAP Indicator */}
+          <button
+            onClick={() => setShowVwap((prev) => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              showVwap
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+            }`}
+            title="Toggle VWAP (Volume Weighted Average Price)"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">VWAP</span>
+          </button>
+
           {/* Toggle Volume */}
           <button
             onClick={() => setShowVolume((prev) => !prev)}
@@ -511,6 +572,22 @@ export function LightweightCandleChart({
             )}
           </button>
         </div>
+      </div>
+
+      {/* Real-time OHLC Inspector Ribbon */}
+      <div className="flex items-center gap-4 px-4 py-1.5 bg-zinc-950 border-b border-zinc-800/60 text-xs font-mono overflow-x-auto text-zinc-400">
+        <span className="text-zinc-500 font-sans text-[11px] uppercase tracking-wider font-semibold">Candle:</span>
+        <div className="flex items-center gap-3">
+          <span>O: <strong className="text-zinc-200">{hoveredCandle ? hoveredCandle.open.toFixed(2) : (Number(data.entryPrice) || 0).toFixed(2)}</strong></span>
+          <span>H: <strong className="text-emerald-400">{hoveredCandle ? hoveredCandle.high.toFixed(2) : (Number(data.entryPrice) * 1.01 || 0).toFixed(2)}</strong></span>
+          <span>L: <strong className="text-rose-400">{hoveredCandle ? hoveredCandle.low.toFixed(2) : (Number(data.entryPrice) * 0.99 || 0).toFixed(2)}</strong></span>
+          <span>C: <strong className="text-zinc-200">{hoveredCandle ? hoveredCandle.close.toFixed(2) : (Number(data.exitPrice) || Number(data.entryPrice) || 0).toFixed(2)}</strong></span>
+        </div>
+        {hoveredCandle && (
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${hoveredCandle.changePct >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+            {hoveredCandle.changePct >= 0 ? '+' : ''}{hoveredCandle.changePct.toFixed(2)}%
+          </span>
+        )}
       </div>
 
       {/* Canvas Mount Container */}

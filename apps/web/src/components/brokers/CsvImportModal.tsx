@@ -134,6 +134,9 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
         setStep('success');
         onImportComplete?.(res.data.inserted);
         toast.success(`✅ Imported ${res.data.inserted} trades from ${BROKER_DISPLAY_NAMES[res.data.broker] ?? res.data.broker}`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('broker-synced', { detail: { totalImported: res.data.inserted } }));
+        }
       } else {
         setError(res.error?.message ?? 'Import failed');
       }

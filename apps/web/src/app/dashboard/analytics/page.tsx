@@ -92,6 +92,16 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     document.title = 'Analytics — TradeMind';
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('tab');
+      if (p) {
+        if (p === 'calendar') setActiveTab('calendar');
+        else if (p === 'what-if') setActiveTab('what-if');
+        else if (p === 'tax' || p === 'tax-report') setActiveTab('tax-report');
+        else if (p === 'deep-stats' || p === 'deep') setActiveTab('deep-stats');
+        else if (p === 'performance') setActiveTab('performance');
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -100,6 +110,18 @@ export default function AnalyticsPage() {
     } else if (activeTab === 'deep-stats') {
       fetchDeepStats();
     }
+  }, [timeframe, activeTab]);
+
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      if (activeTab === 'performance') {
+        fetchAnalytics();
+      } else if (activeTab === 'deep-stats') {
+        fetchDeepStats();
+      }
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
   }, [timeframe, activeTab]);
 
   async function fetchDeepStats() {

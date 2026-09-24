@@ -28,8 +28,11 @@ export default function AiAssistantPage() {
   const { format } = useCurrency();
   const searchParams = useSearchParams();
   const initialQuestion = searchParams.get('question');
+  const initialTab = searchParams.get('tab');
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'chart'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'chart'>(
+    initialTab === 'chart' ? 'chart' : 'chat'
+  );
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       role: 'assistant',
@@ -69,6 +72,14 @@ export default function AiAssistantPage() {
 
   useEffect(() => {
     loadContext();
+  }, []);
+
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      loadContext();
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
   }, []);
 
   // Handle initial question from URL if navigated from replay/autopsy

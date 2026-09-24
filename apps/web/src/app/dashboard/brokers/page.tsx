@@ -201,6 +201,9 @@ export default function BrokersPage() {
       setConnectModal(null);
       toast.success(`${BROKER_META[brokerId]?.name ?? 'Broker'} connected successfully`);
       await fetchBrokers();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('broker-synced'));
+      }
     } catch (err: any) {
       setConnectError(err.message ?? 'Failed to connect broker');
     } finally {
@@ -211,9 +214,12 @@ export default function BrokersPage() {
   const handleSync = async (connectionId: string) => {
     setSyncStatus(connectionId);
     try {
-      await api.syncBroker(connectionId);
-      toast.success('Sync initiated successfully');
+      const res = await api.syncBroker(connectionId);
+      toast.success('Sync completed successfully');
       await fetchBrokers();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('broker-synced', { detail: (res as any)?.data }));
+      }
     } catch (err) {
       console.error('Failed to sync:', err);
       toast.error('Sync failed. Please try again.');

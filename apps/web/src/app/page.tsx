@@ -21,39 +21,42 @@ import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { Footer } from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
-  title: `${APP_NAME} — Automated Trading Journal & Behavioral Analytics for Indian Traders`,
+  title: `${APP_NAME} — Automated Trading Journal & AI Analytics | Stocks, F&O, Crypto & Forex`,
   description:
-    'Auto-sync trades from Zerodha, Dhan, Angel One, Upstox, Delta Exchange, Groww, Sahi, and Lemonn. Accurate STT & SEBI fees, MFE/MAE analytics, tilt detection, and AI behavioral coaching.',
+    'The premier automated trading journal for active traders worldwide. Real-time broker sync (Groww, Zerodha, Dhan, Angel One, Upstox, Delta Exchange, CSV), bar-by-bar TradingView candlestick replay, AI trade autopsy, behavioral risk shield, and multi-currency performance analytics.',
   keywords: [
-    'trading journal india',
-    'automated trading journal india',
+    'automated trading journal',
+    'trading journal software',
+    'crypto trading journal',
+    'forex trade journal',
+    'options trading journal',
+    'tradingview replay journal',
+    'ai trading copilot',
+    'tradezella alternative',
+    'ultratrader alternative',
+    'groww trade sync',
     'zerodha trading journal',
-    'dhan trade sync',
-    'f&o trading analytics',
-    'stt calculator trading',
-    'mfe mae trading metrics',
+    'dhan api journal',
+    'mfe mae trade metrics',
     'behavioral trading analysis',
     'trading psychology app',
-    'nse bse trade journal',
-    'angel one trade tracker',
-    'upstox journal',
   ],
   alternates: {
     canonical: 'https://trademind.app',
   },
   openGraph: {
-    title: `${APP_NAME} — Automated Trading Journal for Indian Traders`,
+    title: `${APP_NAME} — Automated Trading Journal & AI Analytics`,
     description:
-      'Auto-sync trades from Zerodha, Dhan, Angel One, and Upstox. Track MFE/MAE, calculate Indian taxes, and eliminate emotional trading biases.',
+      'Real-time broker sync, bar-by-bar candlestick replay, behavioral risk shield, and institutional trade autopsy. Built for stocks, crypto, forex, and options traders.',
     type: 'website',
     url: 'https://trademind.app',
     siteName: APP_NAME,
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${APP_NAME} — Automated Trading Journal for Indian Traders`,
+    title: `${APP_NAME} — Automated Trading Journal & AI Analytics`,
     description:
-      'Auto-sync trades from Indian brokers, calculate exact charges, and level up your trading psychology.',
+      'Auto-sync trades from global brokers, eliminate emotional trading errors, and build an institutional trading edge.',
     site: '@trademindapp',
   },
   robots: {

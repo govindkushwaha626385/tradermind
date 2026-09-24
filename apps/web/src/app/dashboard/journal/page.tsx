@@ -143,6 +143,14 @@ export default function JournalPage() {
     fetchTrades(page);
   }, [fetchTrades, page]);
 
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      fetchTrades(1);
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
+  }, [fetchTrades]);
+
   // Journal form state
   const [formStrategyId, setFormStrategyId] = useState<string>('');
   const [formEmotions, setFormEmotions] = useState<string[]>([]);

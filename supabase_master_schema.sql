@@ -113,6 +113,19 @@ CREATE INDEX        IF NOT EXISTS broker_connections_status_idx    ON public.bro
 CREATE UNIQUE INDEX IF NOT EXISTS broker_connections_user_broker_unique
   ON public.broker_connections(user_id, broker_id, broker_client_id);
 
+-- Ensure tokens are TEXT even if table already existed from an older migration
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'broker_connections') THEN
+    ALTER TABLE public.broker_connections 
+      ALTER COLUMN access_token TYPE TEXT,
+      ALTER COLUMN refresh_token TYPE TEXT,
+      ALTER COLUMN api_key TYPE TEXT,
+      ALTER COLUMN api_secret TYPE TEXT;
+  END IF;
+END;
+$$;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 3. BROKER PROFILES & ACCOUNT BALANCES
 -- ═══════════════════════════════════════════════════════════════════════════

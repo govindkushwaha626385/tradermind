@@ -59,7 +59,11 @@ import { BottomNavBar } from '@/components/BottomNavBar';
 import { QuickTradeCapture } from '@/components/QuickTradeCapture';
 import { QuickCommandPalette } from '@/components/QuickCommandPalette';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { QuickSyncButton } from '@/components/QuickSyncButton';
 import { TiltProtectionModal } from '@/components/discipline/TiltProtectionModal';
+import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
+import { PlatformTourModal } from '@/components/education/PlatformTourModal';
+import { HelpCircle } from 'lucide-react';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
 
@@ -341,12 +345,15 @@ export default function DashboardLayout({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tiltModalOpen, setTiltModalOpen] = useState(false);
 
-  // Global Cmd+K / Ctrl+K keyboard shortcut
+  // Global Cmd+K / Ctrl+K keyboard shortcut & '?' tour shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
+      } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        setShowTour(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -355,6 +362,13 @@ export default function DashboardLayout({
 
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    const handleOpenTour = () => setShowTour(true);
+    window.addEventListener('open-platform-tour', handleOpenTour);
+    return () => window.removeEventListener('open-platform-tour', handleOpenTour);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -601,6 +615,9 @@ export default function DashboardLayout({
               </Link>
             )}
 
+            {/* One-Click Quick Broker Sync */}
+            <QuickSyncButton />
+
             {/* Global Currency Switcher */}
             <CurrencySwitcher />
 
@@ -619,6 +636,16 @@ export default function DashboardLayout({
             {/* Notifications */}
             <NotificationPanel onUnreadChange={setHasUnread} />
 
+            {/* Platform Tour & Academy */}
+            <button
+              onClick={() => setShowTour(true)}
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Platform Tour & Learning Academy"
+              aria-label="Platform Tour"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+
             {/* User avatar → settings */}
             <Link
               href="/dashboard/settings"
@@ -630,6 +657,9 @@ export default function DashboardLayout({
             </Link>
           </div>
         </header>
+
+        {/* ── Global Market Session Tape ──── */}
+        <GlobalMarketTicker />
 
         {/* ── Impersonation Warning Banner ──── */}
         {impersonatedUser && (
@@ -679,6 +709,12 @@ export default function DashboardLayout({
       <TiltProtectionModal
         isOpen={tiltModalOpen}
         onClose={() => setTiltModalOpen(false)}
+      />
+
+      {/* ── Interactive Platform Tour & Academy Modal ── */}
+      <PlatformTourModal
+        isOpen={showTour}
+        onClose={() => setShowTour(false)}
       />
     </div>
   );

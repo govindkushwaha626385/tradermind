@@ -235,10 +235,33 @@ async function handleExportCsv(req: NextRequest, userId: string) {
     .where(and(...conditions))
     .orderBy(desc(journalTrades.openedAt));
 
-  const headers = ['Trade ID', 'Date', 'Symbol', 'Exchange', 'Asset Class', 'Direction', 'Status', 'Quantity', 'Entry Price', 'Exit Price', 'Gross PnL', 'Fees & Taxes', 'Net PnL'];
+  const headers = [
+    'Trade ID',
+    'Open Date',
+    'Close Date',
+    'Symbol',
+    'Exchange',
+    'Asset Class',
+    'Direction',
+    'Status',
+    'Quantity',
+    'Entry Price',
+    'Exit Price',
+    'Gross PnL',
+    'Fees & Taxes',
+    'Net PnL',
+    'R-Multiple',
+    'MFE',
+    'MAE',
+    'Holding Period (Mins)',
+    'Emotions',
+    'Mistakes',
+    'Notes',
+  ];
   const rows = trades.map((t) => [
     t.id,
     t.openedAt?.toISOString() ?? '',
+    t.closedAt?.toISOString() ?? '',
     t.tradingsymbol,
     t.exchange,
     t.assetClass,
@@ -250,6 +273,13 @@ async function handleExportCsv(req: NextRequest, userId: string) {
     Number(t.grossPnl ?? 0).toFixed(2),
     Number(t.totalFeesAndTaxes ?? 0).toFixed(2),
     Number(t.netPnl ?? 0).toFixed(2),
+    t.rMultiple != null ? Number(t.rMultiple).toFixed(2) : '',
+    t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion).toFixed(2) : '',
+    t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion).toFixed(2) : '',
+    t.holdingPeriodMinutes ?? '',
+    (t.emotions ?? []).join('; '),
+    (t.mistakeTags ?? []).join('; '),
+    t.traderNotes ?? '',
   ]);
 
   const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
