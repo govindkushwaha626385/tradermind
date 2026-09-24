@@ -101,19 +101,19 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
       )
     );
 
-  const closedTrades = trades.filter((t) => t.status === 'CLOSED');
+  const targetTrades = trades.length > 0 ? trades : [];
 
-  if (closedTrades.length === 0) {
+  if (targetTrades.length === 0) {
     return null; // No trades today — no debrief needed
   }
 
   // ── 3. Compute stats ───────────────────────────
-  const wins = closedTrades.filter((t) => Number(t.netPnl) > 0);
-  const losses = closedTrades.filter((t) => Number(t.netPnl) <= 0);
-  const netPnl = closedTrades.reduce((sum, t) => sum + Number(t.netPnl), 0);
-  const winRate = closedTrades.length > 0 ? ((wins.length / closedTrades.length) * 100).toFixed(0) + '%' : '0%';
+  const wins = targetTrades.filter((t) => Number(t.netPnl) > 0);
+  const losses = targetTrades.filter((t) => Number(t.netPnl) <= 0);
+  const netPnl = targetTrades.reduce((sum, t) => sum + Number(t.netPnl), 0);
+  const winRate = targetTrades.length > 0 ? ((wins.length / targetTrades.length) * 100).toFixed(0) + '%' : '0%';
 
-  const sortedByPnl = [...closedTrades].sort((a, b) => Number(b.netPnl) - Number(a.netPnl));
+  const sortedByPnl = [...targetTrades].sort((a, b) => Number(b.netPnl) - Number(a.netPnl));
   const bestTradeRaw = sortedByPnl[0];
   const worstTradeRaw = sortedByPnl[sortedByPnl.length - 1];
   const bestTrade = bestTradeRaw ? { symbol: bestTradeRaw.tradingsymbol, pnl: Number(bestTradeRaw.netPnl) } : null;
@@ -134,7 +134,7 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
   }
 
   const stats: DailyDebriefResult['stats'] = {
-    totalTrades: closedTrades.length,
+    totalTrades: targetTrades.length,
     wins: wins.length,
     losses: losses.length,
     netPnl,
@@ -142,7 +142,7 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
     worstTrade,
   };
 
-  const pnlSummary = `${netPnl >= 0 ? '+' : ''}₹${Math.abs(netPnl).toFixed(0)} on ${closedTrades.length} trade${closedTrades.length !== 1 ? 's' : ''}`;
+  const pnlSummary = `${netPnl >= 0 ? '+' : ''}₹${Math.abs(netPnl).toFixed(0)} on ${targetTrades.length} trade${targetTrades.length !== 1 ? 's' : ''}`;
 
   // ── 4. Build rule-based parts (always available) ──
   const topEmotion = Object.entries(emotionCounts).sort(([, a], [, b]) => b - a)[0];
@@ -151,7 +151,7 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
     : 'No emotional tags recorded today.';
 
   // ── 5. Try AI for richer text ──────────────────
-  let headline = `${netPnl >= 0 ? 'Profitable' : 'Difficult'} session — ${winRate} win rate on ${closedTrades.length} trades.`;
+  let headline = `${netPnl >= 0 ? 'Profitable' : 'Difficult'} session — ${winRate} win rate on ${targetTrades.length} trades.`;
   let topLesson = 'Review your tagged mistakes and update your trading playbook accordingly.';
   let emotionalPattern = emotionalPatternFallback;
   let tomorrowFocus = 'Focus on following your pre-trade checklist and respecting your stop losses.';

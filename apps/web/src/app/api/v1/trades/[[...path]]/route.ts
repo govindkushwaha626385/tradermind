@@ -245,11 +245,11 @@ async function handleExportCsv(req: NextRequest, userId: string) {
     t.direction,
     t.status,
     t.totalQuantity,
-    t.avgEntryPrice.toFixed(2),
-    t.avgExitPrice ? t.avgExitPrice.toFixed(2) : '',
-    t.grossPnl.toFixed(2),
-    t.totalFeesAndTaxes.toFixed(2),
-    t.netPnl.toFixed(2),
+    Number(t.avgEntryPrice ?? 0).toFixed(2),
+    t.avgExitPrice ? Number(t.avgExitPrice).toFixed(2) : '',
+    Number(t.grossPnl ?? 0).toFixed(2),
+    Number(t.totalFeesAndTaxes ?? 0).toFixed(2),
+    Number(t.netPnl ?? 0).toFixed(2),
   ]);
 
   const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');

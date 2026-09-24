@@ -62,8 +62,7 @@ export async function runBehavioralShield(userId: string): Promise<BehavioralShi
 
   // ── Today's stats ──────────────────────────
   const todayTrades = trades.filter((t) => new Date(t.openedAt) >= todayCutoff);
-  const todayClosedTrades = todayTrades.filter((t) => t.status === 'CLOSED');
-  const dailyPnl = todayClosedTrades.reduce((sum, t) => sum + Number(t.netPnl), 0);
+  const dailyPnl = todayTrades.reduce((sum, t) => sum + Number(t.netPnl), 0);
   const todayTradeCount = todayTrades.length;
 
   // ── Pre-Market Plan Integration ──────────────

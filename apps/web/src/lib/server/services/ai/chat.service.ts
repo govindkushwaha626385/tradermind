@@ -58,26 +58,27 @@ export async function getTraderLiveContext(userId: string): Promise<TraderLiveCo
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  // Recent closed trades
+  // Recent trades
   const recentTrades = await db
     .select({
       id: journalTrades.id,
       symbol: journalTrades.tradingsymbol,
       direction: journalTrades.direction,
+      status: journalTrades.status,
       netPnl: journalTrades.netPnl,
       emotions: journalTrades.emotions,
       mistakeTags: journalTrades.mistakeTags,
+      openedAt: journalTrades.openedAt,
       closedAt: journalTrades.closedAt,
     })
     .from(journalTrades)
     .where(
       and(
         eq(journalTrades.userId, userId),
-        eq(journalTrades.status, 'CLOSED'),
-        gte(journalTrades.closedAt, thirtyDaysAgo),
+        gte(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`, thirtyDaysAgo),
       ),
     )
-    .orderBy(desc(journalTrades.closedAt))
+    .orderBy(desc(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`))
     .limit(30);
 
   let winCount = 0;

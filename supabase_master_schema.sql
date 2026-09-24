@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS public.broker_connections (
   broker_client_id   VARCHAR(100)  NOT NULL,
   label              VARCHAR(255)  NOT NULL DEFAULT '',
   auth_type          VARCHAR(30)   NOT NULL,
-  access_token       TEXT          NOT NULL,
+  access_token       TEXT          NOT NULL DEFAULT '',
   refresh_token      TEXT,
   api_key            TEXT,
   api_secret         TEXT,

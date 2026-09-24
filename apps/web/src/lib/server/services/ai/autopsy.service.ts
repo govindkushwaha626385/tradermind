@@ -150,11 +150,6 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
 
   if (!trade) return null;
 
-  // Only analyze closed trades
-  if (trade.status !== 'CLOSED') {
-    return null;
-  }
-
   // ── 3. Enrich with ratings & plan ─────────────
   const [rating] = await db
     .select()

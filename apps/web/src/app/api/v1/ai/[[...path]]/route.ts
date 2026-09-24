@@ -91,7 +91,7 @@ export async function POST(
       if (!tradeId) return apiError('Trade ID is required');
       try {
         const result = await runTradeAutopsy(user.id, tradeId);
-        if (!result) return notFound('Trade not found, not owned by you, or still open. Only closed trades can be analyzed.');
+        if (!result) return notFound('Trade not found or not owned by you.');
         return ok(result);
       } catch (err) {
         console.error('[AI Autopsy Error]', err);

@@ -2,7 +2,7 @@
 // TradeMind — Calculator Suite Types & Presets
 // ──────────────────────────────────────────────
 
-export type Currency = 'INR' | 'USD';
+export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'USDT' | 'BTC' | string;
 
 export type CalculatorCategory =
   | 'ALL'

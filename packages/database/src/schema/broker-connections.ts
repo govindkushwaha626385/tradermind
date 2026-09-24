@@ -25,7 +25,7 @@ export const brokerConnections = pgTable(
     brokerClientId: varchar('broker_client_id', { length: 100 }).notNull(),
     label: varchar('label', { length: 255 }).notNull().default(''),
     authType: varchar('auth_type', { length: 30 }).notNull(),
-    accessToken: text('access_token').notNull(),
+    accessToken: text('access_token').default('').notNull(),
     refreshToken: text('refresh_token'),
     apiKey: text('api_key'),
     apiSecret: text('api_secret'),

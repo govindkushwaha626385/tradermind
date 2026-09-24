@@ -58,6 +58,7 @@ import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { BottomNavBar } from '@/components/BottomNavBar';
 import { QuickTradeCapture } from '@/components/QuickTradeCapture';
 import { QuickCommandPalette } from '@/components/QuickCommandPalette';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { TiltProtectionModal } from '@/components/discipline/TiltProtectionModal';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
@@ -599,6 +600,9 @@ export default function DashboardLayout({
                 Admin
               </Link>
             )}
+
+            {/* Global Currency Switcher */}
+            <CurrencySwitcher />
 
             {/* Theme toggle */}
             <button

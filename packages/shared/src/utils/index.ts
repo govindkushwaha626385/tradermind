@@ -5,6 +5,9 @@
 // Cryptographic hashing lives in @trademind/database/src/lib/encryption.ts
 // ──────────────────────────────────────────────
 
+import type { SupportedCurrency } from '../types/enums';
+export type { SupportedCurrency };
+
 /**
  * Clamp a number between min and max.
  */
@@ -23,22 +26,39 @@ export function safeJsonParse<T>(json: string, fallback: T): T {
   }
 }
 
-/**
- * Format a number as currency (supports INR and USD).
- *
- * @example formatCurrency(184750, 'INR') // "₹1,84,750.00"
- * @example formatCurrency(184750, 'USD') // "$184,750.00"
- */
-export function formatCurrency(amount: number, currency: 'INR' | 'USD' | string = 'INR'): string {
-  const curr = (currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
-  const locale = curr === 'USD' ? 'en-US' : 'en-IN';
+export function formatCurrency(amount: number, currency: SupportedCurrency | string = 'INR'): string {
+  const num = Number(amount) || 0;
+  const curr = (currency || 'INR').toUpperCase();
 
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: curr,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  if (curr === 'USDT') {
+    return `₮${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (curr === 'BTC') {
+    return `₿${num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
+  }
+
+  const localeMap: Record<string, string> = {
+    INR: 'en-IN',
+    USD: 'en-US',
+    EUR: 'de-DE',
+    GBP: 'en-GB',
+    JPY: 'ja-JP',
+    AUD: 'en-AU',
+    CAD: 'en-CA',
+  };
+
+  const locale = localeMap[curr] || 'en-US';
+
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: curr,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    return `${curr} ${num.toFixed(2)}`;
+  }
 }
 
 /**

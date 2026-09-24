@@ -39,7 +39,7 @@ export type OrderType = (typeof ORDER_TYPES)[number];
 export const ASSET_CLASSES = ['EQUITY', 'FNO_OPTIONS', 'FNO_FUTURES', 'CRYPTO_PERP', 'COMMODITY'] as const;
 export type AssetClass = (typeof ASSET_CLASSES)[number];
 
-export const SUPPORTED_CURRENCIES = ['INR', 'USD'] as const;
+export const SUPPORTED_CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'USDT', 'BTC'] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 export const SUPPORTED_TIMEZONES = [
