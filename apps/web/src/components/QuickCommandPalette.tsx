@@ -147,6 +147,18 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         },
         badge: 'Routine',
       },
+      {
+        id: 'act-position-calc',
+        title: 'Instant Position Sizing & Risk Calculator',
+        category: 'Actions',
+        icon: Calculator,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-position-calculator'));
+        },
+        badge: 'Risk',
+        shortcut: 'SIZE',
+      },
       { id: 'act-import', title: 'Import Broker CSV (Tradebook / Orders)', category: 'Actions', icon: Plug, href: '/dashboard/brokers', badge: 'CSV' },
       { id: 'act-new-trade', title: 'Log a Manual Trade Execution', category: 'Actions', icon: TrendingUp, href: '/dashboard/trades' },
       { id: 'act-store', title: 'Browse Store & Playbooks', category: 'Actions', icon: ShoppingBag, href: '/dashboard/purchases' },

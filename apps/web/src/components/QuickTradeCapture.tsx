@@ -9,7 +9,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Plus, X, TrendingUp, TrendingDown, Loader2, CheckCircle2 } from 'lucide-react';
+import { Plus, X, TrendingUp, TrendingDown, Loader2, CheckCircle2, Scale } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -183,17 +183,30 @@ export function QuickTradeCapture({ onSuccess }: QuickTradeCaptureProps) {
               </div>
 
               {/* Quantity */}
-              <input
-                type="number"
-                placeholder="Quantity"
-                value={form.quantity}
-                onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                required
-                min="0"
-                step="1"
-                inputMode="numeric"
-              />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-muted-foreground">Quantity</label>
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-position-calculator'))}
+                    className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Scale className="w-3 h-3" />
+                    Calc Sizing
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  value={form.quantity}
+                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                  min="0"
+                  step="1"
+                  inputMode="numeric"
+                />
+              </div>
 
               {/* Entry / Exit prices */}
               <div className="grid grid-cols-2 gap-2">

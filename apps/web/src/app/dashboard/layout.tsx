@@ -66,6 +66,7 @@ import { BehavioralInterventionBanner } from '@/components/discipline/Behavioral
 import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
 import { PlatformTourModal } from '@/components/education/PlatformTourModal';
 import { EodReviewModal } from '@/components/discipline/EodReviewModal';
+import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
 import { HelpCircle } from 'lucide-react';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
@@ -379,6 +380,14 @@ export default function DashboardLayout({
     const handleOpenEod = () => setEodReviewOpen(true);
     window.addEventListener('open-eod-review', handleOpenEod);
     return () => window.removeEventListener('open-eod-review', handleOpenEod);
+  }, []);
+
+  const [positionCalcOpen, setPositionCalcOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenPositionCalc = () => setPositionCalcOpen(true);
+    window.addEventListener('open-position-calculator', handleOpenPositionCalc);
+    return () => window.removeEventListener('open-position-calculator', handleOpenPositionCalc);
   }, []);
 
   useEffect(() => {
@@ -738,6 +747,12 @@ export default function DashboardLayout({
       <EodReviewModal
         isOpen={eodReviewOpen}
         onClose={() => setEodReviewOpen(false)}
+      />
+
+      {/* ── Instant In-Journal Position Sizing & Risk Calculator Modal ── */}
+      <PositionSizeCalculatorModal
+        isOpen={positionCalcOpen}
+        onClose={() => setPositionCalcOpen(false)}
       />
     </div>
   );

@@ -37,6 +37,11 @@ import {
   List,
   Calendar as CalendarIcon,
   BarChart2,
+  Scale,
+  ArrowLeftRight,
+  Filter,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -52,6 +57,7 @@ import { VoiceDictation } from '@/components/ai/VoiceDictation';
 import { MarketSessionStatus } from '@/components/dashboard/MarketSessionStatus';
 import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
+import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 
 interface TradeJournalEntry {
   id: string;
@@ -101,6 +107,17 @@ export default function JournalPage() {
   const [suggestedSetup, setSuggestedSetup] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [selectedChartTrade, setSelectedChartTrade] = useState<TradeJournalEntry | null>(null);
+
+  // Multi-dimensional filters state
+  const [directionFilter, setDirectionFilter] = useState<'ALL' | 'LONG' | 'SHORT'>('ALL');
+  const [outcomeFilter, setOutcomeFilter] = useState<'ALL' | 'WIN' | 'LOSS' | 'BREAKEVEN'>('ALL');
+  const [emotionFilter, setEmotionFilter] = useState<string>('ALL');
+  const [mistakeFilter, setMistakeFilter] = useState<string>('ALL');
+  const [showExtendedFilters, setShowExtendedFilters] = useState<boolean>(false);
+
+  // Trade Comparison Studio state
+  const [compareTradeA, setCompareTradeA] = useState<TradeJournalEntry | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -186,8 +203,51 @@ export default function JournalPage() {
   const filtered = trades.filter((t) => {
     const symbol = t.symbol || t.tradingsymbol || '';
     if (search && !symbol.toLowerCase().includes(search.toLowerCase())) return false;
+
+    if (directionFilter !== 'ALL') {
+      const isLong = t.direction === 'LONG' || t.direction === 'BUY';
+      if (directionFilter === 'LONG' && !isLong) return false;
+      if (directionFilter === 'SHORT' && isLong) return false;
+    }
+
+    if (outcomeFilter !== 'ALL') {
+      const pnl = Number(t.netPnl ?? 0);
+      if (outcomeFilter === 'WIN' && pnl <= 0) return false;
+      if (outcomeFilter === 'LOSS' && pnl >= 0) return false;
+      if (outcomeFilter === 'BREAKEVEN' && Math.abs(pnl) > 5) return false;
+    }
+
+    if (emotionFilter !== 'ALL') {
+      const em = t.emotions || [];
+      if (!em.includes(emotionFilter)) return false;
+    }
+
+    if (mistakeFilter !== 'ALL') {
+      const mis = t.mistakeTags || [];
+      if (!mis.includes(mistakeFilter)) return false;
+    }
+
     return true;
   });
+
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    strategyFilter !== 'ALL' ||
+    filter !== 'ALL' ||
+    directionFilter !== 'ALL' ||
+    outcomeFilter !== 'ALL' ||
+    emotionFilter !== 'ALL' ||
+    mistakeFilter !== 'ALL';
+
+  const resetAllFilters = () => {
+    setSearch('');
+    setStrategyFilter('ALL');
+    setFilter('ALL');
+    setDirectionFilter('ALL');
+    setOutcomeFilter('ALL');
+    setEmotionFilter('ALL');
+    setMistakeFilter('ALL');
+  };
 
   const openJournalModal = (trade: TradeJournalEntry) => {
     setJournalModal(trade);
@@ -379,6 +439,25 @@ export default function JournalPage() {
               EOD Wrap-Up
             </button>
             <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-position-calculator'))}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border bg-background hover:bg-accent text-sm font-semibold transition-colors shadow-sm"
+              title="Instant Position Sizing & Risk Calculator"
+            >
+              <Scale className="w-4 h-4 text-primary" />
+              Position Sizing
+            </button>
+            <button
+              onClick={() => {
+                setCompareTradeA(trades[0] || null);
+                setCompareOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border bg-background hover:bg-accent text-sm font-semibold transition-colors shadow-sm"
+              title="Side-by-Side Trade Comparison Studio"
+            >
+              <ArrowLeftRight className="w-4 h-4 text-purple-400" />
+              Compare Studio
+            </button>
+            <button
               onClick={handleExportCsv}
               disabled={exporting || trades.length === 0}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-background hover:bg-accent text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
@@ -405,56 +484,207 @@ export default function JournalPage() {
         </div>
       ) : (
         <>
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by symbol..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {strategies.length > 0 && (
-            <select
-              value={strategyFilter}
-              onChange={(e) => {
-                setStrategyFilter(e.target.value);
-                setPage(1);
-              }}
-              className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="ALL">All Strategies</option>
-              {strategies.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.marketType})
-                </option>
-              ))}
-            </select>
-          )}
+          {/* Filters Bar */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search by symbol (e.g. NIFTY, AAPL, BTC)..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowExtendedFilters(!showExtendedFilters)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                    showExtendedFilters || hasActiveFilters
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-accent'
+                  )}
+                  title="Toggle Multi-Dimensional Filters"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span>Filters</span>
+                  {hasActiveFilters && (
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </button>
 
-          {(['ALL', 'OPEN', 'CLOSED'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => {
-                setFilter(f);
-                setPage(1);
-              }}
-              className={cn(
-                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border',
-                filter === f
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent',
-              )}
-            >
-              {f === 'ALL' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
+                {strategies.length > 0 && (
+                  <select
+                    value={strategyFilter}
+                    onChange={(e) => {
+                      setStrategyFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="ALL">All Strategies</option>
+                    {strategies.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.marketType})
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {(['ALL', 'OPEN', 'CLOSED'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => {
+                      setFilter(f);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border',
+                      filter === f
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent',
+                    )}
+                  >
+                    {f === 'ALL' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Extended Faceted Filter Drawer */}
+            {showExtendedFilters && (
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-in text-xs">
+                {/* Direction Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    Direction
+                  </label>
+                  <select
+                    value={directionFilter}
+                    onChange={(e) => setDirectionFilter(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="ALL">All Directions</option>
+                    <option value="LONG">Long / Buy</option>
+                    <option value="SHORT">Short / Sell</option>
+                  </select>
+                </div>
+
+                {/* Outcome Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    P&L Outcome
+                  </label>
+                  <select
+                    value={outcomeFilter}
+                    onChange={(e) => setOutcomeFilter(e.target.value as any)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="ALL">All Outcomes</option>
+                    <option value="WIN">Winners (P&L &gt; 0)</option>
+                    <option value="LOSS">Losses (P&L &lt; 0)</option>
+                    <option value="BREAKEVEN">Breakeven (&plusmn;0)</option>
+                  </select>
+                </div>
+
+                {/* Emotion Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    Emotion Logged
+                  </label>
+                  <select
+                    value={emotionFilter}
+                    onChange={(e) => setEmotionFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="ALL">All Emotions</option>
+                    {Object.entries(EMOTION_LABELS).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {EMOTION_EMOJIS[k as keyof typeof EMOTION_EMOJIS]} {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Mistake Tag Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    Mistake Tagged
+                  </label>
+                  <select
+                    value={mistakeFilter}
+                    onChange={(e) => setMistakeFilter(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="ALL">All Mistakes</option>
+                    {Object.entries(MISTAKE_LABELS).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Active Filter Chips Strip */}
+            {hasActiveFilters && (
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[11px] text-muted-foreground font-semibold">
+                  Active Filters:
+                </span>
+                {search && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium">
+                    "{search}"
+                    <button onClick={() => setSearch('')} className="hover:text-foreground">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {directionFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-foreground border border-border text-[11px] font-medium">
+                    Direction: {directionFilter}
+                    <button onClick={() => setDirectionFilter('ALL')} className="hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {outcomeFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-foreground border border-border text-[11px] font-medium">
+                    Outcome: {outcomeFilter}
+                    <button onClick={() => setOutcomeFilter('ALL')} className="hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {emotionFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-foreground border border-border text-[11px] font-medium">
+                    Emotion: {EMOTION_LABELS[emotionFilter as keyof typeof EMOTION_LABELS] || emotionFilter}
+                    <button onClick={() => setEmotionFilter('ALL')} className="hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {mistakeFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-foreground border border-border text-[11px] font-medium">
+                    Mistake: {MISTAKE_LABELS[mistakeFilter as keyof typeof MISTAKE_LABELS] || mistakeFilter}
+                    <button onClick={() => setMistakeFilter('ALL')} className="hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                <button
+                  onClick={resetAllFilters}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] text-destructive hover:bg-destructive/10 transition-colors font-semibold"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Clear All
+                </button>
+              </div>
+            )}
+          </div>
 
       {/* Loading state */}
       {loading ? (
@@ -609,6 +839,18 @@ export default function JournalPage() {
                       >
                         <BarChart2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Chart</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCompareTradeA(trade);
+                          setCompareOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-semibold transition-colors"
+                        title="Side-by-Side Trade Comparison Studio"
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Compare</span>
                       </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}
@@ -1417,6 +1659,14 @@ export default function JournalPage() {
         isOpen={!!selectedChartTrade}
         onClose={() => setSelectedChartTrade(null)}
         trade={selectedChartTrade}
+      />
+
+      {/* Institutional Trade Comparison Studio Modal */}
+      <TradeComparisonModal
+        isOpen={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        tradeA={compareTradeA}
+        allTrades={trades}
       />
     </div>
   );

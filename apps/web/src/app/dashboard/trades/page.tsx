@@ -25,6 +25,7 @@ import {
   PlayCircle,
   Activity,
   BarChart2,
+  ArrowLeftRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -36,6 +37,7 @@ import { Pagination } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
+import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 
 interface TradeExecution {
   id: string;
@@ -68,6 +70,8 @@ export default function TradesPage() {
   const [sortKey, setSortKey]   = useState<string>('executionTimestamp');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedChartTrade, setSelectedChartTrade] = useState<any | null>(null);
+  const [compareTradeA, setCompareTradeA] = useState<any | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'Trade Executions — TradeMind';
@@ -156,6 +160,17 @@ export default function TradesPage() {
               title="Refresh"
             >
               <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            </button>
+            <button
+              onClick={() => {
+                setCompareTradeA(trades[0] || null);
+                setCompareOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border hover:bg-accent text-sm font-semibold transition-colors shadow-sm"
+              title="Side-by-Side Trade Comparison Studio"
+            >
+              <ArrowLeftRight className="w-4 h-4 text-purple-400" />
+              Compare Studio
             </button>
             <button
               onClick={handleExport}
@@ -300,6 +315,17 @@ export default function TradesPage() {
                         <BarChart2 className="w-3.5 h-3.5" />
                         <span>Chart</span>
                       </button>
+                      <button
+                        onClick={() => {
+                          setCompareTradeA(trade);
+                          setCompareOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-semibold transition-colors"
+                        title="Compare Trade"
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                        <span>Compare</span>
+                      </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
@@ -417,6 +443,17 @@ export default function TradesPage() {
                             <BarChart2 className="w-3.5 h-3.5" />
                             Chart
                           </button>
+                          <button
+                            onClick={() => {
+                              setCompareTradeA(trade);
+                              setCompareOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-semibold transition-colors"
+                            title="Compare with another trade"
+                          >
+                            <ArrowLeftRight className="w-3.5 h-3.5" />
+                            Compare
+                          </button>
                           <Link
                             href={`/dashboard/trades/${trade.id}/replay`}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
@@ -452,6 +489,14 @@ export default function TradesPage() {
         isOpen={!!selectedChartTrade}
         onClose={() => setSelectedChartTrade(null)}
         trade={selectedChartTrade}
+      />
+
+      {/* Institutional Trade Comparison Studio Modal */}
+      <TradeComparisonModal
+        isOpen={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        tradeA={compareTradeA}
+        allTrades={trades}
       />
     </div>
   );
