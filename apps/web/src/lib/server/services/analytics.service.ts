@@ -116,14 +116,14 @@ export async function generateDashboardStats(
       openTrades: sql<number>`COUNT(*) FILTER (WHERE status = 'OPEN')`,
       wins: sql<number>`COUNT(*) FILTER (WHERE status = 'CLOSED' AND net_pnl > 0)`,
       losses: sql<number>`COUNT(*) FILTER (WHERE status = 'CLOSED' AND net_pnl < 0)`,
-      totalNetPnl: sql<number>`COALESCE(SUM(net_pnl) FILTER (WHERE status = 'CLOSED'), 0)`,
-      totalGrossPnl: sql<number>`COALESCE(SUM(gross_pnl) FILTER (WHERE status = 'CLOSED'), 0)`,
-      totalFees: sql<number>`COALESCE(SUM(total_fees_and_taxes) FILTER (WHERE status = 'CLOSED'), 0)`,
-      grossWins: sql<number>`COALESCE(SUM(net_pnl) FILTER (WHERE status = 'CLOSED' AND net_pnl > 0), 0)`,
-      grossLosses: sql<number>`ABS(COALESCE(SUM(net_pnl) FILTER (WHERE status = 'CLOSED' AND net_pnl < 0), 0))`,
-      bestTrade: sql<number>`COALESCE(MAX(net_pnl) FILTER (WHERE status = 'CLOSED'), 0)`,
-      worstTrade: sql<number>`COALESCE(MIN(net_pnl) FILTER (WHERE status = 'CLOSED'), 0)`,
-      avgRR: sql<number>`COALESCE(AVG(r_multiple) FILTER (WHERE status = 'CLOSED' AND r_multiple IS NOT NULL), 0)`,
+      totalNetPnl: sql<number>`COALESCE(SUM(net_pnl), 0)`,
+      totalGrossPnl: sql<number>`COALESCE(SUM(gross_pnl), 0)`,
+      totalFees: sql<number>`COALESCE(SUM(total_fees_and_taxes), 0)`,
+      grossWins: sql<number>`COALESCE(SUM(net_pnl) FILTER (WHERE net_pnl > 0), 0)`,
+      grossLosses: sql<number>`ABS(COALESCE(SUM(net_pnl) FILTER (WHERE net_pnl < 0), 0))`,
+      bestTrade: sql<number>`COALESCE(MAX(net_pnl), 0)`,
+      worstTrade: sql<number>`COALESCE(MIN(net_pnl), 0)`,
+      avgRR: sql<number>`COALESCE(AVG(r_multiple) FILTER (WHERE r_multiple IS NOT NULL), 0)`,
     })
     .from(journalTrades)
     .where(and(...conditions));
@@ -131,13 +131,13 @@ export async function generateDashboardStats(
   // PnL by day — SQL GROUP BY
   const pnlByDay = await db
     .select({
-      date: sql<string>`DATE(closed_at)`,
-      pnl: sql<number>`COALESCE(SUM(net_pnl), 0)`,
+      date: sql<string>`DATE(COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt}))`,
+      pnl: sql<number>`COALESCE(SUM(${journalTrades.netPnl}), 0)`,
     })
     .from(journalTrades)
-    .where(and(...conditions, eq(journalTrades.status, 'CLOSED'), sql`${journalTrades.closedAt} IS NOT NULL`))
-    .groupBy(sql`DATE(closed_at)`)
-    .orderBy(sql`DATE(closed_at)`);
+    .where(and(...conditions))
+    .groupBy(sql`DATE(COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt}))`)
+    .orderBy(sql`DATE(COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt}))`);
 
   // Emotion breakdown — SQL json_agg and count
   const emotionRows = await db

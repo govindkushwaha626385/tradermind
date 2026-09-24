@@ -257,11 +257,11 @@ export async function applyBatchJournalAutofill(
       .where(and(eq(journalTrades.userId, userId), inArray(journalTrades.id, tradeIds)))
       .limit(20);
   } else {
-    // Find up to 10 closed trades that have no ratings yet
+    // Find up to 10 trades that have no ratings yet
     targetTrades = await db
       .select()
       .from(journalTrades)
-      .where(and(eq(journalTrades.userId, userId), eq(journalTrades.status, 'CLOSED')))
+      .where(eq(journalTrades.userId, userId))
       .limit(10);
   }
 

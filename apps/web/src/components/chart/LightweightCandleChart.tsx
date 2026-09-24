@@ -71,11 +71,13 @@ export function LightweightCandleChart({
     entryTime: Time;
     exitTime: Time;
   } => {
-    const entry = data.entryPrice;
+    const rawEntry = Number(data.entryPrice);
+    const entry = (!isNaN(rawEntry) && rawEntry > 0) ? rawEntry : 100;
     const isLong = data.direction === 'LONG';
-    const exit = data.exitPrice ?? entry * (isLong ? 1.018 : 0.982);
-    const mfe = data.mfe ?? (isLong ? Math.max(entry, exit) * 1.025 : Math.min(entry, exit) * 0.975);
-    const mae = data.mae ?? (isLong ? Math.min(entry, exit) * 0.988 : Math.max(entry, exit) * 1.012);
+    const rawExit = Number(data.exitPrice);
+    const exit = (!isNaN(rawExit) && rawExit > 0) ? rawExit : entry * (isLong ? 1.018 : 0.982);
+    const mfe = data.mfe != null ? Number(data.mfe) : (isLong ? Math.max(entry, exit) * 1.025 : Math.min(entry, exit) * 0.975);
+    const mae = data.mae != null ? Number(data.mae) : (isLong ? Math.min(entry, exit) * 0.988 : Math.max(entry, exit) * 1.012);
 
     const priceDelta = Math.abs(exit - entry) || entry * 0.012;
     const stepSeconds =
@@ -422,13 +424,13 @@ export function LightweightCandleChart({
           <div className="hidden sm:flex items-center gap-1 text-[11px] text-zinc-400">
             <span>Entry:</span>
             <strong className="text-zinc-200 font-mono">
-              {formatCurrency(data.entryPrice, currency)}
+              {formatCurrency(Number(data.entryPrice) || 0, currency)}
             </strong>
-            {data.exitPrice && (
+            {data.exitPrice != null && (
               <>
                 <span className="ml-1.5">Exit:</span>
                 <strong className="text-zinc-200 font-mono">
-                  {formatCurrency(data.exitPrice, currency)}
+                  {formatCurrency(Number(data.exitPrice) || 0, currency)}
                 </strong>
               </>
             )}

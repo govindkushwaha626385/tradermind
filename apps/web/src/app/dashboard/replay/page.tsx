@@ -70,11 +70,44 @@ interface Candle {
   emotion?: string;
 }
 
+function normalizeTrade(t: any): TradeOption {
+  const rawEntry = Number(t.avgEntryPrice ?? t.executionPrice ?? t.entryPrice ?? 0);
+  const entryPrice = (!isNaN(rawEntry) && rawEntry > 0) ? rawEntry : 100;
+  const rawExit = t.avgExitPrice ? Number(t.avgExitPrice) : (t.status === 'OPEN' ? entryPrice : (Number(t.executionPrice) || entryPrice));
+  const exitPrice = (!isNaN(rawExit) && rawExit > 0) ? rawExit : entryPrice;
+  const rawOpen = t.openedAt ?? t.executionTimestamp ?? t.createdAt;
+  const openTime = rawOpen && !isNaN(new Date(rawOpen).getTime()) ? new Date(rawOpen).toISOString() : new Date().toISOString();
+  const rawClose = t.closedAt ?? openTime;
+  const closeTime = rawClose && !isNaN(new Date(rawClose).getTime()) ? new Date(rawClose).toISOString() : openTime;
+  const direction = (t.direction ?? (t.transactionType === 'BUY' ? 'LONG' : 'SHORT')) as 'LONG' | 'SHORT';
+  const symbol = t.tradingsymbol || t.symbol || 'TRADE';
+  const exchange = t.exchange || 'NSE';
+  const netPnl = Number(t.netPnl ?? ((Number(t.grossPnl ?? 0)) - Number(t.totalCharges ?? 0)));
+
+  return {
+    id: t.id,
+    tradingsymbol: symbol,
+    exchange,
+    direction,
+    openedAt: openTime,
+    closedAt: closeTime,
+    netPnl,
+    avgEntryPrice: entryPrice,
+    avgExitPrice: exitPrice,
+    maxFavorableExcursion: t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion) : null,
+    maxAdverseExcursion: t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion) : null,
+    rMultiple: t.rMultiple != null ? Number(t.rMultiple) : null,
+    holdingPeriodMinutes: t.holdingPeriodMinutes != null ? Number(t.holdingPeriodMinutes) : null,
+  };
+}
+
 // ── Candle generation (simulated from real trade data) ────────────────────────
 
 function generateCandles(trade: TradeOption, count = 30): Candle[] {
-  const entry = trade.avgEntryPrice;
-  const exit = trade.avgExitPrice ?? entry;
+  const rawEntry = Number(trade.avgEntryPrice);
+  const entry = (!isNaN(rawEntry) && rawEntry > 0) ? rawEntry : 100;
+  const rawExit = Number(trade.avgExitPrice);
+  const exit = (!isNaN(rawExit) && rawExit > 0) ? rawExit : entry;
   const mfe = trade.maxFavorableExcursion ?? Math.abs(exit - entry) * 1.5;
   const mae = trade.maxAdverseExcursion ?? Math.abs(exit - entry) * 0.5;
   const isLong = trade.direction === 'LONG';
@@ -357,20 +390,41 @@ export default function TradeReplayPage() {
   const [chartView, setChartView] = useState<'canvas' | 'scrubber'>('canvas');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch closed trades for selection
+  // Fetch journal and execution trades for selection
   useEffect(() => {
     setLoading(true);
     api
-      .getTrades({ status: 'CLOSED', limit: 50, sortBy: 'closedAt', order: 'desc' })
-      .then((res) => {
-        const raw = res.data as TradeOption[] | { trades: TradeOption[] } | null;
-        const t: TradeOption[] = Array.isArray(raw)
-          ? raw
-          : (raw as { trades: TradeOption[] } | null)?.trades ?? [];
-        setTrades(t);
-        if (t.length > 0) selectTrade(t[0]!);
+      .getJournalTrades({ limit: 100 })
+      .then(async (res) => {
+        const raw = res.data as any;
+        const list = Array.isArray(raw) ? raw : (raw?.trades ?? raw?.data ?? []);
+        let normalized = list.map(normalizeTrade);
+
+        // If no journal trades found, fallback to executions
+        if (normalized.length === 0) {
+          try {
+            const execRes = await api.getTrades({ limit: 50 });
+            const execRaw = execRes.data as any;
+            const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
+            normalized = execList.map(normalizeTrade);
+          } catch {}
+        }
+
+        setTrades(normalized);
+        if (normalized.length > 0) selectTrade(normalized[0]!);
       })
-      .catch(() => toast.error('Failed to load trades'))
+      .catch(async () => {
+        try {
+          const execRes = await api.getTrades({ limit: 50 });
+          const execRaw = execRes.data as any;
+          const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
+          const normalized = execList.map(normalizeTrade);
+          setTrades(normalized);
+          if (normalized.length > 0) selectTrade(normalized[0]!);
+        } catch {
+          toast.error('Failed to load trades');
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -478,7 +532,7 @@ export default function TradeReplayPage() {
                 >
                   <span className="truncate">
                     {selectedTrade
-                      ? `${selectedTrade.tradingsymbol} · ${selectedTrade.direction} · ${new Date(selectedTrade.openedAt).toLocaleDateString('en-IN')}`
+                      ? `${selectedTrade.tradingsymbol} (${selectedTrade.exchange}) · ${selectedTrade.direction} · ${new Date(selectedTrade.openedAt).toLocaleDateString('en-IN')}`
                       : 'Select a trade'}
                   </span>
                   <ChevronDown className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
@@ -494,7 +548,7 @@ export default function TradeReplayPage() {
                           selectedTrade?.id === t.id && 'bg-accent',
                         )}
                       >
-                        <span className="font-medium truncate">{t.tradingsymbol}</span>
+                        <span className="font-medium truncate">{t.tradingsymbol} ({t.exchange})</span>
                         <span className={cn('text-xs font-semibold flex-shrink-0', t.netPnl >= 0 ? 'text-profit' : 'text-loss')}>
                           {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl)}
                         </span>
