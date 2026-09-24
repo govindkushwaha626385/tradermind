@@ -147,18 +147,37 @@ export default function DashboardPage() {
         api.getTrades({ limit: 8, sortBy: 'exitTime', sortDir: 'desc', startDate }),
       ]);
 
-      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+      if (statsRes.status === 'fulfilled' && statsRes.value?.success) {
         const d = statsRes.value.data as any;
-        // getDashboard returns combined stats + equity
         setStats(d?.stats ?? d as DashboardStats);
         const rawEquity = d?.equityCurve ?? d?.equity ?? [];
         setEquityData(Array.isArray(rawEquity) ? rawEquity : []);
+      } else {
+        setStats({
+          totalTrades: 0,
+          closedTrades: 0,
+          openTrades: 0,
+          winRate: 0,
+          profitFactor: 0,
+          totalNetPnl: 0,
+          totalGrossPnl: 0,
+          totalFees: 0,
+          totalWins: 0,
+          totalLosses: 0,
+          avgWin: 0,
+          avgLoss: 0,
+          bestTrade: 0,
+          worstTrade: 0,
+          avgRRatio: 0,
+          emotionsBreakdown: {},
+          pnlByDay: [],
+        } as any);
       }
-      if (insightsRes.status === 'fulfilled' && insightsRes.value.success) {
+      if (insightsRes.status === 'fulfilled' && insightsRes.value?.success) {
         const raw = (insightsRes.value.data as any)?.insights ?? insightsRes.value.data ?? [];
         setInsights(Array.isArray(raw) ? raw.slice(0, 3) : []);
       }
-      if (recentRes.status === 'fulfilled' && recentRes.value.success) {
+      if (recentRes.status === 'fulfilled' && recentRes.value?.success) {
         const raw = (recentRes.value.data as any)?.trades ?? recentRes.value.data ?? [];
         setRecentTrades(Array.isArray(raw) ? raw.slice(0, 8) : []);
       }

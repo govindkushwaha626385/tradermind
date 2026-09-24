@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -326,6 +326,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -391,8 +392,12 @@ export default function DashboardLayout({
         setUserPlan(p.plan?.name ?? p.subscription?.planSlug ?? null);
         setUserRole(p.role ?? null);
       }
-    }).catch(() => {});
-  }, []);
+    }).catch((err: any) => {
+      if (err?.status === 401) {
+        router.push('/login');
+      }
+    });
+  }, [router]);
 
   // ── Load onboarding status ────────────────────────────────────────
   useEffect(() => {

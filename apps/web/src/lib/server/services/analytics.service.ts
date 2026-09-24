@@ -159,6 +159,17 @@ export async function generateDashboardStats(
   const grossWins = Number(aggregate?.grossWins ?? 0);
   const grossLosses = Number(aggregate?.grossLosses ?? 0);
 
+  let cumPnl = 0;
+  const equityCurve = pnlByDay.map((d) => {
+    const pnl = Number(d.pnl);
+    cumPnl += pnl;
+    return {
+      date: d.date,
+      pnl,
+      cumulativePnl: Math.round(cumPnl * 100) / 100,
+    };
+  });
+
   return {
     totalTrades: Number(aggregate?.totalTrades ?? 0),
     closedTrades: closedCount,
@@ -177,6 +188,7 @@ export async function generateDashboardStats(
     avgRRatio: Number(aggregate?.avgRR ?? 0),
     emotionsBreakdown,
     pnlByDay: pnlByDay.map((d) => ({ date: d.date, pnl: Number(d.pnl) })),
+    equityCurve,
   };
 }
 

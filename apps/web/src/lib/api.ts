@@ -57,11 +57,52 @@ let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      try {
+        sessionStorage.setItem('trademind_access_token', token);
+        localStorage.setItem('trademind_access_token', token);
+        document.cookie = `trademind_access_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`;
+      } catch {}
+    } else {
+      try {
+        sessionStorage.removeItem('trademind_access_token');
+        localStorage.removeItem('trademind_access_token');
+        document.cookie = 'trademind_access_token=; path=/; max-age=0; SameSite=Lax';
+      } catch {}
+    }
+  }
 }
 
 export function getAccessToken(): string | null {
   if (typeof window !== 'undefined') {
-    return accessToken ?? sessionStorage.getItem('trademind_access_token');
+    if (accessToken) return accessToken;
+    try {
+      const sessionToken = sessionStorage.getItem('trademind_access_token');
+      if (sessionToken) {
+        accessToken = sessionToken;
+        return sessionToken;
+      }
+      const localToken = localStorage.getItem('trademind_access_token');
+      if (localToken) {
+        accessToken = localToken;
+        return localToken;
+      }
+      // Check Supabase stored auth keys: sb-<ref>-auth-token
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.access_token) {
+              accessToken = parsed.access_token;
+              return parsed.access_token;
+            }
+          }
+        }
+      }
+    } catch {}
   }
   return accessToken;
 }
@@ -183,8 +224,13 @@ export const api = {
       body: JSON.stringify({ email, password, name }),
     }),
 
-  logout: () =>
-    request<unknown>('/auth/logout', { method: 'POST' }),
+  logout: async () => {
+    try {
+      await request<unknown>('/auth/logout', { method: 'POST' });
+    } finally {
+      setAccessToken(null);
+    }
+  },
 
   getProfile: () => request<unknown>('/auth/me'),
   updateProfile: (data: Record<string, unknown>) =>

@@ -70,10 +70,40 @@ export async function resolveAuthUser(token: string): Promise<AuthUser | null> {
  * Extract the Bearer token from an Authorization header.
  * Returns null if the header is missing or malformed.
  */
+/**
+ * Extract the Bearer token from an Authorization header or auth cookies.
+ * Returns null if no token is found.
+ */
 export function extractBearerToken(req: NextRequest): string | null {
   const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  return authHeader.slice(7);
+  if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
+
+  // Check cookies
+  const cookieHeader = req.headers.get('cookie') || '';
+  if (cookieHeader) {
+    const cookies = Object.fromEntries(
+      cookieHeader.split(';').map((c) => {
+        const [k, ...v] = c.trim().split('=');
+        return [k, decodeURIComponent(v.join('='))];
+      }),
+    );
+
+    if (cookies['trademind_access_token']) return cookies['trademind_access_token'];
+    if (cookies['sb-access-token']) return cookies['sb-access-token'];
+
+    // Check Supabase SSR cookie pattern: sb-<ref>-auth-token
+    for (const [k, v] of Object.entries(cookies)) {
+      if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        try {
+          const parsed = JSON.parse(v);
+          if (parsed?.access_token) return parsed.access_token;
+          if (Array.isArray(parsed) && parsed[0]) return parsed[0];
+        } catch {}
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
