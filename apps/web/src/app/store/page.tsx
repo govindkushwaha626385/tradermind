@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   Star,
   Zap,
+  PackageCheck,
+  ArrowLeft,
 } from 'lucide-react';
 import { api, getAccessToken } from '@/lib/api';
 import type { StoreProduct, StoreProductType } from '@trademind/shared';
@@ -153,6 +155,26 @@ export default function StoreCatalogPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">
       {/* Container */}
       <div className="max-w-6xl mx-auto space-y-10">
+        {/* Navigation Bar */}
+        <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
+          <Link
+            href="/dashboard/store"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard/purchases"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 hover:text-white transition-colors"
+            >
+              <PackageCheck className="w-3.5 h-3.5 text-emerald-400" />
+              My Purchases
+            </Link>
+          </div>
+        </div>
+
         {/* Header Hero */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">

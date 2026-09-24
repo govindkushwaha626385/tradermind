@@ -213,51 +213,101 @@ export class GrowwConnector implements IBrokerConnector {
         const orderList: any[] = data.order_list ?? [];
 
         for (const order of orderList) {
-          // Only process COMPLETE/TRADED orders
-          if (order.order_status !== 'COMPLETE' && order.order_status !== 'TRADED') continue;
+          // Process executed or traded orders
+          const isTradedOrder = ['EXECUTED', 'COMPLETE', 'TRADED', 'FILLED'].includes(
+            (order.order_status ?? '').toUpperCase(),
+          ) || (order.filled_quantity && order.filled_quantity > 0);
+
+          if (!isTradedOrder) continue;
 
           // Fetch individual trades for this order to get fill-level detail
-          const tradesData = await this.apiGet(
-            `/order/trades/${order.groww_order_id}?segment=${segment}`,
-          );
-          const tradeList: any[] = tradesData.trade_list ?? [];
+          let tradeList: any[] = [];
+          try {
+            const tradesData = await this.apiGet(
+              `/order/trades/${order.groww_order_id}?segment=${segment}`,
+            );
+            tradeList = tradesData.trade_list ?? [];
+          } catch {
+            tradeList = [];
+          }
 
-          for (const trade of tradeList) {
-            if (trade.trade_status !== 'COMPLETED') continue;
+          if (tradeList.length > 0) {
+            for (const trade of tradeList) {
+              const isTradedFill = ['EXECUTED', 'COMPLETED', 'COMPLETE', 'TRADED', 'FILLED'].includes(
+                (trade.trade_status ?? '').toUpperCase(),
+              ) || (trade.quantity && trade.quantity > 0);
 
-            const quantity = trade.quantity ?? order.filled_quantity ?? 0;
-            const price = trade.price ?? order.average_fill_price ?? 0;
+              if (!isTradedFill) continue;
 
-            // Apply date filter on trade timestamp
-            const tradeTime = new Date(trade.trade_date_time ?? order.exchange_time ?? order.created_at);
-            if (startDate && tradeTime < startDate) continue;
-            if (endDate && tradeTime > endDate) continue;
+              const quantity = trade.quantity ?? order.filled_quantity ?? 0;
+              const price = trade.price ?? order.average_fill_price ?? order.price ?? 0;
+              if (quantity <= 0 || price <= 0) continue;
 
-            executions.push({
-              id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-              userId: '',      // filled by sync worker
-              brokerConnectionId: '', // filled by sync worker
-              brokerExecutionId: `groww_${trade.groww_trade_id ?? order.groww_order_id}`,
-              brokerOrderId: order.groww_order_id,
-              exchangeOrderId: trade.exchange_order_id ?? trade.exchange_trade_id,
-              tradingsymbol: trade.trading_symbol ?? order.trading_symbol ?? 'UNKNOWN',
-              exchange: mapExchange(trade.exchange ?? order.exchange ?? 'NSE'),
-              segment: mapSegment(segment),
-              transactionType: (trade.transaction_type ?? order.transaction_type) === 'BUY' ? 'BUY' : 'SELL',
-              orderType: mapOrderType(order.order_type),
-              quantity,
-              executionPrice: price,
-              executionTimestamp: tradeTime,
-              brokerageFee: 0,
-              sttTax: 0,
-              exchangeTurnoverFee: 0,
-              gstFee: 0,
-              sebiCharges: 0,
-              stampDuty: 0,
-              totalCharges: 0,
-              fillHash: '', // filled by caller via createFillHash()
-              createdAt: new Date(),
-            });
+              // Apply date filter on trade timestamp
+              const tradeTime = new Date(trade.trade_date_time ?? trade.created_at ?? order.exchange_time ?? order.created_at ?? new Date());
+              if (startDate && tradeTime < startDate) continue;
+              if (endDate && tradeTime > endDate) continue;
+
+              executions.push({
+                id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                userId: '',      // filled by sync worker
+                brokerConnectionId: '', // filled by sync worker
+                brokerExecutionId: `groww_${trade.groww_trade_id ?? trade.exchange_trade_id ?? order.groww_order_id}`,
+                brokerOrderId: order.groww_order_id,
+                exchangeOrderId: trade.exchange_order_id ?? trade.exchange_trade_id,
+                tradingsymbol: trade.trading_symbol ?? order.trading_symbol ?? 'UNKNOWN',
+                exchange: mapExchange(trade.exchange ?? order.exchange ?? 'NSE'),
+                segment: mapSegment(segment),
+                transactionType: (trade.transaction_type ?? order.transaction_type ?? '').toUpperCase() === 'BUY' ? 'BUY' : 'SELL',
+                orderType: mapOrderType(order.order_type),
+                quantity,
+                executionPrice: price,
+                executionTimestamp: tradeTime,
+                brokerageFee: 0,
+                sttTax: 0,
+                exchangeTurnoverFee: 0,
+                gstFee: 0,
+                sebiCharges: 0,
+                stampDuty: 0,
+                totalCharges: 0,
+                fillHash: '', // filled by caller via createFillHash()
+                createdAt: new Date(),
+              });
+            }
+          } else {
+            // Fallback to order fill directly if trade details are not separately listed
+            const quantity = order.filled_quantity ?? order.quantity ?? 0;
+            const price = order.average_fill_price ?? order.price ?? 0;
+            if (quantity > 0 && price > 0) {
+              const tradeTime = new Date(order.exchange_time ?? order.created_at ?? new Date());
+              if ((!startDate || tradeTime >= startDate) && (!endDate || tradeTime <= endDate)) {
+                executions.push({
+                  id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  userId: '',
+                  brokerConnectionId: '',
+                  brokerExecutionId: `groww_${order.groww_order_id}`,
+                  brokerOrderId: order.groww_order_id,
+                  exchangeOrderId: undefined,
+                  tradingsymbol: order.trading_symbol ?? 'UNKNOWN',
+                  exchange: mapExchange(order.exchange ?? 'NSE'),
+                  segment: mapSegment(segment),
+                  transactionType: (order.transaction_type ?? '').toUpperCase() === 'BUY' ? 'BUY' : 'SELL',
+                  orderType: mapOrderType(order.order_type),
+                  quantity,
+                  executionPrice: price,
+                  executionTimestamp: tradeTime,
+                  brokerageFee: 0,
+                  sttTax: 0,
+                  exchangeTurnoverFee: 0,
+                  gstFee: 0,
+                  sebiCharges: 0,
+                  stampDuty: 0,
+                  totalCharges: 0,
+                  fillHash: '',
+                  createdAt: new Date(),
+                });
+              }
+            }
           }
         }
 

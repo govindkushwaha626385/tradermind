@@ -53,7 +53,7 @@ const MORE_ITEMS = [
   { label: 'Playbooks',   href: '/dashboard/playbooks',    icon: BookMarked },
   { label: 'Checklists',  href: '/dashboard/checklists',   icon: ListChecks },
   { label: 'Brokers',     href: '/dashboard/brokers',      icon: Plug },
-  { label: 'Store',       href: '/store',                  icon: ShoppingBag },
+  { label: 'Store',       href: '/dashboard/store',        icon: ShoppingBag },
   { label: 'Purchases',   href: '/dashboard/purchases',    icon: PackageCheck },
   { label: 'Partners',    href: '/dashboard/partners',     icon: Handshake },
   { label: 'Settings',    href: '/dashboard/settings',     icon: Settings },

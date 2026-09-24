@@ -61,8 +61,8 @@ export async function GET(
   const url = new URL(req.url);
   const [section, sub, detail] = path ?? [];
 
-  // ── dashboard ──────────────────────────────────────────────
-  if (section === 'dashboard') {
+  // ── dashboard / default ─────────────────────────────────────
+  if (!section || section === 'dashboard') {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const cacheKey = `analytics:dashboard:${user.id}:${startDate ?? 'all'}:${endDate ?? 'all'}`;

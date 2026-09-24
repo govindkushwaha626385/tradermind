@@ -97,7 +97,7 @@ const SIDEBAR_GROUPS = [
     items: [
       { label: 'Calculators', href: '/dashboard/calculators', icon: Calculator },
       { label: 'Brokers',     href: '/dashboard/brokers',     icon: Plug },
-      { label: 'Store',       href: '/store',                 icon: ShoppingBag },
+      { label: 'Store',       href: '/dashboard/store',       icon: ShoppingBag },
       { label: 'Purchases',   href: '/dashboard/purchases',   icon: PackageCheck },
       { label: 'Partners',    href: '/dashboard/partners',    icon: Handshake },
     ],

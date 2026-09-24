@@ -15,7 +15,7 @@ import {
   reviews, tradingStrategies, leaderboardOptIns, leaderboardSnapshots,
   partners, backgroundJobs, cacheEntries, apiRateLimits, featureFlags,
 } from '@trademind/database';
-import { eq, sql, desc, asc, and, gte, lte, ilike } from 'drizzle-orm';
+import { eq, sql, desc, asc, and, gte, lte, ilike, inArray } from 'drizzle-orm';
 import { configManager, CONFIG_DEFINITIONS } from '@trademind/config';
 import { recordAdminAudit } from '@/lib/server/services/admin-audit.service';
 import { invalidateCache } from '@/lib/server/cache';
@@ -101,7 +101,7 @@ export async function GET(
       db.select({ count: sql<number>`COUNT(*)` }).from(users).where(whereClause as any),
     ]);
     const userIds = userList.map((u) => u.id);
-    const userSubs = userIds.length > 0 ? await db.select().from(subscriptions).where(sql`${subscriptions.userId} = ANY(${userIds})`) : [];
+    const userSubs = userIds.length > 0 ? await db.select().from(subscriptions).where(inArray(subscriptions.userId, userIds)) : [];
     const subMap = new Map(userSubs.map((s) => [s.userId, s]));
     const enriched = userList.map((u) => { const s = subMap.get(u.id); return { ...u, subscription: s ? { id: s.id, planId: s.planId, status: s.status, provider: s.provider, currentPeriodEnd: s.currentPeriodEnd } : null }; });
     const total = Number(totalResult[0]?.count ?? 0);
@@ -357,6 +357,16 @@ export async function GET(
       ]);
       return ok({ totalRevenuePaise: Number(totalRevenueRow[0]?.revenue ?? 0), totalPaidOrders: Number(totalRevenueRow[0]?.paidOrders ?? 0), totalProducts: Number(productsCountRow[0]?.total ?? 0), activeProducts: Number(productsCountRow[0]?.active ?? 0), pendingReviewsCount: Number(pendingReviewsRow[0]?.count ?? 0), topProducts });
     }
+    // Fallback: GET /admin/store or /admin/store/products
+    const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') ?? 50)));
+    const offset = (page - 1) * limit;
+    const [rows, totalResult] = await Promise.all([
+      db.select().from(products).orderBy(products.sortOrder, desc(products.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`COUNT(*)` }).from(products),
+    ]);
+    const total = Number(totalResult[0]?.count ?? 0);
+    return ok({ products: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   }
 
   // GET /admin/reviews

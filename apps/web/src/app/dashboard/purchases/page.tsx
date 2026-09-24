@@ -87,7 +87,7 @@ export default function UserPurchasesPage() {
         actions={
           <div className="flex items-center gap-2">
             <Link
-              href="/store"
+              href="/dashboard/store"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -132,7 +132,7 @@ export default function UserPurchasesPage() {
               You haven&apos;t added any products yet. Browse our free and premium trading playbooks and video masterclasses.
             </p>
             <Link
-              href="/store"
+              href="/dashboard/store"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30"
             >
               Explore Store

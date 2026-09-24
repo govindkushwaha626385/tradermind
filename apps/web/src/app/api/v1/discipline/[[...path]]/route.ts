@@ -74,7 +74,7 @@ export async function GET(
     return ok(rating ?? null);
   }
 
-  if (section === 'stats') {
+  if (!section || section === 'stats') {
     const [complianceResult] = await db.select({ avgCompliance: sql<number>`AVG(compliance_score)`.as('avg_compliance'), totalChecked: sql<number>`COUNT(*)`.as('total_checked') }).from(tradeChecklists).where(eq(tradeChecklists.userId, user.id));
     const [adherenceResult] = await db.select({ avgAdherence: sql<number>`AVG(plan_adherence_score)`.as('avg_adherence'), totalPlanned: sql<number>`COUNT(*)`.as('total_planned') }).from(tradePlans).where(eq(tradePlans.userId, user.id));
     const mistakeCostsRaw = await db.execute(sql`SELECT unnest(mistake_tags) AS mistake_tag, SUM(net_pnl) AS total_pnl, COUNT(*) AS trade_count FROM journal_trades WHERE user_id = ${user.id} AND mistake_tags IS NOT NULL GROUP BY mistake_tag ORDER BY total_pnl ASC`);
