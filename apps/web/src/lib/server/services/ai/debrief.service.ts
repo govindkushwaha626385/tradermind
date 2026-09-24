@@ -5,7 +5,7 @@
 // Cached once per day per user — 1 LLM call/day max.
 // ──────────────────────────────────────────────
 
-import { getDatabase, journalTrades, aiCache } from '@trademind/database';
+import { getDatabase, journalTrades, aiCache, users } from '@trademind/database';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { aiGenerate, isAiConfigured } from './ai.client';
 
@@ -39,7 +39,12 @@ function getTodayRange(): { start: Date; end: Date; dateStr: string } {
   return { start, end, dateStr };
 }
 
-function buildDebriefPrompt(stats: DailyDebriefResult['stats'], emotions: Record<string, number>, mistakes: string[]): string {
+function buildDebriefPrompt(
+  stats: DailyDebriefResult['stats'],
+  emotions: Record<string, number>,
+  mistakes: string[],
+  curSymbol = '$'
+): string {
   const winRate = stats.totalTrades > 0 ? ((stats.wins / stats.totalTrades) * 100).toFixed(0) : '0';
   const emotionSummary = Object.entries(emotions)
     .sort(([, a], [, b]) => b - a)
@@ -53,9 +58,9 @@ function buildDebriefPrompt(stats: DailyDebriefResult['stats'], emotions: Record
 TODAY'S TRADING SUMMARY:
 Trades: ${stats.totalTrades} (${stats.wins} wins, ${stats.losses} losses)
 Win Rate: ${winRate}%
-Net P&L: ₹${stats.netPnl.toFixed(2)}
-Best Trade: ${stats.bestTrade ? `${stats.bestTrade.symbol} +₹${stats.bestTrade.pnl.toFixed(0)}` : 'N/A'}
-Worst Trade: ${stats.worstTrade ? `${stats.worstTrade.symbol} -₹${Math.abs(stats.worstTrade.pnl).toFixed(0)}` : 'N/A'}
+Net P&L: ${curSymbol}${stats.netPnl.toFixed(2)}
+Best Trade: ${stats.bestTrade ? `${stats.bestTrade.symbol} +${curSymbol}${stats.bestTrade.pnl.toFixed(0)}` : 'N/A'}
+Worst Trade: ${stats.worstTrade ? `${stats.worstTrade.symbol} -${curSymbol}${Math.abs(stats.worstTrade.pnl).toFixed(0)}` : 'N/A'}
 Emotions Tagged: ${emotionSummary}
 Mistakes Tagged: ${mistakeSummary}
 
@@ -89,7 +94,18 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
     return { ...result, cached: true };
   }
 
-  // ── 2. Fetch today's trades ─────────────────────
+  // ── 2. Fetch today's trades & user currency ────
+  const [userRecord] = await db
+    .select({ currency: users.preferredCurrency })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const curSymbol =
+    userRecord?.currency === 'USD' ? '$' :
+    userRecord?.currency === 'EUR' ? '€' :
+    userRecord?.currency === 'GBP' ? '£' : '₹';
+
   const trades = await db
     .select()
     .from(journalTrades)
@@ -142,7 +158,7 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
     worstTrade,
   };
 
-  const pnlSummary = `${netPnl >= 0 ? '+' : ''}₹${Math.abs(netPnl).toFixed(0)} on ${targetTrades.length} trade${targetTrades.length !== 1 ? 's' : ''}`;
+  const pnlSummary = `${netPnl >= 0 ? '+' : '-'}${curSymbol}${Math.abs(netPnl).toFixed(0)} on ${targetTrades.length} trade${targetTrades.length !== 1 ? 's' : ''}`;
 
   // ── 4. Build rule-based parts (always available) ──
   const topEmotion = Object.entries(emotionCounts).sort(([, a], [, b]) => b - a)[0];
@@ -158,7 +174,7 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
   let provider = 'rule-based';
 
   if (isAiConfigured()) {
-    const prompt = buildDebriefPrompt(stats, emotionCounts, Array.from(mistakeSet));
+    const prompt = buildDebriefPrompt(stats, emotionCounts, Array.from(mistakeSet), curSymbol);
     const aiResult = await aiGenerate({ prompt, maxOutputTokens: 350, temperature: 0.5 });
 
     if (aiResult) {

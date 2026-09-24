@@ -45,7 +45,7 @@ function scoreToGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
  * Build a compact, token-efficient prompt from trade data.
  * Keeps input under 600 tokens to minimize API costs.
  */
-function buildAutopsyPrompt(trade: any, rating: any, plan: any): string {
+function buildAutopsyPrompt(trade: any, rating: any, plan: any, curSymbol = '$'): string {
   const pnl = Number(trade.netPnl).toFixed(2);
   const rr = trade.rMultiple ? `R=${Number(trade.rMultiple).toFixed(2)}` : 'R=N/A';
   const holdMin = trade.holdingPeriodMinutes ?? 'unknown';
@@ -60,18 +60,18 @@ function buildAutopsyPrompt(trade: any, rating: any, plan: any): string {
   const followedPlan = rating?.followedPlan === true ? 'Yes' : rating?.followedPlan === false ? 'No' : 'Unknown';
 
   // Trade plan comparison
-  const plannedEntry = plan?.plannedEntryPrice ? `₹${plan.plannedEntryPrice}` : 'not set';
-  const plannedSL = plan?.plannedStopLoss ? `₹${plan.plannedStopLoss}` : 'not set';
-  const plannedTP = plan?.plannedTakeProfit ? `₹${plan.plannedTakeProfit}` : 'not set';
+  const plannedEntry = plan?.plannedEntryPrice ? `${curSymbol}${plan.plannedEntryPrice}` : 'not set';
+  const plannedSL = plan?.plannedStopLoss ? `${curSymbol}${plan.plannedStopLoss}` : 'not set';
+  const plannedTP = plan?.plannedTakeProfit ? `${curSymbol}${plan.plannedTakeProfit}` : 'not set';
 
   return `You are a professional trading coach. Analyze this trade and respond ONLY with valid JSON (no markdown, no explanation outside JSON).
 
 TRADE DATA:
 Symbol: ${trade.tradingsymbol} (${trade.exchange})
 Direction: ${trade.direction} | Status: ${trade.status}
-Entry: ₹${Number(trade.avgEntryPrice).toFixed(2)} | Exit: ${trade.avgExitPrice ? `₹${Number(trade.avgExitPrice).toFixed(2)}` : 'open'}
+Entry: ${curSymbol}${Number(trade.avgEntryPrice).toFixed(2)} | Exit: ${trade.avgExitPrice ? `${curSymbol}${Number(trade.avgExitPrice).toFixed(2)}` : 'open'}
 Quantity: ${trade.totalQuantity} | Hold: ${holdMin} min
-Net P&L: ₹${pnl} | ${rr}
+Net P&L: ${curSymbol}${pnl} | ${rr}
 
 PLANNED vs ACTUAL:
 Planned Entry: ${plannedEntry} | Planned SL: ${plannedSL} | Planned TP: ${plannedTP}
@@ -169,8 +169,14 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
     return buildRuleBasedAutopsy(trade, rating, plan);
   }
 
+  const currency = trade.currency || 'USD';
+  const curSymbol =
+    currency === 'INR' ? '₹' :
+    currency === 'EUR' ? '€' :
+    currency === 'GBP' ? '£' : '$';
+
   // ── 5. Call AI ────────────────────────────────
-  const prompt = buildAutopsyPrompt(trade, rating, plan);
+  const prompt = buildAutopsyPrompt(trade, rating, plan, curSymbol);
   const aiResult = await aiGenerate({ prompt, maxOutputTokens: 500, temperature: 0.3 });
 
   if (!aiResult) {

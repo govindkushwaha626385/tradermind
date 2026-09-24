@@ -32,6 +32,7 @@ import {
   Handshake,
   Target,
   Shield,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ const PRIMARY_TABS = [
 
 const MORE_ITEMS = [
   { label: 'AI Copilot',  href: '/dashboard/ai-assistant', icon: Sparkles },
+  { label: 'Prop Firm',   href: '/dashboard/prop-firm',    icon: Award },
   { label: 'Strategies',  href: '/dashboard/strategies',   icon: Target },
   { label: 'Discipline',  href: '/dashboard/discipline',   icon: ClipboardCheck },
   { label: 'Leaderboard', href: '/dashboard/leaderboard',  icon: Trophy },

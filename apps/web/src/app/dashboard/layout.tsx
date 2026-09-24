@@ -59,10 +59,13 @@ import { BottomNavBar } from '@/components/BottomNavBar';
 import { QuickTradeCapture } from '@/components/QuickTradeCapture';
 import { QuickCommandPalette } from '@/components/QuickCommandPalette';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { AccountPortfolioSelector } from '@/components/dashboard/AccountPortfolioSelector';
 import { QuickSyncButton } from '@/components/QuickSyncButton';
 import { TiltProtectionModal } from '@/components/discipline/TiltProtectionModal';
+import { BehavioralInterventionBanner } from '@/components/discipline/BehavioralInterventionBanner';
 import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
 import { PlatformTourModal } from '@/components/education/PlatformTourModal';
+import { EodReviewModal } from '@/components/discipline/EodReviewModal';
 import { HelpCircle } from 'lucide-react';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
@@ -370,6 +373,14 @@ export default function DashboardLayout({
     return () => window.removeEventListener('open-platform-tour', handleOpenTour);
   }, []);
 
+  const [eodReviewOpen, setEodReviewOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenEod = () => setEodReviewOpen(true);
+    window.addEventListener('open-eod-review', handleOpenEod);
+    return () => window.removeEventListener('open-eod-review', handleOpenEod);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const impStr = sessionStorage.getItem('trademind_impersonated_user');
@@ -618,6 +629,9 @@ export default function DashboardLayout({
             {/* One-Click Quick Broker Sync */}
             <QuickSyncButton />
 
+            {/* Multi-Account Portfolio Scope Switcher */}
+            <AccountPortfolioSelector />
+
             {/* Global Currency Switcher */}
             <CurrencySwitcher />
 
@@ -660,6 +674,9 @@ export default function DashboardLayout({
 
         {/* ── Global Market Session Tape ──── */}
         <GlobalMarketTicker />
+
+        {/* ── Real-Time Behavioral Risk Intervention Banner & Audio Chime ──── */}
+        <BehavioralInterventionBanner />
 
         {/* ── Impersonation Warning Banner ──── */}
         {impersonatedUser && (
@@ -715,6 +732,12 @@ export default function DashboardLayout({
       <PlatformTourModal
         isOpen={showTour}
         onClose={() => setShowTour(false)}
+      />
+
+      {/* ── End-of-Day (EOD) Guided Wrap-Up Ritual Modal ── */}
+      <EodReviewModal
+        isOpen={eodReviewOpen}
+        onClose={() => setEodReviewOpen(false)}
       />
     </div>
   );

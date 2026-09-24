@@ -31,9 +31,10 @@ import {
   ShieldAlert,
   RefreshCw,
   HelpCircle,
-  Coins,
   FileSpreadsheet,
   Calendar,
+  Award,
+  Coins,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -71,6 +72,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-dash', title: 'Dashboard Home', category: 'Navigation', icon: LayoutDashboard, href: '/dashboard', shortcut: 'G D' },
       { id: 'nav-journal', title: 'Trading Journal & Logs', category: 'Navigation', icon: BookOpen, href: '/dashboard/journal', shortcut: 'G J' },
       { id: 'nav-trades', title: 'Executions & Order Blotter', category: 'Navigation', icon: TrendingUp, href: '/dashboard/trades', shortcut: 'G T' },
+      { id: 'nav-prop-firm', title: 'Prop Firm Challenges (FTMO, FundedNext, Apex)', category: 'Navigation', icon: Award, href: '/dashboard/prop-firm', badge: 'Challenges' },
       { id: 'nav-replay', title: 'Visual Trade Replay Studio', category: 'Navigation', icon: PlayCircle, href: '/dashboard/replay', badge: 'TradingView' },
       { id: 'nav-analytics', title: 'Performance Analytics & MFE/MAE', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics' },
       { id: 'nav-goals', title: 'Trader Goals & Targets', category: 'Navigation', icon: Target, href: '/dashboard/goals' },
@@ -121,6 +123,29 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         },
         badge: 'Academy',
         shortcut: '?',
+      },
+      {
+        id: 'act-eod-review',
+        title: 'End-of-Day (EOD) Guided Wrap-Up Ritual & Blueprint',
+        category: 'Actions',
+        icon: Sparkles,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-eod-review'));
+        },
+        badge: 'Ritual',
+        shortcut: 'EOD',
+      },
+      {
+        id: 'act-premarket',
+        title: 'Launch Pre-Market Execution Routine Checklist',
+        category: 'Actions',
+        icon: Clock,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-premarket-routine'));
+        },
+        badge: 'Routine',
       },
       { id: 'act-import', title: 'Import Broker CSV (Tradebook / Orders)', category: 'Actions', icon: Plug, href: '/dashboard/brokers', badge: 'CSV' },
       { id: 'act-new-trade', title: 'Log a Manual Trade Execution', category: 'Actions', icon: TrendingUp, href: '/dashboard/trades' },

@@ -82,6 +82,10 @@ export function QuickTradeCapture({ onSuccess }: QuickTradeCaptureProps) {
       if (res?.success !== false) {
         setDone(true);
         toast.success(`${form.symbol.toUpperCase()} logged successfully!`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('broker-synced', { detail: { manualTrade: true } }));
+          window.dispatchEvent(new CustomEvent('trademind:trade-saved', { detail: payload }));
+        }
         onSuccess?.();
         setTimeout(reset, 1500);
       } else {

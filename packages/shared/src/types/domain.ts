@@ -433,11 +433,22 @@ export interface TradeAutopsyResult {
 export type ShieldLevel = 'none' | 'caution' | 'warning' | 'danger';
 
 export interface ShieldFlag {
-  type: 'revenge_trading' | 'overtrading' | 'overconfidence' | 'loss_limit' | 'emotion_cascade';
+  type:
+    | 'revenge_trading'
+    | 'overtrading'
+    | 'overconfidence'
+    | 'loss_limit'
+    | 'prop_firm_drawdown'
+    | 'emotion_cascade';
   severity: ShieldLevel;
   title: string;
   description: string;
   recommendation: string;
+  metric?: {
+    current: number;
+    threshold: number;
+    unit: string;
+  };
 }
 
 export interface BehavioralShieldResult {
@@ -447,6 +458,10 @@ export interface BehavioralShieldResult {
   dailyPnl: number;
   todayTradeCount: number;
   alertMessage: string;
+  cooldownActive?: boolean;
+  cooldownMinutesRemaining?: number;
+  currency?: string;
+  currencySymbol?: string;
 }
 
 export interface DailyDebriefResult {

@@ -9,8 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getDatabase, setupPlaybooks } from '@trademind/database';
-import { eq, and } from 'drizzle-orm';
+import { getDatabase, setupPlaybooks, journalTrades } from '@trademind/database';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { authenticate } from '@/lib/server/auth';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { ok, created, notFound, parseBody } from '@/lib/server/response';
@@ -41,12 +41,93 @@ export async function GET(
     const db = getDatabase();
 
     if (!id) {
-      const playbooks = await db
+      const rawPlaybooks = await db
         .select()
         .from(setupPlaybooks)
         .where(eq(setupPlaybooks.userId, user.id))
         .orderBy(setupPlaybooks.createdAt);
-      return ok(playbooks);
+
+      const trades = await db
+        .select({
+          setupPlaybookId: journalTrades.setupPlaybookId,
+          netPnl: journalTrades.netPnl,
+          grossPnl: journalTrades.grossPnl,
+          rMultiple: journalTrades.rMultiple,
+          status: journalTrades.status,
+        })
+        .from(journalTrades)
+        .where(and(eq(journalTrades.userId, user.id), isNotNull(journalTrades.setupPlaybookId)));
+
+      const metricsByPlaybook: Record<string, {
+        totalTrades: number;
+        winTrades: number;
+        lossTrades: number;
+        netPnl: number;
+        grossProfit: number;
+        grossLoss: number;
+        rMultipleSum: number;
+        rMultipleCount: number;
+      }> = {};
+
+      for (const t of trades) {
+        if (!t.setupPlaybookId) continue;
+        if (!metricsByPlaybook[t.setupPlaybookId]) {
+          metricsByPlaybook[t.setupPlaybookId] = {
+            totalTrades: 0,
+            winTrades: 0,
+            lossTrades: 0,
+            netPnl: 0,
+            grossProfit: 0,
+            grossLoss: 0,
+            rMultipleSum: 0,
+            rMultipleCount: 0,
+          };
+        }
+        const m = metricsByPlaybook[t.setupPlaybookId];
+        m.totalTrades += 1;
+        const pnl = Number(t.netPnl || 0);
+        m.netPnl += pnl;
+        if (pnl > 0) {
+          m.winTrades += 1;
+          m.grossProfit += pnl;
+        } else if (pnl < 0) {
+          m.lossTrades += 1;
+          m.grossLoss += Math.abs(pnl);
+        }
+        if (t.rMultiple != null && !isNaN(Number(t.rMultiple))) {
+          m.rMultipleSum += Number(t.rMultiple);
+          m.rMultipleCount += 1;
+        }
+      }
+
+      const enrichedPlaybooks = rawPlaybooks.map((pb) => {
+        const m = metricsByPlaybook[pb.id];
+        const total = m ? m.totalTrades : 0;
+        const wins = m ? m.winTrades : 0;
+        const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+        const netPnl = m ? Math.round(m.netPnl * 100) / 100 : 0;
+        const profitFactor = m && m.grossLoss > 0
+          ? Math.round((m.grossProfit / m.grossLoss) * 100) / 100
+          : (m && m.grossProfit > 0 ? 9.99 : 0);
+        const avgRMultiple = m && m.rMultipleCount > 0
+          ? Math.round((m.rMultipleSum / m.rMultipleCount) * 100) / 100
+          : 0;
+
+        return {
+          ...pb,
+          metrics: {
+            totalTrades: total,
+            winTrades: wins,
+            lossTrades: m ? m.lossTrades : 0,
+            winRate,
+            netPnl,
+            profitFactor,
+            avgRMultiple,
+          },
+        };
+      });
+
+      return ok(enrichedPlaybooks);
     }
 
     const [playbook] = await db

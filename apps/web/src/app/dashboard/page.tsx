@@ -124,6 +124,12 @@ export default function DashboardPage() {
   }, [timeframe]);
 
   useEffect(() => {
+    const handleOpenPremarket = () => setPremarketOpen(true);
+    window.addEventListener('open-premarket-routine', handleOpenPremarket);
+    return () => window.removeEventListener('open-premarket-routine', handleOpenPremarket);
+  }, []);
+
+  useEffect(() => {
     api.getProfile().then((res) => {
       if (res.success) {
         const p = res.data as any;
@@ -240,6 +246,13 @@ export default function DashboardPage() {
           >
             <Clock className="w-3.5 h-3.5" />
             Pre-market
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-eod-review'))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/25 text-sm font-semibold text-primary transition-all shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            EOD Wrap-Up
           </button>
           <button
             onClick={() => setDebriefOpen(true)}

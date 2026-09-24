@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   PlayCircle,
   Activity,
+  BarChart2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -34,6 +35,7 @@ import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { Pagination } from '@/components/ui/DataTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
+import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 
 interface TradeExecution {
   id: string;
@@ -65,6 +67,7 @@ export default function TradesPage() {
   const [total, setTotal]       = useState(0);
   const [sortKey, setSortKey]   = useState<string>('executionTimestamp');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedChartTrade, setSelectedChartTrade] = useState<any | null>(null);
 
   useEffect(() => {
     document.title = 'Trade Executions — TradeMind';
@@ -288,14 +291,24 @@ export default function TradesPage() {
                     <span className="text-muted-foreground text-[11px]">
                       {formatDate(trade.executionTimestamp)}
                     </span>
-                    <Link
-                      href={`/dashboard/trades/${trade.id}/replay`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
-                      title="Visual Candlestick Replay"
-                    >
-                      <PlayCircle className="w-3.5 h-3.5" />
-                      Replay
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSelectedChartTrade(trade)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
+                        title="View Candlestick Chart"
+                      >
+                        <BarChart2 className="w-3.5 h-3.5" />
+                        <span>Chart</span>
+                      </button>
+                      <Link
+                        href={`/dashboard/trades/${trade.id}/replay`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
+                        title="Visual Candlestick Replay"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        Replay
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
@@ -394,15 +407,25 @@ export default function TradesPage() {
                       <td className="px-4 py-3.5 text-muted-foreground text-xs">
                         {formatDate(trade.executionTimestamp)}
                       </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <Link
-                          href={`/dashboard/trades/${trade.id}/replay`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
-                          title="Visual Candlestick Replay"
-                        >
-                          <PlayCircle className="w-3.5 h-3.5" />
-                          Replay
-                        </Link>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedChartTrade(trade)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
+                            title="Quick Candlestick Chart"
+                          >
+                            <BarChart2 className="w-3.5 h-3.5" />
+                            Chart
+                          </button>
+                          <Link
+                            href={`/dashboard/trades/${trade.id}/replay`}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
+                            title="Visual Candlestick Replay"
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            Replay
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -423,6 +446,13 @@ export default function TradesPage() {
           onPageChange={setPage}
         />
       )}
+
+      {/* Quick Candlestick Chart Inspection Modal */}
+      <TradeCandleModal
+        isOpen={!!selectedChartTrade}
+        onClose={() => setSelectedChartTrade(null)}
+        trade={selectedChartTrade}
+      />
     </div>
   );
 }

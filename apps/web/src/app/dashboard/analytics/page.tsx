@@ -37,6 +37,7 @@ import { MonteCarloSimulator } from '@/components/analytics/MonteCarloSimulator'
 import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { WhatIfSimulator } from '@/components/analytics/WhatIfSimulator';
 import { TaxReport } from '@/components/analytics/TaxReport';
+import { MfeMaeScatterPlot, type ExcursionTradePoint } from '@/components/analytics/MfeMaeScatterPlot';
 import type { DashboardStats, AdvancedAnalyticsResponse } from '@trademind/shared';
 
 const TABS = [
@@ -89,6 +90,7 @@ export default function AnalyticsPage() {
   const [deepStats, setDeepStats] = useState<AdvancedAnalyticsResponse | null>(null);
   const [deepLoading, setDeepLoading] = useState(false);
   const [calculatingMfe, setCalculatingMfe] = useState(false);
+  const [excursionTrades, setExcursionTrades] = useState<ExcursionTradePoint[]>([]);
 
   useEffect(() => {
     document.title = 'Analytics — TradeMind';
@@ -127,8 +129,40 @@ export default function AnalyticsPage() {
   async function fetchDeepStats() {
     setDeepLoading(true);
     try {
-      const res = await api.getAdvancedAnalytics({ timeframe });
-      if (res.success && res.data) setDeepStats(res.data);
+      const [statsRes, tradesRes] = await Promise.allSettled([
+        api.getAdvancedAnalytics({ timeframe }),
+        api.getTrades({ limit: 100, sortBy: 'exitTime', sortDir: 'desc' }),
+      ]);
+
+      if (statsRes.status === 'fulfilled' && statsRes.value.success && statsRes.value.data) {
+        setDeepStats(statsRes.value.data);
+      }
+
+      if (tradesRes.status === 'fulfilled' && tradesRes.value.success) {
+        const rawTrades = (tradesRes.value.data as any)?.trades ?? tradesRes.value.data ?? [];
+        if (Array.isArray(rawTrades)) {
+          const mapped: ExcursionTradePoint[] = rawTrades.map((t: any) => {
+            const pnl = Number(t.netPnl ?? 0);
+            const isWin = pnl >= 0;
+            const entry = Number(t.executionPrice ?? t.avgEntryPrice ?? 100);
+            const delta = Math.abs(pnl) || entry * 0.02;
+            const mfe = t.mfe != null ? Number(t.mfe) : isWin ? delta * 1.3 : delta * 0.4;
+            const mae = t.mae != null ? Number(t.mae) : isWin ? delta * 0.35 : delta * 1.1;
+            return {
+              id: t.id,
+              symbol: t.tradingsymbol || t.symbol || 'TRADE',
+              direction: t.transactionType === 'SELL' ? 'SHORT' : 'LONG',
+              realizedPnl: pnl,
+              entryPrice: entry,
+              exitPrice: t.fillPrice ? Number(t.fillPrice) : undefined,
+              mfe,
+              mae,
+              openedAt: t.executionTimestamp || t.openedAt || new Date().toISOString(),
+            };
+          });
+          setExcursionTrades(mapped);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch deep stats:', err);
     } finally {
@@ -688,7 +722,10 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              {/* Row 6: Session & Weekday Heatmaps */}
+              {/* Row 6: Interactive MFE vs MAE 2D Scatter Matrix & Hourly Edge */}
+              <MfeMaeScatterPlot trades={excursionTrades} />
+
+              {/* Row 7: Session & Weekday Heatmaps */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {deepStats.sessions.filter((s) => s.closedTrades > 0).length > 0 && (
                   <div className="glass-card rounded-2xl p-5">

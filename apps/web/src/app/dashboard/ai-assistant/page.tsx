@@ -125,13 +125,24 @@ export default function AiAssistantPage() {
   const searchParams = useSearchParams();
   const initialQuestion = searchParams.get('question');
   const initialTab = searchParams.get('tab');
+  const initialPersonaParam = searchParams.get('persona') as PersonaMode | null;
 
   const [activeTab, setActiveTab] = useState<'chat' | 'chart'>(
     initialTab === 'chart' ? 'chart' : 'chat'
   );
 
   // Active persona
-  const [activePersona, setActivePersona] = useState<PersonaMode>('psychology');
+  const [activePersona, setActivePersona] = useState<PersonaMode>(
+    initialPersonaParam && ['psychology', 'risk', 'smc', 'autopsy'].includes(initialPersonaParam)
+      ? initialPersonaParam
+      : 'psychology'
+  );
+
+  useEffect(() => {
+    if (initialPersonaParam && ['psychology', 'risk', 'smc', 'autopsy'].includes(initialPersonaParam)) {
+      setActivePersona(initialPersonaParam);
+    }
+  }, [initialPersonaParam]);
 
   // Zen / Fullscreen mode
   const [isZenMode, setIsZenMode] = useState(false);

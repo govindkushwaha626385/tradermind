@@ -34,6 +34,9 @@ import {
   Trash2,
   Volume2,
   Maximize2,
+  List,
+  Calendar as CalendarIcon,
+  BarChart2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -47,6 +50,8 @@ import { toast } from '@/components/Toast';
 import { TradeAutopsy } from '@/components/ai/TradeAutopsy';
 import { VoiceDictation } from '@/components/ai/VoiceDictation';
 import { MarketSessionStatus } from '@/components/dashboard/MarketSessionStatus';
+import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
+import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 
 interface TradeJournalEntry {
   id: string;
@@ -94,6 +99,8 @@ export default function JournalPage() {
   const [autoFilling, setAutoFilling] = useState(false);
   const [batchAutofilling, setBatchAutofilling] = useState(false);
   const [suggestedSetup, setSuggestedSetup] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [selectedChartTrade, setSelectedChartTrade] = useState<TradeJournalEntry | null>(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -322,6 +329,34 @@ export default function JournalPage() {
         icon={BookOpen}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Segmented Switcher (Table vs Calendar Heatmap) */}
+            <div className="flex items-center rounded-xl bg-muted/60 p-1 border border-border/80 shadow-sm">
+              <button
+                onClick={() => setViewMode('table')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                  viewMode === 'table'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                  viewMode === 'calendar'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Calendar Heatmap</span>
+              </button>
+            </div>
+
             <button
               onClick={handleBatchAutofill}
               disabled={batchAutofilling || trades.length === 0}
@@ -333,7 +368,15 @@ export default function JournalPage() {
               ) : (
                 <Sparkles className="w-4 h-4 text-amber-300" />
               )}
-              {batchAutofilling ? 'AI Journaling...' : 'AI Auto-Journal Pending'}
+              {batchAutofilling ? 'AI Journaling...' : 'AI Auto-Journal'}
+            </button>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-eod-review'))}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold transition-all shadow-sm"
+              title="Launch End-of-Day Guided Wrap-Up Ritual"
+            >
+              <Sparkles className="w-4 h-4 text-primary" />
+              EOD Wrap-Up
             </button>
             <button
               onClick={handleExportCsv}
@@ -355,8 +398,15 @@ export default function JournalPage() {
       {/* Live Market Session Banner */}
       <MarketSessionStatus />
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Render Calendar Heatmap Mode if selected */}
+      {viewMode === 'calendar' ? (
+        <div className="space-y-4 animate-fade-in">
+          <CalendarHeatmap />
+        </div>
+      ) : (
+        <>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -549,6 +599,17 @@ export default function JournalPage() {
                           {qty} @ {formatCurrency(entryPrice)}
                         </div>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedChartTrade(trade);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
+                        title="Quick Candlestick Chart View"
+                      >
+                        <BarChart2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Chart</span>
+                      </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}
                         onClick={(e) => e.stopPropagation()}
@@ -1345,6 +1406,18 @@ export default function JournalPage() {
           </div>
         </div>
       )}
+
+      {/* Close table view wrapper if in table mode */}
+      {viewMode === 'table' && null}
+      </>
+      )}
+
+      {/* Quick Candlestick Chart Inspection Modal */}
+      <TradeCandleModal
+        isOpen={!!selectedChartTrade}
+        onClose={() => setSelectedChartTrade(null)}
+        trade={selectedChartTrade}
+      />
     </div>
   );
 }
