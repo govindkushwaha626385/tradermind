@@ -613,3 +613,110 @@ export function calculateEmi(inputs: EmiInputs): EmiOutput {
   };
 }
 
+// ── 15. Forex & Crypto Pip & Lot Size Calculator ──────
+export interface ForexPipInputs {
+  pair: string;
+  accountCurrency: 'USD' | 'EUR' | 'GBP' | 'INR' | 'USDT' | string;
+  lotType: 'STANDARD' | 'MINI' | 'MICRO' | 'NANO' | 'CUSTOM';
+  lots: number;
+  entryPrice: number;
+  stopLossPrice?: number;
+  takeProfitPrice?: number;
+  accountBalance?: number;
+  riskPercent?: number;
+  exchangeRateToAccount?: number; // quote to account currency rate (defaults to 1.0)
+}
+
+export interface ForexPipOutput {
+  pipSize: number;
+  unitsTraded: number;
+  pipValuePerPip: number;
+  riskPips: number;
+  rewardPips: number;
+  monetaryRisk: number;
+  monetaryReward: number;
+  riskRewardRatio: number;
+  suggestedLotsForRisk?: number;
+  totalPositionValue: number;
+}
+
+export function calculateForexPip(inputs: ForexPipInputs): ForexPipOutput {
+  const {
+    pair,
+    accountCurrency,
+    lotType,
+    lots,
+    entryPrice,
+    stopLossPrice,
+    takeProfitPrice,
+    accountBalance = 10000,
+    riskPercent = 1,
+    exchangeRateToAccount = 1.0,
+  } = inputs;
+
+  // Determine standard pip size based on instrument
+  const isJpyPair = pair.toUpperCase().includes('JPY');
+  const isCrypto = pair.toUpperCase().includes('BTC') || pair.toUpperCase().includes('ETH') || pair.toUpperCase().includes('SOL');
+  const isInrPair = pair.toUpperCase().includes('INR');
+
+  let pipSize = 0.0001;
+  if (isJpyPair) {
+    pipSize = 0.01;
+  } else if (isCrypto) {
+    pipSize = 1.0;
+  } else if (isInrPair) {
+    pipSize = 0.0025;
+  }
+
+  // Determine unit multiplier based on lot type
+  let unitsPerLot = 100000; // standard
+  if (lotType === 'MINI') unitsPerLot = 10000;
+  else if (lotType === 'MICRO') unitsPerLot = 1000;
+  else if (lotType === 'NANO') unitsPerLot = 100;
+  else if (lotType === 'CUSTOM') unitsPerLot = 1;
+
+  const unitsTraded = Math.max(1, lots * unitsPerLot);
+  const totalPositionValue = unitsTraded * (entryPrice > 0 ? entryPrice : 1);
+
+  // 1 pip value in Quote Currency = unitsTraded * pipSize
+  const pipValueInQuote = unitsTraded * pipSize;
+  const pipValuePerPip = Number((pipValueInQuote * Math.max(0.0001, exchangeRateToAccount)).toFixed(4));
+
+  // Risk and Reward Pips
+  let riskPips = 0;
+  let rewardPips = 0;
+
+  if (stopLossPrice && stopLossPrice > 0 && entryPrice > 0) {
+    riskPips = Number((Math.abs(entryPrice - stopLossPrice) / pipSize).toFixed(1));
+  }
+  if (takeProfitPrice && takeProfitPrice > 0 && entryPrice > 0) {
+    rewardPips = Number((Math.abs(takeProfitPrice - entryPrice) / pipSize).toFixed(1));
+  }
+
+  const monetaryRisk = Number((riskPips * pipValuePerPip).toFixed(2));
+  const monetaryReward = Number((rewardPips * pipValuePerPip).toFixed(2));
+  const riskRewardRatio = riskPips > 0 ? Number((rewardPips / riskPips).toFixed(2)) : 0;
+
+  // Sizing recommendation based on target % risk of account balance
+  let suggestedLotsForRisk: number | undefined;
+  if (riskPips > 0 && accountBalance > 0) {
+    const allowedCashRisk = (accountBalance * riskPercent) / 100;
+    const cashRiskPerSingleLot = riskPips * (unitsPerLot * pipSize * exchangeRateToAccount);
+    if (cashRiskPerSingleLot > 0) {
+      suggestedLotsForRisk = Number((allowedCashRisk / cashRiskPerSingleLot).toFixed(2));
+    }
+  }
+
+  return {
+    pipSize,
+    unitsTraded,
+    pipValuePerPip,
+    riskPips,
+    rewardPips,
+    monetaryRisk,
+    monetaryReward,
+    riskRewardRatio,
+    suggestedLotsForRisk,
+    totalPositionValue,
+  };
+}

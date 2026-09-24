@@ -28,6 +28,7 @@ import {
   Percent,
   Gauge,
   Landmark,
+  Globe2,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
@@ -54,6 +55,7 @@ import { MarginCalculator } from './MarginCalculator';
 import { BreakEvenCalculator } from './BreakEvenCalculator';
 import { KellyCriterionCalculator } from './KellyCriterionCalculator';
 import { AtrStopLossCalculator } from './AtrStopLossCalculator';
+import { ForexPipCalculator } from './ForexPipCalculator';
 import { EmiCalculator } from './EmiCalculator';
 
 const ICON_MAP: Record<string, any> = {
@@ -75,6 +77,7 @@ const ICON_MAP: Record<string, any> = {
   Percent,
   Gauge,
   Landmark,
+  Globe2,
 };
 
 const CATEGORIES: Array<{ id: CalculatorCategory; label: string }> = [
@@ -310,6 +313,9 @@ export function CalculatorSuite({
           )}
           {activeCalcId === 'atr-stop-loss' && (
             <AtrStopLossCalculator currency={currency} onCopySummary={handleCopySummary} />
+          )}
+          {activeCalcId === 'forex-pip' && (
+            <ForexPipCalculator />
           )}
           {activeCalcId === 'emi-loan' && (
             <EmiCalculator currency={currency} onCopySummary={handleCopySummary} />

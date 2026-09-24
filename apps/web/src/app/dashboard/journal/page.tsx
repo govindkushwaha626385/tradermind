@@ -42,6 +42,7 @@ import {
   Filter,
   SlidersHorizontal,
   RotateCcw,
+  Share2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -58,6 +59,7 @@ import { MarketSessionStatus } from '@/components/dashboard/MarketSessionStatus'
 import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
+import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
 
 interface TradeJournalEntry {
   id: string;
@@ -118,6 +120,7 @@ export default function JournalPage() {
   // Trade Comparison Studio state
   const [compareTradeA, setCompareTradeA] = useState<TradeJournalEntry | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [selectedShareTrade, setSelectedShareTrade] = useState<TradeJournalEntry | null>(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -851,6 +854,17 @@ export default function JournalPage() {
                       >
                         <ArrowLeftRight className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Compare</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedShareTrade(trade);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
+                        title="Generate Branded Share Card"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Share</span>
                       </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}
@@ -1668,6 +1682,27 @@ export default function JournalPage() {
         tradeA={compareTradeA}
         allTrades={trades}
       />
+
+      {/* Verified Branded Social Share Card Modal */}
+      {selectedShareTrade && (
+        <BrandedShareCardModal
+          isOpen={!!selectedShareTrade}
+          onClose={() => setSelectedShareTrade(null)}
+          trade={{
+            id: selectedShareTrade.id,
+            symbol: selectedShareTrade.symbol || selectedShareTrade.tradingsymbol || 'TRADE',
+            direction: selectedShareTrade.direction,
+            entryPrice: selectedShareTrade.avgEntryPrice ?? selectedShareTrade.entryPrice ?? 0,
+            exitPrice: selectedShareTrade.avgExitPrice ?? selectedShareTrade.exitPrice ?? undefined,
+            quantity: selectedShareTrade.totalQuantity ?? selectedShareTrade.qty ?? 1,
+            netPnl: selectedShareTrade.netPnl,
+            rMultiple: selectedShareTrade.rMultiple,
+            currency: selectedShareTrade.currency,
+            tradeDate: selectedShareTrade.closedAt || selectedShareTrade.openedAt,
+            strategyName: selectedShareTrade.strategyName,
+          }}
+        />
+      )}
     </div>
   );
 }

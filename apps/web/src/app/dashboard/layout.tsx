@@ -49,6 +49,8 @@ import {
   Flag,
   Play,
   Award,
+  Keyboard,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -65,9 +67,10 @@ import { TiltProtectionModal } from '@/components/discipline/TiltProtectionModal
 import { BehavioralInterventionBanner } from '@/components/discipline/BehavioralInterventionBanner';
 import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
 import { PlatformTourModal } from '@/components/education/PlatformTourModal';
+import { KeyboardShortcutsModal } from '@/components/education/KeyboardShortcutsModal';
 import { EodReviewModal } from '@/components/discipline/EodReviewModal';
 import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
-import { HelpCircle } from 'lucide-react';
+import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
 
@@ -348,21 +351,17 @@ export default function DashboardLayout({
   const [impersonatedUser, setImpersonatedUser] = useState<any>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tiltModalOpen, setTiltModalOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  // Global Cmd+K / Ctrl+K keyboard shortcut & '?' tour shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setCommandPaletteOpen((prev) => !prev);
-      } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
-        e.preventDefault();
-        setShowTour(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  // Power-User Global Hotkeys: J (Journal), R (Replay), C (Calculators), T (Trades), Cmd+K, ?, Shift+T
+  useGlobalHotkeys({
+    onToggleCommandPalette: () => setCommandPaletteOpen((prev) => !prev),
+    onToggleShortcutsModal: () => setShortcutsOpen((prev) => !prev),
+    onToggleTourModal: () => setShowTour((prev) => !prev),
+    onOpenPremarket: () => window.dispatchEvent(new CustomEvent('open-premarket-routine')),
+    onOpenEodReview: () => setEodReviewOpen(true),
+    onTriggerSync: () => window.dispatchEvent(new CustomEvent('trigger-broker-sync')),
+  });
 
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -370,8 +369,13 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const handleOpenTour = () => setShowTour(true);
+    const handleOpenShortcuts = () => setShortcutsOpen(true);
     window.addEventListener('open-platform-tour', handleOpenTour);
-    return () => window.removeEventListener('open-platform-tour', handleOpenTour);
+    window.addEventListener('open-keyboard-shortcuts', handleOpenShortcuts);
+    return () => {
+      window.removeEventListener('open-platform-tour', handleOpenTour);
+      window.removeEventListener('open-keyboard-shortcuts', handleOpenShortcuts);
+    };
   }, []);
 
   const [eodReviewOpen, setEodReviewOpen] = useState(false);
@@ -669,11 +673,21 @@ export default function DashboardLayout({
               <Calculator className="w-4 h-4" />
             </button>
 
+            {/* Keyboard Shortcuts Cheatsheet */}
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Keyboard Shortcuts (Press ?)"
+              aria-label="Keyboard Shortcuts"
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+
             {/* Platform Tour & Academy */}
             <button
               onClick={() => setShowTour(true)}
               className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="Platform Tour & Learning Academy"
+              title="Platform Tour & Learning Academy (Press Shift+T)"
               aria-label="Platform Tour"
             >
               <HelpCircle className="w-4 h-4" />
@@ -751,6 +765,12 @@ export default function DashboardLayout({
       <PlatformTourModal
         isOpen={showTour}
         onClose={() => setShowTour(false)}
+      />
+
+      {/* ── Institutional Keyboard Shortcuts Cheat Sheet Modal ── */}
+      <KeyboardShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
 
       {/* ── End-of-Day (EOD) Guided Wrap-Up Ritual Modal ── */}

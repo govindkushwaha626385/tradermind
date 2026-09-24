@@ -23,14 +23,15 @@ import {
   Activity,
   Layers,
   Calendar,
-  Clock,
   ShieldCheck,
   Maximize2,
+  Share2,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
 import { LightweightCandleChart, ChartTimeframe } from './LightweightCandleChart';
 import type { TradeReplayData } from '@trademind/shared';
+import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
 
 interface TradeCandleModalProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export function TradeCandleModal({
   const currency = currencyProp || globalCurrency;
 
   const [selectedTf, setSelectedTf] = useState<ChartTimeframe>('5m');
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -229,6 +231,16 @@ Please give me an institutional execution autopsy, evaluate whether my entry was
               <span className="hidden sm:inline">AI Autopsy</span>
             </button>
 
+            {/* Branded Share Card */}
+            <button
+              onClick={() => setShareOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 transition-colors"
+              title="Generate Branded Share Card"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+
             {/* Full Replay Page Link */}
             <Link
               href={`/dashboard/trades/${trade.id}/replay`}
@@ -297,6 +309,25 @@ Please give me an institutional execution autopsy, evaluate whether my entry was
           </div>
         </div>
       </div>
+
+      {shareOpen && (
+        <BrandedShareCardModal
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          trade={{
+            id: trade.id,
+            symbol,
+            direction: isLong ? 'BUY' : 'SELL',
+            entryPrice,
+            exitPrice: exitPrice || undefined,
+            quantity: trade.quantity || trade.totalQuantity,
+            netPnl: hasPnl ? netPnl : undefined,
+            rMultiple: trade.rMultiple,
+            currency,
+            strategyName: trade.strategyName || trade.segment,
+          }}
+        />
+      )}
     </div>
   );
 }

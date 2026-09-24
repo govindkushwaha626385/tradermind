@@ -15,6 +15,8 @@ import {
   Sparkles,
   CheckCircle2,
   ExternalLink,
+  ClipboardCheck,
+  Share2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +36,7 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'brokers',
-    badge: 'Step 1 of 6 · Automated Imports',
+    badge: 'Step 1 of 8 · Automated Imports',
     title: 'Multi-Broker Real-Time Sync',
     subtitle: 'Connect Zerodha, Dhan, Upstox, Angel One, Interactive Brokers, Binance & MetaTrader',
     description:
@@ -52,7 +54,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'journal-ai',
-    badge: 'Step 2 of 6 · AI Intelligence',
+    badge: 'Step 2 of 8 · AI Intelligence',
     title: 'Automated Journaling & AI Autopsy',
     subtitle: 'Turn raw trades into high-conviction learning loops',
     description:
@@ -60,7 +62,7 @@ export const TOUR_STEPS: TourStep[] = [
     keyFeatures: [
       'Batch AI Auto-Journaling with custom reflection notes',
       'AI Trade Autopsy diagnosing entry/exit execution leaks',
-      'Post-Market Daily Debrief summarizing session performance',
+      'Voice-narrated Morning Briefing & Post-Market Debrief',
       'Behavioral tag correlation: FOMO, Revenge, Overconfidence',
     ],
     ctaText: 'Explore Trade Journal',
@@ -70,25 +72,61 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'replay',
-    badge: 'Step 3 of 6 · Charting Engine',
-    title: 'TradingView Candlestick Replay',
-    subtitle: 'Bar-by-bar trade reconstruction with institutional indicators',
+    badge: 'Step 3 of 8 · Charting Engine',
+    title: 'TradingView Live Terminal & Replay',
+    subtitle: 'Dual-engine live streaming chart & historical replay scrubber',
     description:
-      'Step through historical trades candle-by-candle on official TradingView Lightweight Charts across any timeframe from 1-minute to 1-Day. Visualize exact entry, exit, stop loss, and target levels.',
+      'Inspect any trade with the zero-cost official TradingView live streaming widget with full vector drawing tools, technical indicators, and multi-market watchlist (NSE, Crypto, US Tech, Forex).',
     keyFeatures: [
+      'Official TradingView widget with free live streaming & drawing suite',
+      'Collapsible multi-market watchlist (Nifty, Crypto, US Tech, Forex)',
       'Dynamic VWAP & EMA 20/50 overlays with one-click toggles',
       'Interactive OHLC inspection ribbon on cursor crosshair move',
-      'Max Favorable (MFE) & Max Adverse Excursion (MAE) bands',
-      'Multiple timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 4h, 1D',
     ],
-    ctaText: 'Launch Trade Replay',
+    ctaText: 'Launch Chart Terminal',
     ctaHref: '/dashboard/replay',
     icon: LineChart,
     gradient: 'from-cyan-600 to-blue-600',
   },
   {
+    id: 'checklists',
+    badge: 'Step 4 of 8 · Discipline Engine',
+    title: 'Checklist & Rulebook Studio',
+    subtitle: 'Live pre-trade checklist runner & institutional rulebooks',
+    description:
+      'Never enter an emotional trade again. Run your daily pre-market routine, check off setup rules, track compliance percentage (0-100%), and maintain your discipline streak.',
+    keyFeatures: [
+      'Live execution runner with real-time compliance progress',
+      '5 pre-built institutional rulebooks (ICT, Breakouts, Scalping, Options)',
+      'Pre-trade emotional mindset check (Calm, Focused, FOMO)',
+      'Custom template builder for proprietary strategies',
+    ],
+    ctaText: 'Open Checklist Studio',
+    ctaHref: '/dashboard/checklists',
+    icon: ClipboardCheck,
+    gradient: 'from-amber-600 to-orange-600',
+  },
+  {
+    id: 'share-cards',
+    badge: 'Step 5 of 8 · Social & Community',
+    title: 'Verified Branded Share Cards',
+    subtitle: 'Ultra-HD graphics for Twitter, Discord, and Mentors',
+    description:
+      'Share your verified executions with institutional credibility. Generate 1200x675 retina graphics with your net P&L, ROI%, R:R ratio, and trade setup.',
+    keyFeatures: [
+      'Verified Execution audit seal on every card',
+      '4 sleek themes: Obsidian, Emerald Bull, Cyberpunk, Minimal',
+      'Privacy Mode toggle to share ROI% without exposing dollar balance',
+      '1-click copy image to clipboard and 1-click share to Twitter (X)',
+    ],
+    ctaText: 'View Trade Blotter',
+    ctaHref: '/dashboard/trades',
+    icon: Share2,
+    gradient: 'from-emerald-600 to-teal-600',
+  },
+  {
     id: 'discipline',
-    badge: 'Step 4 of 6 · Risk Defense',
+    badge: 'Step 6 of 8 · Risk Defense',
     title: 'Behavioral Shield & Tilt Lockout',
     subtitle: 'Protect your capital before emotional mistakes happen',
     description:
@@ -106,16 +144,16 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'calculators',
-    badge: 'Step 5 of 6 · Mathematical Edge',
-    title: 'Institutional Calculator Suite',
-    subtitle: '17 risk sizing, Greeks, and financial calculators',
+    badge: 'Step 7 of 8 · Mathematical Edge',
+    title: '18 Pro Financial Calculators',
+    subtitle: 'Risk sizing, Forex & Crypto pips, and Black-Scholes Greeks',
     description:
-      'Calculate precise share sizes, Black-Scholes theoretical options values, ATR trailing stop losses, and multi-asset position averaging before placing any market order.',
+      'Calculate precise share sizes, Forex/Crypto pip values, Black-Scholes theoretical options values, ATR trailing stop losses, and multi-asset position averaging before placing any market order.',
     keyFeatures: [
+      'Forex & Crypto Pip Sizer with multi-currency conversion',
       'Position Size & Risk Calculator with contract lot multipliers',
       'Black-Scholes Options Pricing, Delta, Theta, Gamma, Vega',
       'Break-even, Margin, CAGR, and Drawdown Recovery calculators',
-      'Full multi-currency support: INR, USD, EUR, GBP, USDT, BTC',
     ],
     ctaText: 'Open Calculators',
     ctaHref: '/dashboard/calculators',
@@ -124,7 +162,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'analytics',
-    badge: 'Step 6 of 6 · Quantitative Insights',
+    badge: 'Step 8 of 8 · Quantitative Insights',
     title: 'Global Analytics & Monte Carlo Simulation',
     subtitle: 'Comprehensive performance distributions and tax reports',
     description:

@@ -30,6 +30,7 @@ export type CalculatorId =
   | 'break-even'
   | 'kelly-criterion'
   | 'atr-stop-loss'
+  | 'forex-pip'
   | 'emi-loan';
 
 export interface CalculatorMeta {
@@ -50,6 +51,15 @@ export const CALCULATORS_CATALOG: CalculatorMeta[] = [
     category: 'RISK_SIZING',
     badge: 'Essential',
     iconName: 'Scale',
+    popular: true,
+  },
+  {
+    id: 'forex-pip',
+    name: 'Forex & Crypto Pip Sizer',
+    shortDesc: 'Pip valuation, lot sizing, and risk per pip across major Forex pairs and Crypto.',
+    category: 'RISK_SIZING',
+    badge: 'FX & Crypto',
+    iconName: 'Globe2',
     popular: true,
   },
   {

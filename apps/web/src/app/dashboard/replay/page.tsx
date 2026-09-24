@@ -38,6 +38,8 @@ import { toast } from '@/components/Toast';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn, formatCurrency } from '@/lib/utils';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
+import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
+import { TradingWatchlistSidebar } from '@/components/chart/TradingWatchlistSidebar';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { TradeReplayData } from '@trademind/shared';
 
@@ -389,7 +391,8 @@ export default function TradeReplayPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [chartView, setChartView] = useState<'canvas' | 'scrubber'>('canvas');
+  const [chartView, setChartView] = useState<'live' | 'canvas' | 'scrubber'>('live');
+  const [liveSymbol, setLiveSymbol] = useState<string>('BINANCE:ETHUSDT');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectTrade = useCallback((trade: TradeOption) => {
@@ -400,6 +403,18 @@ export default function TradeReplayPage() {
     setIsPlaying(false);
     setShowDropdown(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
+
+    // Sync live terminal symbol if switching
+    if (trade.exchange === 'NSE') {
+      setLiveSymbol(`NSE:${trade.tradingsymbol}`);
+    } else if (trade.exchange === 'BSE') {
+      setLiveSymbol(`BSE:${trade.tradingsymbol}`);
+    } else if (trade.exchange === 'BINANCE' || trade.exchange === 'DELTA') {
+      const sym = trade.tradingsymbol.toUpperCase().includes('USDT')
+        ? trade.tradingsymbol.toUpperCase()
+        : `${trade.tradingsymbol.toUpperCase()}USDT`;
+      setLiveSymbol(`BINANCE:${sym}`);
+    }
   }, []);
 
   const loadTrades = useCallback(async () => {
@@ -578,8 +593,21 @@ export default function TradeReplayPage() {
               </div>
 
               {/* View switch & Playback controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center rounded-xl p-1 bg-muted/40 border border-border/40 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setChartView('live')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5',
+                      chartView === 'live'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Terminal
+                  </button>
                   <button
                     type="button"
                     onClick={() => setChartView('canvas')}
@@ -590,7 +618,7 @@ export default function TradeReplayPage() {
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    TradingView Canvas
+                    Execution Replay
                   </button>
                   <button
                     type="button"
@@ -602,7 +630,7 @@ export default function TradeReplayPage() {
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    Step Replay
+                    Step Scrubber
                   </button>
                 </div>
 
@@ -628,7 +656,23 @@ export default function TradeReplayPage() {
             </div>
 
             {/* Chart Area */}
-            {chartView === 'canvas' && replayData ? (
+            {chartView === 'live' ? (
+              <div className="flex flex-col lg:flex-row rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 min-h-[580px]">
+                <div className="flex-1 min-h-[520px]">
+                  <TradingViewLiveWidget
+                    symbol={liveSymbol}
+                    height={580}
+                    interval="5"
+                    hideSideToolbar={false}
+                    allowSymbolChange={true}
+                  />
+                </div>
+                <TradingWatchlistSidebar
+                  activeSymbol={liveSymbol}
+                  onSelectSymbol={(sym) => setLiveSymbol(sym)}
+                />
+              </div>
+            ) : chartView === 'canvas' && replayData ? (
               <div className="rounded-xl overflow-hidden border border-border/40">
                 <LightweightCandleChart
                   data={replayData}

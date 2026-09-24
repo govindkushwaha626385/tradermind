@@ -26,6 +26,7 @@ import {
   Activity,
   BarChart2,
   ArrowLeftRight,
+  Share2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -38,6 +39,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
+import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
 
 interface TradeExecution {
   id: string;
@@ -72,6 +74,7 @@ export default function TradesPage() {
   const [selectedChartTrade, setSelectedChartTrade] = useState<any | null>(null);
   const [compareTradeA, setCompareTradeA] = useState<any | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [selectedShareTrade, setSelectedShareTrade] = useState<any | null>(null);
 
   useEffect(() => {
     document.title = 'Trade Executions — TradeMind';
@@ -454,6 +457,14 @@ export default function TradesPage() {
                             <ArrowLeftRight className="w-3.5 h-3.5" />
                             Compare
                           </button>
+                          <button
+                            onClick={() => setSelectedShareTrade(trade)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
+                            title="Generate Branded Share Card"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                            Share
+                          </button>
                           <Link
                             href={`/dashboard/trades/${trade.id}/replay`}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
@@ -498,6 +509,26 @@ export default function TradesPage() {
         tradeA={compareTradeA}
         allTrades={trades}
       />
+
+      {/* Verified Branded Social Share Card Modal */}
+      {selectedShareTrade && (
+        <BrandedShareCardModal
+          isOpen={!!selectedShareTrade}
+          onClose={() => setSelectedShareTrade(null)}
+          trade={{
+            id: selectedShareTrade.id,
+            symbol: selectedShareTrade.tradingsymbol,
+            exchange: selectedShareTrade.exchange,
+            direction: selectedShareTrade.transactionType,
+            entryPrice: selectedShareTrade.executionPrice,
+            quantity: selectedShareTrade.quantity,
+            netPnl: selectedShareTrade.netPnl,
+            currency: selectedShareTrade.currency,
+            tradeDate: selectedShareTrade.executionTimestamp,
+            strategyName: selectedShareTrade.segment,
+          }}
+        />
+      )}
     </div>
   );
 }

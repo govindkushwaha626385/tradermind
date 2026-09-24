@@ -35,6 +35,7 @@ import {
   Calendar,
   Award,
   Coins,
+  Keyboard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -69,22 +70,34 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
   const items: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [
       // Navigation
-      { id: 'nav-dash', title: 'Dashboard Home', category: 'Navigation', icon: LayoutDashboard, href: '/dashboard', shortcut: 'G D' },
-      { id: 'nav-journal', title: 'Trading Journal & Logs', category: 'Navigation', icon: BookOpen, href: '/dashboard/journal', shortcut: 'G J' },
-      { id: 'nav-trades', title: 'Executions & Order Blotter', category: 'Navigation', icon: TrendingUp, href: '/dashboard/trades', shortcut: 'G T' },
+      { id: 'nav-dash', title: 'Dashboard Home', category: 'Navigation', icon: LayoutDashboard, href: '/dashboard', shortcut: 'D' },
+      { id: 'nav-journal', title: 'Trading Journal & Logs', category: 'Navigation', icon: BookOpen, href: '/dashboard/journal', shortcut: 'J' },
+      { id: 'nav-trades', title: 'Executions & Order Blotter', category: 'Navigation', icon: TrendingUp, href: '/dashboard/trades', shortcut: 'T' },
       { id: 'nav-prop-firm', title: 'Prop Firm Challenges (FTMO, FundedNext, Apex)', category: 'Navigation', icon: Award, href: '/dashboard/prop-firm', badge: 'Challenges' },
-      { id: 'nav-replay', title: 'Visual Trade Replay Studio', category: 'Navigation', icon: PlayCircle, href: '/dashboard/replay', badge: 'TradingView' },
-      { id: 'nav-analytics', title: 'Performance Analytics & MFE/MAE', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics' },
+      { id: 'nav-replay', title: 'Visual Trade Replay Studio & Live Chart', category: 'Navigation', icon: PlayCircle, href: '/dashboard/replay', shortcut: 'R', badge: 'TradingView' },
+      { id: 'nav-analytics', title: 'Performance Analytics & MFE/MAE', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics', shortcut: 'A' },
       { id: 'nav-goals', title: 'Trader Goals & Targets', category: 'Navigation', icon: Target, href: '/dashboard/goals' },
       { id: 'nav-ai', title: 'AI Copilot & Chart Vision', category: 'Navigation', icon: Brain, href: '/dashboard/ai-assistant', badge: 'AI' },
       { id: 'nav-playbooks', title: 'Setup Playbooks', category: 'Navigation', icon: Flame, href: '/dashboard/playbooks' },
-      { id: 'nav-discipline', title: 'Discipline & Rules', category: 'Navigation', icon: ListChecks, href: '/dashboard/discipline' },
-      { id: 'nav-calculators', title: '17 Pro Calculators Suite', category: 'Navigation', icon: Calculator, href: '/dashboard/calculators' },
+      { id: 'nav-discipline', title: 'Discipline & Rulebook Studio', category: 'Navigation', icon: ListChecks, href: '/dashboard/checklists', shortcut: 'K' },
+      { id: 'nav-calculators', title: '18 Pro Calculators (FX/Crypto Pip, Greeks)', category: 'Navigation', icon: Calculator, href: '/dashboard/calculators', shortcut: 'C' },
       { id: 'nav-leaderboard', title: 'Trader Leaderboard', category: 'Navigation', icon: Trophy, href: '/dashboard/leaderboard' },
-      { id: 'nav-brokers', title: 'Broker Connections (Zerodha, Dhan, etc.)', category: 'Navigation', icon: Plug, href: '/dashboard/brokers' },
+      { id: 'nav-brokers', title: 'Broker Connections (Zerodha, Dhan, etc.)', category: 'Navigation', icon: Plug, href: '/dashboard/brokers', shortcut: 'B' },
       { id: 'nav-settings', title: 'Preferences & Currency Settings', category: 'Navigation', icon: Settings, href: '/dashboard/settings' },
 
       // Quick Actions
+      {
+        id: 'act-shortcuts',
+        title: 'Keyboard Shortcuts Cheat Sheet (Power-User Hotkeys)',
+        category: 'Actions',
+        icon: Keyboard,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-keyboard-shortcuts'));
+        },
+        badge: 'Hotkeys',
+        shortcut: '?',
+      },
       {
         id: 'act-sync-now',
         title: 'Instant Broker Sync (Groww, Zerodha, Dhan, Angel One)',
@@ -122,7 +135,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
           window.dispatchEvent(new CustomEvent('open-platform-tour'));
         },
         badge: 'Academy',
-        shortcut: '?',
+        shortcut: 'Shift+T',
       },
       {
         id: 'act-eod-review',
@@ -134,7 +147,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
           window.dispatchEvent(new CustomEvent('open-eod-review'));
         },
         badge: 'Ritual',
-        shortcut: 'EOD',
+        shortcut: 'E',
       },
       {
         id: 'act-premarket',
@@ -146,6 +159,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
           window.dispatchEvent(new CustomEvent('open-premarket-routine'));
         },
         badge: 'Routine',
+        shortcut: 'P',
       },
       {
         id: 'act-position-calc',
