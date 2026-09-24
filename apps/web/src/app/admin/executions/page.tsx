@@ -17,9 +17,12 @@ import {
   TrendingDown,
   Layers,
   Activity,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/export-csv';
+import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -100,6 +103,32 @@ export default function AdminExecutionsPage() {
     return matchesSearch && matchesSegment;
   });
 
+  const handleExportCsv = () => {
+    if (filteredExecutions.length === 0) {
+      toast.error('No executions to export');
+      return;
+    }
+    const success = downloadCsv(
+      `trademind-executions-${new Date().toISOString().split('T')[0]}`,
+      filteredExecutions,
+      [
+        { header: 'Execution ID', accessor: (e) => e.id },
+        { header: 'User Email', accessor: (e) => e.userEmail },
+        { header: 'User Name', accessor: (e) => e.userName },
+        { header: 'Trading Symbol', accessor: (e) => e.tradingsymbol },
+        { header: 'Exchange', accessor: (e) => e.exchange },
+        { header: 'Segment', accessor: (e) => e.segment },
+        { header: 'Type', accessor: (e) => e.transactionType },
+        { header: 'Order Type', accessor: (e) => e.orderType },
+        { header: 'Quantity', accessor: (e) => e.quantity },
+        { header: 'Price', accessor: (e) => e.executionPrice },
+        { header: 'Broker Order ID', accessor: (e) => e.brokerOrderId },
+        { header: 'Execution Time', accessor: (e) => e.executionTimestamp },
+      ]
+    );
+    if (success) toast.success(`Exported ${filteredExecutions.length} executions to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl">
       <PageHeader
@@ -107,13 +136,24 @@ export default function AdminExecutionsPage() {
         description="Raw broker fills and orders across all platform users"
         icon={Activity}
         actions={
-        <button
-          onClick={() => fetchExecutions(pagination.page)}
-          className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
-          title="Refresh"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={filteredExecutions.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-input bg-background hover:bg-accent text-sm font-medium transition-colors disabled:opacity-50"
+              title="Export Executions to CSV"
+            >
+              <Download className="w-4 h-4 text-muted-foreground" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              onClick={() => fetchExecutions(pagination.page)}
+              className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         }
       />
 

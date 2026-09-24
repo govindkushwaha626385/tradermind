@@ -42,7 +42,7 @@ async function generateWithGemini(opts: AiGenerateOptions): Promise<AiGenerateRe
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = 'gemini-3.5-flash-lite';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body = {
@@ -90,7 +90,7 @@ async function chatWithGemini(opts: AiChatOptions): Promise<AiGenerateResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = 'gemini-3.5-flash-lite';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const contents = opts.messages.map((m) => ({
@@ -146,7 +146,7 @@ async function generateVisionWithGemini(opts: AiVisionOptions): Promise<AiGenera
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = 'gemini-3.5-flash';
+  const model = process.env.GEMINI_VISION_MODEL || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Clean base64 if it has data URL prefix

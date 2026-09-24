@@ -24,9 +24,11 @@ import {
   Trash2,
   X,
   LogIn,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/export-csv';
 import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -236,6 +238,27 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (users.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+    const success = downloadCsv(
+      `trademind-users-${new Date().toISOString().split('T')[0]}`,
+      users,
+      [
+        { header: 'User ID', accessor: (u) => u.id },
+        { header: 'Full Name', accessor: (u) => u.name },
+        { header: 'Email Address', accessor: (u) => u.email },
+        { header: 'Role', accessor: (u) => u.role },
+        { header: 'Subscription Plan', accessor: (u) => u.subscription?.planId ?? 'FREE' },
+        { header: 'Subscription Status', accessor: (u) => u.subscription?.status ?? 'active' },
+        { header: 'Joined At', accessor: (u) => u.createdAt },
+      ]
+    );
+    if (success) toast.success(`Exported ${users.length} users to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl">
       {/* ConfirmDialog — replaces window.confirm() */}
@@ -260,13 +283,24 @@ export default function AdminUsersPage() {
             View, search, and manage all platform users
           </p>
         </div>
-        <button
-          onClick={() => fetchUsers(pagination.page)}
-          className="p-2 rounded-xl hover:bg-accent text-muted-foreground"
-          title="Refresh"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            disabled={users.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-input bg-background hover:bg-accent text-sm font-medium transition-colors disabled:opacity-50"
+            title="Export Users to CSV"
+          >
+            <Download className="w-4 h-4 text-muted-foreground" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => fetchUsers(pagination.page)}
+            className="p-2 rounded-xl hover:bg-accent text-muted-foreground"
+            title="Refresh"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Search and filters */}

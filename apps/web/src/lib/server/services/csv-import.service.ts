@@ -12,7 +12,7 @@
 //   - Groww (Trade History)
 // ──────────────────────────────────────────────
 
-export type SupportedCsvBroker = 'zerodha' | 'upstox' | 'angelone' | 'fyers' | 'groww' | 'dhan' | 'unknown';
+export type SupportedCsvBroker = 'zerodha' | 'upstox' | 'angelone' | 'fyers' | 'groww' | 'dhan' | 'binance' | 'bybit' | 'ibkr' | 'metatrader' | 'universal' | 'unknown';
 
 export interface ParsedCsvTrade {
   tradingsymbol: string;
@@ -139,6 +139,19 @@ function detectBroker(headers: string[]): SupportedCsvBroker {
   if (h.includes('symbol') && (h.includes('tradedprice') || (h.includes('side') && h.includes('exchtime')))) return 'fyers';
   if (h.includes('isin') && (h.includes('trade price') || h.includes('trade quantity') || h.includes('groww'))) return 'groww';
   if (h.includes('dhan') || (h.includes('custom_symbol') && h.includes('traded_quantity')) || (h.includes('trading_symbol') && h.includes('transaction_type'))) return 'dhan';
+  if (h.includes('binance') || (h.includes('market') && h.includes('realized profit'))) return 'binance';
+  if (h.includes('bybit') || (h.includes('contracts') && h.includes('closed p&l'))) return 'bybit';
+  if (h.includes('ibkr') || (h.includes('conid') && h.includes('basis'))) return 'ibkr';
+  if (h.includes('ticket') && (h.includes('open price') || h.includes('close price'))) return 'metatrader';
+
+  // Check if minimum required columns exist for Universal CSV
+  const hasSymbol = headers.some((k) => /^(symbol|ticker|pair|contract|tradingsymbol|instrument|asset)$/i.test(k.trim()));
+  const hasPrice = headers.some((k) => /^(price|avg_price|entry_price|traded_price|execution_price|open_price)$/i.test(k.trim()));
+  const hasQty = headers.some((k) => /^(qty|quantity|shares|contracts|amount|size|volume)$/i.test(k.trim()));
+
+  if (hasSymbol && (hasPrice || hasQty)) {
+    return 'universal';
+  }
 
   return 'unknown';
 }
@@ -459,6 +472,97 @@ function parseGroww(rows: Record<string, string>[]): { trades: ParsedCsvTrade[];
   return { trades, errors };
 }
 
+function parseUniversal(rows: Record<string, string>[], brokerLabel = 'Universal'): { trades: ParsedCsvTrade[]; errors: string[] } {
+  const trades: ParsedCsvTrade[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    try {
+      const symKey = Object.keys(row).find((k) =>
+        /^(symbol|ticker|pair|contract|tradingsymbol|instrument|asset)$/i.test(k.trim())
+      );
+      const sym = symKey ? row[symKey]?.trim() : '';
+      if (!sym) continue;
+
+      const sideKey = Object.keys(row).find((k) =>
+        /^(side|type|action|direction|trade_type|transaction_type)$/i.test(k.trim())
+      );
+      const sideVal = sideKey ? String(row[sideKey]).toUpperCase() : 'BUY';
+      const direction: 'LONG' | 'SHORT' =
+        sideVal.includes('SELL') || sideVal.includes('SHORT') ? 'SHORT' : 'LONG';
+
+      const qtyKey = Object.keys(row).find((k) =>
+        /^(qty|quantity|shares|contracts|amount|size|executed|volume)$/i.test(k.trim())
+      );
+      const qty = safeNum(qtyKey ? row[qtyKey] : '1') || 1;
+
+      const priceKey = Object.keys(row).find((k) =>
+        /^(price|avg_price|entry_price|traded_price|execution_price|fill_price|open_price)$/i.test(k.trim())
+      );
+      const price = safeNum(priceKey ? row[priceKey] : '0');
+
+      const exitPriceKey = Object.keys(row).find((k) =>
+        /^(exit_price|close_price|closed_price|avg_exit_price)$/i.test(k.trim())
+      );
+      const exitPrice = exitPriceKey ? safeNum(row[exitPriceKey]) : undefined;
+
+      const dateKey = Object.keys(row).find((k) =>
+        /^(date|time|timestamp|datetime|opened_at|trade_date|created_at|open_time)$/i.test(k.trim())
+      );
+      const openedAt = dateKey ? parseFlexDate(row[dateKey]) : new Date();
+
+      const closeDateKey = Object.keys(row).find((k) =>
+        /^(close_date|closed_at|exit_time|close_time)$/i.test(k.trim())
+      );
+      const closedAt = closeDateKey ? parseFlexDate(row[closeDateKey]) : undefined;
+
+      const pnlKey = Object.keys(row).find((k) =>
+        /^(pnl|net_pnl|realized_pnl|profit|net_profit|realized_profit)$/i.test(k.trim())
+      );
+      const rawPnl = pnlKey ? safeNum(row[pnlKey]) : null;
+
+      const feesKey = Object.keys(row).find((k) =>
+        /^(fee|fees|commission|charges|taxes)$/i.test(k.trim())
+      );
+      const fees = feesKey ? safeNum(row[feesKey]) : 0;
+
+      let grossPnl = rawPnl != null ? rawPnl + fees : 0;
+      let netPnl = rawPnl != null ? rawPnl : 0;
+      if (rawPnl == null && exitPrice && price > 0) {
+        grossPnl = direction === 'LONG' ? (exitPrice - price) * qty : (price - exitPrice) * qty;
+        netPnl = grossPnl - fees;
+      }
+
+      const isCrypto = /USDT$|BUSD$|USDC$|BTC$|ETH$/i.test(sym) || brokerLabel.toLowerCase().includes('binance') || brokerLabel.toLowerCase().includes('bybit');
+      const isForex = /^[A-Z]{6}$/i.test(sym) && (sym.includes('USD') || sym.includes('EUR') || sym.includes('GBP') || sym.includes('JPY'));
+      const assetClass = isCrypto ? 'CRYPTO' : isForex ? 'CURRENCY' : guessAssetClass(sym, 'GLOBAL');
+      const exchange = isCrypto ? 'CRYPTO' : isForex ? 'FOREX' : (row['exchange'] || 'GLOBAL');
+
+      trades.push({
+        tradingsymbol: sym.toUpperCase().replace(/\s+/g, ''),
+        exchange,
+        assetClass,
+        direction,
+        status: (closedAt || exitPrice || rawPnl != null) ? 'CLOSED' : 'OPEN',
+        totalQuantity: qty,
+        avgEntryPrice: price,
+        avgExitPrice: exitPrice,
+        openedAt,
+        closedAt,
+        grossPnl,
+        totalFeesAndTaxes: fees,
+        netPnl,
+        tradeType: 'MANUAL',
+      });
+    } catch (e: any) {
+      errors.push(`Row ${i + 1}: ${e.message}`);
+    }
+  }
+
+  return { trades, errors };
+}
+
 // ── Main parse entry point ────────────────────────────────────────
 
 export function parseCsvTrades(rawCsv: string): CsvImportResult {
@@ -474,8 +578,19 @@ export function parseCsvTrades(rawCsv: string): CsvImportResult {
     case 'dhan':      result = parseDhan(rows);      break;
     case 'fyers':     result = parseFyers(rows);     break;
     case 'groww':     result = parseGroww(rows);     break;
-    default:
-      result = { trades: [], errors: ['Could not detect broker format from CSV headers. Supported: Zerodha, Upstox, Angel One, Dhan, Fyers, Groww.'] };
+    case 'binance':   result = parseUniversal(rows, 'Binance'); break;
+    case 'bybit':     result = parseUniversal(rows, 'Bybit'); break;
+    case 'ibkr':      result = parseUniversal(rows, 'Interactive Brokers'); break;
+    case 'metatrader':result = parseUniversal(rows, 'MetaTrader'); break;
+    case 'universal': result = parseUniversal(rows, 'Universal'); break;
+    default: {
+      const fallback = parseUniversal(rows, 'Smart Fallback');
+      if (fallback.trades.length > 0) {
+        result = fallback;
+      } else {
+        result = { trades: [], errors: ['Could not detect columns. CSV should contain at least Symbol, Quantity, and Price columns.'] };
+      }
+    }
   }
 
   return {

@@ -38,6 +38,7 @@ import { toast } from '@/components/Toast';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { cn, formatCurrency } from '@/lib/utils';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { TradeReplayData } from '@trademind/shared';
 
 // ── Types ──────────────────────────────────────
@@ -380,6 +381,7 @@ function CandlestickChart({
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TradeReplayPage() {
+  const { currency } = useCurrency();
   const [trades, setTrades] = useState<TradeOption[]>([]);
   const [selectedTrade, setSelectedTrade] = useState<TradeOption | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -390,53 +392,70 @@ export default function TradeReplayPage() {
   const [chartView, setChartView] = useState<'canvas' | 'scrubber'>('canvas');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch journal and execution trades for selection
-  useEffect(() => {
-    setLoading(true);
-    api
-      .getJournalTrades({ limit: 100 })
-      .then(async (res) => {
-        const raw = res.data as any;
-        const list = Array.isArray(raw) ? raw : (raw?.trades ?? raw?.data ?? []);
-        let normalized = list.map(normalizeTrade);
-
-        // If no journal trades found, fallback to executions
-        if (normalized.length === 0) {
-          try {
-            const execRes = await api.getTrades({ limit: 50 });
-            const execRaw = execRes.data as any;
-            const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
-            normalized = execList.map(normalizeTrade);
-          } catch {}
-        }
-
-        setTrades(normalized);
-        if (normalized.length > 0) selectTrade(normalized[0]!);
-      })
-      .catch(async () => {
-        try {
-          const execRes = await api.getTrades({ limit: 50 });
-          const execRaw = execRes.data as any;
-          const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
-          const normalized = execList.map(normalizeTrade);
-          setTrades(normalized);
-          if (normalized.length > 0) selectTrade(normalized[0]!);
-        } catch {
-          toast.error('Failed to load trades');
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
   const selectTrade = useCallback((trade: TradeOption) => {
     setSelectedTrade(trade);
     const c = generateCandles(trade, 40);
     setCandles(c);
-    setReplayIndex(c.length - 1); // show full by default
+    setReplayIndex(c.length - 1);
     setIsPlaying(false);
     setShowDropdown(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
   }, []);
+
+  const loadTrades = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.getJournalTrades({ limit: 100 });
+      const raw = res.data as any;
+      const list = Array.isArray(raw) ? raw : (raw?.trades ?? raw?.data ?? []);
+      let normalized = list.map(normalizeTrade);
+
+      if (normalized.length === 0) {
+        try {
+          const execRes = await api.getTrades({ limit: 50 });
+          const execRaw = execRes.data as any;
+          const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
+          normalized = execList.map(normalizeTrade);
+        } catch {}
+      }
+
+      setTrades(normalized);
+      if (normalized.length > 0) {
+        setSelectedTrade((prev) => {
+          if (prev && normalized.some((t: TradeOption) => t.id === prev.id)) return prev;
+          selectTrade(normalized[0]!);
+          return normalized[0]!;
+        });
+      }
+    } catch {
+      try {
+        const execRes = await api.getTrades({ limit: 50 });
+        const execRaw = execRes.data as any;
+        const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
+        const normalized = execList.map(normalizeTrade);
+        setTrades(normalized);
+        if (normalized.length > 0) selectTrade(normalized[0]!);
+      } catch {
+        toast.error('Failed to load trades');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [selectTrade]);
+
+  // Fetch on mount
+  useEffect(() => {
+    loadTrades();
+  }, [loadTrades]);
+
+  // Listen for real-time broker sync
+  useEffect(() => {
+    const handleBrokerSynced = () => {
+      loadTrades();
+    };
+    window.addEventListener('broker-synced', handleBrokerSynced);
+    return () => window.removeEventListener('broker-synced', handleBrokerSynced);
+  }, [loadTrades]);
 
   // Replay controls
   const startReplay = useCallback(() => {
@@ -550,7 +569,7 @@ export default function TradeReplayPage() {
                       >
                         <span className="font-medium truncate">{t.tradingsymbol} ({t.exchange})</span>
                         <span className={cn('text-xs font-semibold flex-shrink-0', t.netPnl >= 0 ? 'text-profit' : 'text-loss')}>
-                          {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl)}
+                          {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl, currency)}
                         </span>
                       </button>
                     ))}
@@ -613,7 +632,7 @@ export default function TradeReplayPage() {
               <div className="rounded-xl overflow-hidden border border-border/40">
                 <LightweightCandleChart
                   data={replayData}
-                  currency={selectedTrade?.exchange === 'DELTA' ? 'USD' : 'INR'}
+                  currency={selectedTrade?.exchange === 'DELTA' ? 'USD' : currency}
                   className="h-[460px]"
                 />
               </div>
@@ -691,7 +710,7 @@ export default function TradeReplayPage() {
                 <span className="text-sm font-semibold text-muted-foreground">Net P&L</span>
               </div>
               <div className={cn('text-3xl font-extrabold tabular-nums', isProfit ? 'text-profit' : 'text-loss')}>
-                {isProfit ? '+' : ''}{formatCurrency(pnl)}
+                {isProfit ? '+' : ''}{formatCurrency(pnl, currency)}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {selectedTrade?.tradingsymbol} · {selectedTrade?.direction}
@@ -706,20 +725,20 @@ export default function TradeReplayPage() {
                   {
                     icon: TrendingUp,
                     label: 'Entry Price',
-                    value: selectedTrade ? formatCurrency(selectedTrade.avgEntryPrice) : '—',
+                    value: selectedTrade ? formatCurrency(selectedTrade.avgEntryPrice, currency) : '—',
                     color: 'text-blue-400',
                   },
                   {
                     icon: TrendingDown,
                     label: 'Exit Price',
-                    value: selectedTrade ? formatCurrency(selectedTrade.avgExitPrice ?? 0) : '—',
+                    value: selectedTrade ? formatCurrency(selectedTrade.avgExitPrice ?? 0, currency) : '—',
                     color: 'text-amber-400',
                   },
                   {
                     icon: Target,
                     label: 'MFE (Max Upside)',
                     value: selectedTrade?.maxFavorableExcursion != null
-                      ? formatCurrency(selectedTrade.maxFavorableExcursion)
+                      ? formatCurrency(selectedTrade.maxFavorableExcursion, currency)
                       : '—',
                     color: 'text-emerald-400',
                   },
@@ -727,7 +746,7 @@ export default function TradeReplayPage() {
                     icon: AlertTriangle,
                     label: 'MAE (Max Drawdown)',
                     value: selectedTrade?.maxAdverseExcursion != null
-                      ? formatCurrency(selectedTrade.maxAdverseExcursion)
+                      ? formatCurrency(selectedTrade.maxAdverseExcursion, currency)
                       : '—',
                     color: 'text-rose-400',
                   },
@@ -765,7 +784,7 @@ export default function TradeReplayPage() {
             <div className="glass-card rounded-2xl p-5">
               <div className="text-xs text-muted-foreground mb-1">Price at Replay Position</div>
               <div className="text-2xl font-extrabold tabular-nums">
-                {formatCurrency(currentPrice)}
+                {formatCurrency(currentPrice, currency)}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 Candle {replayIndex + 1} of {candles.length}

@@ -12,6 +12,11 @@ export const BROKER_IDS = [
   'sahi',
   'lemonn',
   'delta_exchange',
+  'binance',
+  'bybit',
+  'ibkr',
+  'metatrader',
+  'universal',
 ] as const;
 export type BrokerId = (typeof BROKER_IDS)[number];
 

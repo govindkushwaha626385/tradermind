@@ -57,7 +57,12 @@ const BROKER_DISPLAY_NAMES: Record<string, string> = {
   dhan: 'Dhan',
   fyers: 'Fyers',
   groww: 'Groww',
-  unknown: 'Unknown Broker',
+  binance: 'Binance Spot & Futures',
+  bybit: 'Bybit Derivatives',
+  ibkr: 'Interactive Brokers (IBKR)',
+  metatrader: 'MetaTrader 4/5 (MT4/MT5)',
+  universal: 'Universal Trade CSV',
+  unknown: 'Universal / Custom CSV',
 };
 
 const SAMPLE_FORMAT_DOCS: Record<string, string> = {
@@ -67,6 +72,11 @@ const SAMPLE_FORMAT_DOCS: Record<string, string> = {
   dhan: 'Trader Web → Trade Book → Export CSV',
   fyers: 'Account → Reports → Trade Log → Export',
   groww: 'Reports → Trade History → Export',
+  binance: 'Orders → Spot/Futures Order → Trade History → Export',
+  bybit: 'Orders → Derivatives Order → Trade History → Export',
+  ibkr: 'Account Management → Reports → Activity → CSV Export',
+  metatrader: 'Terminal → Account History → Right-click → Save as Report (CSV)',
+  universal: 'Standard CSV with Symbol, Quantity, Price, Date, and Side (Buy/Sell)',
 };
 
 type Step = 'upload' | 'preview' | 'confirm' | 'success';

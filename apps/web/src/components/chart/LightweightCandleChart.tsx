@@ -58,6 +58,7 @@ export function LightweightCandleChart({
   const [showEma, setShowEma] = useState(true);
   const [showVwap, setShowVwap] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
+  const [showRsi, setShowRsi] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredCandle, setHoveredCandle] = useState<{ open: number; high: number; low: number; close: number; changePct: number } | null>(null);
 
@@ -400,6 +401,62 @@ export function LightweightCandleChart({
       vwapSeries.setData(vwapData);
     }
 
+    // Add RSI (14) Momentum Indicator
+    if (showRsi && candles.length >= 15) {
+      const rsiSeries = chart.addSeries(LineSeries, {
+        color: '#c084fc',
+        lineWidth: 2,
+        priceScaleId: 'rsi_scale',
+        title: 'RSI(14)',
+      });
+      chart.priceScale('rsi_scale').applyOptions({
+        scaleMargins: {
+          top: 0.78,
+          bottom: 0.02,
+        },
+      });
+      rsiSeries.createPriceLine({
+        price: 70,
+        color: 'rgba(239, 68, 68, 0.45)',
+        lineWidth: 1,
+        lineStyle: 2,
+        title: '70 OB',
+      });
+      rsiSeries.createPriceLine({
+        price: 30,
+        color: 'rgba(16, 185, 129, 0.45)',
+        lineWidth: 1,
+        lineStyle: 2,
+        title: '30 OS',
+      });
+
+      const rsiData: LineData<Time>[] = [];
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i <= 14; i++) {
+        const diff = candles[i].close - candles[i - 1].close;
+        if (diff >= 0) gains += diff;
+        else losses -= diff;
+      }
+      let avgGain = gains / 14;
+      let avgLoss = losses / 14;
+      let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      let rsi = 100 - 100 / (1 + rs);
+      rsiData.push({ time: candles[14].time, value: parseFloat(rsi.toFixed(2)) });
+
+      for (let i = 15; i < candles.length; i++) {
+        const diff = candles[i].close - candles[i - 1].close;
+        const currentGain = diff >= 0 ? diff : 0;
+        const currentLoss = diff < 0 ? -diff : 0;
+        avgGain = (avgGain * 13 + currentGain) / 14;
+        avgLoss = (avgLoss * 13 + currentLoss) / 14;
+        rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        rsi = 100 - 100 / (1 + rs);
+        rsiData.push({ time: candles[i].time, value: parseFloat(rsi.toFixed(2)) });
+      }
+      rsiSeries.setData(rsiData);
+    }
+
     // Crosshair inspection listener
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData) {
@@ -436,7 +493,7 @@ export function LightweightCandleChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, timeframe, showLevels, showEma, showVwap, showVolume, currency]);
+  }, [data, timeframe, showLevels, showEma, showVwap, showVolume, showRsi, currency]);
 
   return (
     <div
@@ -543,6 +600,20 @@ export function LightweightCandleChart({
           >
             <BarChart className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Vol</span>
+          </button>
+
+          {/* Toggle RSI (14) */}
+          <button
+            onClick={() => setShowRsi((prev) => !prev)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              showRsi
+                ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+            }`}
+            title="Toggle RSI (14) Momentum Indicator"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">RSI</span>
           </button>
 
           {/* Toggle Price Levels */}

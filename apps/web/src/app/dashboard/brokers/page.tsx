@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { CsvImportModal } from '@/components/brokers/CsvImportModal';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface BrokerConnection {
   id: string;
@@ -65,15 +66,22 @@ interface ConnectFormState {
   label: string;
 }
 
-const BROKER_META: Record<string, { name: string; symbol: string; color: string; authType: string; requires: string[] }> = {
-  zerodha:        { name: 'Zerodha Kite',    symbol: 'Z', color: 'from-blue-600 to-blue-700',    authType: 'OAuth 2.0 & Token', requires: ['authCode', 'apiKey'] },
-  dhan:           { name: 'Dhan HQ',         symbol: 'D', color: 'from-violet-600 to-violet-700', authType: 'API Access Token', requires: ['apiKey', 'clientId'] },
-  angelone:       { name: 'Angel One',       symbol: 'A', color: 'from-red-600 to-red-700',       authType: 'SmartAPI + TOTP',   requires: ['apiKey', 'clientId', 'password', 'totpSeed'] },
-  upstox:         { name: 'Upstox',          symbol: 'U', color: 'from-green-600 to-green-700',   authType: 'OAuth 2.0 & Token', requires: ['authCode', 'apiKey'] },
-  groww:          { name: 'Groww',           symbol: 'G', color: 'from-emerald-600 to-emerald-700',authType: 'API & CSV Import',  requires: ['apiKey', 'apiSecret'] },
-  sahi:           { name: 'Sahi',            symbol: 'S', color: 'from-orange-600 to-orange-700', authType: 'CSV Import',        requires: [] },
-  lemonn:         { name: 'Lemonn',          symbol: 'L', color: 'from-yellow-600 to-yellow-700', authType: 'CSV Import',        requires: [] },
-  delta_exchange: { name: 'Delta Exchange',  symbol: 'Δ', color: 'from-cyan-600 to-cyan-700',    authType: 'API Key & Secret',  requires: ['apiKey', 'apiSecret'] },
+const BROKER_META: Record<string, { name: string; symbol: string; color: string; authType: string; market: 'Indian' | 'Global' | 'Crypto'; requires: string[] }> = {
+  // Indian Markets
+  zerodha:        { name: 'Zerodha Kite',    symbol: 'Z',  color: 'from-blue-600 to-blue-700',       authType: 'OAuth 2.0 & Token', market: 'Indian', requires: ['authCode', 'apiKey'] },
+  groww:          { name: 'Groww',           symbol: 'G',  color: 'from-emerald-600 to-emerald-700', authType: 'API & CSV Import',  market: 'Indian', requires: ['apiKey', 'apiSecret'] },
+  dhan:           { name: 'Dhan HQ',         symbol: 'D',  color: 'from-violet-600 to-violet-700',   authType: 'API Access Token',  market: 'Indian', requires: ['apiKey', 'clientId'] },
+  angelone:       { name: 'Angel One',       symbol: 'A',  color: 'from-red-600 to-red-700',          authType: 'SmartAPI + TOTP',   market: 'Indian', requires: ['apiKey', 'clientId', 'password', 'totpSeed'] },
+  upstox:         { name: 'Upstox',          symbol: 'U',  color: 'from-green-600 to-green-700',      authType: 'OAuth 2.0 & Token', market: 'Indian', requires: ['authCode', 'apiKey'] },
+  sahi:           { name: 'Sahi',            symbol: 'S',  color: 'from-orange-600 to-orange-700',    authType: 'CSV Import',        market: 'Indian', requires: [] },
+  lemonn:         { name: 'Lemonn',          symbol: 'L',  color: 'from-yellow-600 to-yellow-700',    authType: 'CSV Import',        market: 'Indian', requires: [] },
+  // Crypto & Derivatives
+  delta_exchange: { name: 'Delta Exchange',  symbol: 'Δ',  color: 'from-cyan-600 to-cyan-700',       authType: 'API Key & Secret',  market: 'Crypto', requires: ['apiKey', 'apiSecret'] },
+  binance:        { name: 'Binance',         symbol: 'B',  color: 'from-amber-500 to-yellow-600',    authType: 'CSV & Trade Export',market: 'Crypto', requires: [] },
+  bybit:          { name: 'Bybit',           symbol: 'By', color: 'from-orange-500 to-amber-600',    authType: 'CSV & Trade Export',market: 'Crypto', requires: [] },
+  // Global & Forex
+  ibkr:           { name: 'Interactive Brokers', symbol: 'IB', color: 'from-rose-700 to-red-900',   authType: 'Flex & CSV Import', market: 'Global', requires: [] },
+  metatrader:     { name: 'MetaTrader 4/5',  symbol: 'MT', color: 'from-sky-600 to-blue-800',       authType: 'Report CSV Import', market: 'Global', requires: [] },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -106,6 +114,7 @@ function BrokerCardSkeleton() {
 }
 
 export default function BrokersPage() {
+  const { currency } = useCurrency();
   const [connections, setConnections]   = useState<BrokerConnection[]>([]);
   const [funds, setFunds]               = useState<BrokerFund[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -113,6 +122,7 @@ export default function BrokersPage() {
   const [form, setForm]                 = useState<ConnectFormState>(INITIAL_FORM);
   const [connecting, setConnecting]     = useState(false);
   const [connectError, setConnectError] = useState('');
+  const [marketFilter, setMarketFilter] = useState<'all' | 'Indian' | 'Global' | 'Crypto'>('all');
   const [showSecrets, setShowSecrets]   = useState(false);
   const [syncStatus, setSyncStatus]     = useState<string | null>(null);
 
@@ -178,6 +188,11 @@ export default function BrokersPage() {
   });
 
   const openConnectModal = (brokerId: string) => {
+    const meta = BROKER_META[brokerId];
+    if (meta && meta.requires.length === 0) {
+      setCsvImportOpen(true);
+      return;
+    }
     setConnectModal(brokerId);
     setForm(INITIAL_FORM);
     setConnectError('');
@@ -327,16 +342,22 @@ export default function BrokersPage() {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Available Cash</span>
-                    <span className="font-semibold text-success">{formatCurrency(fund.availableCash)}</span>
+                    <span className="font-semibold text-success">
+                      {formatCurrency(fund.availableCash, (fund.currency as any) || (fund.brokerId === 'delta_exchange' ? 'USD' : currency))}
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Used Margin</span>
-                    <span className="font-medium">{formatCurrency(fund.usedMargin)}</span>
+                    <span className="font-medium">
+                      {formatCurrency(fund.usedMargin, (fund.currency as any) || (fund.brokerId === 'delta_exchange' ? 'USD' : currency))}
+                    </span>
                   </div>
                   {fund.totalCollateral > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Collateral</span>
-                      <span className="font-medium">{formatCurrency(fund.totalCollateral)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(fund.totalCollateral, (fund.currency as any) || (fund.brokerId === 'delta_exchange' ? 'USD' : currency))}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -346,11 +367,36 @@ export default function BrokersPage() {
         </div>
       )}
 
+      {/* Market Segments Filter */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {[
+          { id: 'all', label: 'All Markets' },
+          { id: 'Indian', label: '🇮🇳 Indian Equities & F&O' },
+          { id: 'Crypto', label: '⚡ Crypto & Derivatives' },
+          { id: 'Global', label: '🌐 Global & Forex' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setMarketFilter(tab.id as any)}
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border',
+              marketFilter === tab.id
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card/40 text-muted-foreground border-border/50 hover:bg-accent hover:text-foreground'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Broker Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading
           ? Array.from({ length: 8 }).map((_, i) => <BrokerCardSkeleton key={i} />)
-          : allBrokers.map((broker) => (
+          : allBrokers
+              .filter((b) => marketFilter === 'all' || b.market === marketFilter)
+              .map((broker) => (
               <div
                 key={broker.id}
                 className={cn(
