@@ -44,10 +44,10 @@ async function generateWithGemini(opts: AiGenerateOptions): Promise<AiGenerateRe
 
   const candidateModels = Array.from(
     new Set([
-      'gemini-3.5-flash',
       process.env.GEMINI_MODEL,
       'gemini-3.6-flash',
       'gemini-flash-latest',
+      'gemini-3.5-flash',
     ].filter(Boolean) as string[])
   );
 
@@ -114,10 +114,10 @@ async function chatWithGemini(opts: AiChatOptions): Promise<AiGenerateResult> {
 
   const candidateModels = Array.from(
     new Set([
-      'gemini-3.5-flash',
       process.env.GEMINI_MODEL,
       'gemini-3.6-flash',
       'gemini-flash-latest',
+      'gemini-3.5-flash',
     ].filter(Boolean) as string[])
   );
 
@@ -192,11 +192,11 @@ async function generateVisionWithGemini(opts: AiVisionOptions): Promise<AiGenera
 
   const candidateModels = Array.from(
     new Set([
-      'gemini-3.5-flash',
       process.env.GEMINI_VISION_MODEL,
       process.env.GEMINI_MODEL,
       'gemini-3.6-flash',
       'gemini-flash-latest',
+      'gemini-3.5-flash',
     ].filter(Boolean) as string[])
   );
 

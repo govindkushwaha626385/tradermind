@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Sun,
+  Moon,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -105,6 +106,14 @@ export default function DisciplinePage() {
             >
               <Sun className="w-4 h-4 group-hover:rotate-45 transition-transform" />
               <span>Pre-Market Routine</span>
+            </button>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-eod-review'))}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-semibold transition-all shadow-sm group"
+              title="Open Post-Market End of Day Review"
+            >
+              <Moon className="w-4 h-4" />
+              <span>EOD Review</span>
             </button>
             <button
               onClick={fetchDisciplineData}

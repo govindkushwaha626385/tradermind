@@ -659,6 +659,16 @@ export default function DashboardLayout({
             {/* Notifications */}
             <NotificationPanel onUnreadChange={setHasUnread} />
 
+            {/* Instant Risk & Position Sizing Calculator */}
+            <button
+              onClick={() => setPositionCalcOpen(true)}
+              className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Instant Risk & Position Sizing Calculator"
+              aria-label="Position Sizing Calculator"
+            >
+              <Calculator className="w-4 h-4" />
+            </button>
+
             {/* Platform Tour & Academy */}
             <button
               onClick={() => setShowTour(true)}
