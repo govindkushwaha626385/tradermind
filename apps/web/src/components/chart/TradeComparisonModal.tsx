@@ -116,33 +116,46 @@ export function TradeComparisonModal({
   const toReplayData = (t: any): TradeReplayData | null => {
     if (!t) return null;
     const symbol = t.symbol || t.tradingsymbol || 'TRADE';
-    const isLong = t.direction === 'LONG' || t.direction === 'BUY';
-    const entryPrice = Number(t.avgEntryPrice ?? t.entryPrice ?? 0);
+    const isLong =
+      t.direction === 'LONG' ||
+      t.direction === 'BUY' ||
+      t.transactionType === 'BUY' ||
+      t.side === 'BUY';
+    const rawPrice =
+      t.avgEntryPrice ??
+      t.entryPrice ??
+      t.executionPrice ??
+      t.price ??
+      0;
+    const entryPrice = Number(rawPrice);
     const exitPrice = t.avgExitPrice ? Number(t.avgExitPrice) : t.exitPrice ? Number(t.exitPrice) : undefined;
+    const hasPnl = t.netPnl !== undefined && t.netPnl !== null;
     const netPnl = Number(t.netPnl ?? t.realizedPnl ?? 0);
     const quantity = Number(t.totalQuantity ?? t.qty ?? t.quantity ?? 1);
+    const entryTime = t.openedAt || t.executionTimestamp || t.entryTime || new Date().toISOString();
+    const exitTime = t.closedAt || t.exitTime;
 
     return {
       tradeId: t.id,
       symbol,
       exchange: t.exchange || 'NSE',
       direction: isLong ? 'LONG' : 'SHORT',
-      segment: t.tradeType || 'EQUITY',
+      segment: t.segment || t.tradeType || 'EQUITY',
       entryPrice,
       exitPrice,
       quantity,
-      entryTime: t.openedAt || t.entryTime || new Date().toISOString(),
-      exitTime: t.closedAt || t.exitTime,
+      entryTime,
+      exitTime,
       mfe: t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion) : undefined,
       mae: t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion) : undefined,
-      realizedPnl: netPnl,
+      realizedPnl: hasPnl ? netPnl : undefined,
       markers: [
         {
           type: 'ENTRY',
           price: entryPrice,
-          timestamp: t.openedAt || t.entryTime || new Date().toISOString(),
+          timestamp: entryTime,
           label: `Entry: ${entryPrice.toFixed(2)}`,
-          color: '#3b82f6',
+          color: isLong ? '#22c55e' : '#ef4444',
         },
         ...(exitPrice
           ? [

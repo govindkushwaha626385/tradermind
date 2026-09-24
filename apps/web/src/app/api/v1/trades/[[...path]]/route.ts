@@ -298,9 +298,59 @@ async function handleReplay(req: NextRequest, userId: string, tradeId: string) {
   void req;
   const db = getDatabase();
 
-  const [trade] = await db.select().from(journalTrades)
+  let trade = (await db.select().from(journalTrades)
     .where(and(eq(journalTrades.id, tradeId), eq(journalTrades.userId, userId)))
-    .limit(1);
+    .limit(1))[0];
+
+  // If not found in journalTrades, check tradeExecutions
+  if (!trade) {
+    const [execution] = await db.select().from(tradeExecutions)
+      .where(and(eq(tradeExecutions.id, tradeId), eq(tradeExecutions.userId, userId)))
+      .limit(1);
+
+    if (execution) {
+      // Check if this execution is linked to a journal trade
+      const links = await db.select().from(tradeExecutionLinks)
+        .where(eq(tradeExecutionLinks.executionId, tradeId))
+        .limit(1);
+
+      if (links[0]) {
+        trade = (await db.select().from(journalTrades)
+          .where(and(eq(journalTrades.id, links[0].journalTradeId), eq(journalTrades.userId, userId)))
+          .limit(1))[0];
+      }
+
+      // If no linked journal trade, build replay data directly from execution
+      if (!trade) {
+        const isBuy = execution.transactionType === 'BUY';
+        const markers: TradeReplayMarker[] = [
+          {
+            label: `${execution.transactionType} @ ₹${execution.executionPrice.toFixed(2)}`,
+            price: execution.executionPrice,
+            timestamp: execution.executionTimestamp.toISOString(),
+            type: isBuy ? 'ENTRY' : 'EXIT',
+            color: isBuy ? '#22c55e' : '#ef4444',
+          },
+        ];
+
+        const replayData: TradeReplayData = {
+          tradeId: execution.id,
+          symbol: execution.tradingsymbol,
+          exchange: execution.exchange,
+          direction: isBuy ? 'LONG' : 'SHORT',
+          segment: execution.segment,
+          entryPrice: execution.executionPrice,
+          exitPrice: undefined,
+          quantity: execution.quantity,
+          entryTime: execution.executionTimestamp.toISOString(),
+          exitTime: undefined,
+          markers,
+        };
+
+        return ok(replayData);
+      }
+    }
+  }
 
   if (!trade) return notFound('Trade not found or not owned by you.');
 

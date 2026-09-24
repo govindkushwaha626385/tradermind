@@ -67,16 +67,16 @@ export function PageHeader({
       )}
 
       {/* Header row */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           {Icon && (
             <div className="flex-shrink-0 w-10 h-10 rounded-xl gradient-brand flex items-center justify-center shadow-brand">
               <Icon className="w-5 h-5 text-white" />
             </div>
           )}
-          <div className="min-w-0">
+          <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-foreground leading-tight tracking-tight truncate">
+              <h1 className="text-xl font-bold text-foreground leading-tight tracking-tight">
                 {title}
               </h1>
               {badge && (
@@ -103,7 +103,7 @@ export function PageHeader({
         </div>
 
         {actions && (
-          <div className="flex-shrink-0 flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {actions}
           </div>
         )}

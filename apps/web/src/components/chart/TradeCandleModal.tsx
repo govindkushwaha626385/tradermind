@@ -65,12 +65,25 @@ export function TradeCandleModal({
   if (!isOpen || !trade) return null;
 
   const symbol = trade.symbol || trade.tradingsymbol || 'TRADE';
-  const isLong = trade.direction === 'LONG' || trade.direction === 'BUY';
-  const entryPrice = Number(trade.avgEntryPrice ?? trade.entryPrice ?? 0);
+  const isLong =
+    trade.direction === 'LONG' ||
+    trade.direction === 'BUY' ||
+    trade.transactionType === 'BUY' ||
+    trade.side === 'BUY';
+  const rawPrice =
+    trade.avgEntryPrice ??
+    trade.entryPrice ??
+    trade.executionPrice ??
+    trade.price ??
+    0;
+  const entryPrice = Number(rawPrice);
   const exitPrice = trade.avgExitPrice ? Number(trade.avgExitPrice) : trade.exitPrice ? Number(trade.exitPrice) : undefined;
+  const hasPnl = trade.netPnl !== undefined && trade.netPnl !== null;
   const netPnl = Number(trade.netPnl ?? trade.realizedPnl ?? 0);
   const isWin = netPnl >= 0;
   const quantity = Number(trade.totalQuantity ?? trade.qty ?? trade.quantity ?? 1);
+  const entryTime = trade.openedAt || trade.executionTimestamp || trade.entryTime || new Date().toISOString();
+  const exitTime = trade.closedAt || trade.exitTime;
 
   // Convert trade into TradeReplayData for LightweightCandleChart
   const replayData: TradeReplayData = {
@@ -78,27 +91,27 @@ export function TradeCandleModal({
     symbol,
     exchange: trade.exchange || 'NSE',
     direction: isLong ? 'LONG' : 'SHORT',
-    segment: trade.tradeType || 'EQUITY',
+    segment: trade.segment || trade.tradeType || 'EQUITY',
     entryPrice,
     exitPrice,
     quantity,
-    entryTime: trade.openedAt || trade.entryTime || new Date().toISOString(),
-    exitTime: trade.closedAt || trade.exitTime,
+    entryTime,
+    exitTime,
     mfe: trade.maxFavorableExcursion != null ? Number(trade.maxFavorableExcursion) : undefined,
     mae: trade.maxAdverseExcursion != null ? Number(trade.maxAdverseExcursion) : undefined,
-    realizedPnl: netPnl,
+    realizedPnl: hasPnl ? netPnl : undefined,
     markers: [
       {
         type: 'ENTRY',
         price: entryPrice,
-        timestamp: trade.openedAt || trade.entryTime || new Date().toISOString(),
+        timestamp: entryTime,
         label: `Entry: ${entryPrice.toFixed(2)}`,
-        color: '#3b82f6',
+        color: isLong ? '#22c55e' : '#ef4444',
       },
       ...(exitPrice ? [{
         type: 'EXIT' as const,
         price: exitPrice,
-        timestamp: trade.closedAt || trade.exitTime || trade.openedAt || new Date().toISOString(),
+        timestamp: exitTime || entryTime,
         label: `Exit: ${exitPrice.toFixed(2)}`,
         color: isWin ? '#10b981' : '#f43f5e',
       }] : []),
@@ -173,7 +186,7 @@ Please give me an institutional execution autopsy, evaluate whether my entry was
               <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
                 <span>Qty: {quantity}</span>
                 <span>·</span>
-                <span>Entry: {entryPrice.toFixed(2)}</span>
+                <span>Entry: {entryPrice > 0 ? entryPrice.toFixed(2) : '—'}</span>
                 {exitPrice && (
                   <>
                     <span>·</span>
@@ -190,11 +203,14 @@ Please give me an institutional execution autopsy, evaluate whether my entry was
               <div
                 className={cn(
                   'text-lg sm:text-xl font-black tabular-nums',
-                  isWin ? 'text-emerald-400' : 'text-rose-400'
+                  !hasPnl
+                    ? 'text-muted-foreground'
+                    : isWin
+                    ? 'text-emerald-400'
+                    : 'text-rose-400'
                 )}
               >
-                {isWin ? '+' : ''}
-                {format(netPnl)}
+                {!hasPnl ? '—' : (isWin ? '+' : '') + format(netPnl)}
               </div>
               {trade.rMultiple != null && (
                 <div className="text-2xs font-bold text-muted-foreground">

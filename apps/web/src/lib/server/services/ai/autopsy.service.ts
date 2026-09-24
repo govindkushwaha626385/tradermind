@@ -6,7 +6,7 @@
 // Results are cached 24h in the ai_cache table.
 // ──────────────────────────────────────────────
 
-import { getDatabase, journalTrades, tradeRatings, tradePlans, aiCache } from '@trademind/database';
+import { getDatabase, journalTrades, tradeExecutions, tradeRatings, tradePlans, aiCache } from '@trademind/database';
 import { eq, and } from 'drizzle-orm';
 import { aiGenerate, isAiConfigured } from './ai.client';
 
@@ -142,11 +142,40 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
   }
 
   // ── 2. Fetch trade (ownership check) ─────────
-  const [trade] = await db
+  let trade = (await db
     .select()
     .from(journalTrades)
     .where(and(eq(journalTrades.id, tradeId), eq(journalTrades.userId, userId)))
-    .limit(1);
+    .limit(1))[0];
+
+  if (!trade) {
+    const [execution] = await db
+      .select()
+      .from(tradeExecutions)
+      .where(and(eq(tradeExecutions.id, tradeId), eq(tradeExecutions.userId, userId)))
+      .limit(1);
+
+    if (execution) {
+      trade = {
+        id: execution.id,
+        userId: execution.userId,
+        tradingsymbol: execution.tradingsymbol,
+        exchange: execution.exchange,
+        direction: execution.transactionType === 'BUY' ? 'LONG' : 'SHORT',
+        avgEntryPrice: execution.executionPrice,
+        avgExitPrice: undefined,
+        totalQuantity: execution.quantity,
+        openedAt: execution.executionTimestamp,
+        netPnl: 0,
+        grossPnl: 0,
+        totalFeesAndTaxes: execution.totalCharges,
+        currency: execution.currency,
+        emotions: [],
+        mistakeTags: [],
+        traderNotes: '',
+      } as any;
+    }
+  }
 
   if (!trade) return null;
 
