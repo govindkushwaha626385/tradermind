@@ -12,7 +12,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getDatabase, brokerConnections, accountBalances, journalTrades, encrypt } from '@trademind/database';
+import { getDatabase, brokerConnections, accountBalances, journalTrades, backgroundJobs, encrypt } from '@trademind/database';
 import { eq, and, desc } from 'drizzle-orm';
 import { authenticate } from '@/lib/server/auth';
 import { checkRateLimit } from '@/lib/server/rate-limit';
@@ -156,11 +156,34 @@ async function handleConnect(req: NextRequest, userId: string) {
   // CSV-only brokers or credentials-free connect mode
   const isCsvMode = CSV_BROKERS.has(body.brokerId) || (!body.apiKey && !body.authCode && !body.password);
   if (isCsvMode) {
-    const [connection] = await db.insert(brokerConnections).values({
-      userId, brokerId: body.brokerId, brokerClientId: body.clientId ?? body.brokerId,
-      label: body.label ?? body.brokerId, authType: 'csv_import', accessToken: 'csv_placeholder',
-      refreshToken: null, apiKey: null, apiSecret: null, tokenExpiresAt: null, status: 'ACTIVE', isActive: true,
-    }).returning();
+    const [connection] = await db
+      .insert(brokerConnections)
+      .values({
+        userId,
+        brokerId: body.brokerId,
+        brokerClientId: body.clientId ?? body.brokerId,
+        label: body.label || body.brokerId,
+        authType: 'csv_import',
+        accessToken: 'csv_placeholder',
+        refreshToken: null,
+        apiKey: null,
+        apiSecret: null,
+        tokenExpiresAt: null,
+        status: 'ACTIVE',
+        isActive: true,
+      })
+      .onConflictDoUpdate({
+        target: [brokerConnections.userId, brokerConnections.brokerId, brokerConnections.brokerClientId],
+        set: {
+          label: body.label || body.brokerId,
+          authType: 'csv_import',
+          status: 'ACTIVE',
+          isActive: true,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+
     if (!connection) return apiError('Failed to create connection', 500);
     console.log(`🔗 Broker connected (CSV): ${userId} -> ${body.brokerId}`);
     return created({ id: connection.id, brokerId: connection.brokerId, status: connection.status, message: `Connected to ${body.brokerId}. Upload your trade CSV to start importing.` });
@@ -176,34 +199,81 @@ async function handleConnect(req: NextRequest, userId: string) {
   const connector = await getBrokerConnector(body.brokerId as BrokerId, config);
   let authResult: any;
   try {
-    authResult = await connector.authenticate({ request_token: body.authCode ?? '', access_token: body.authCode ?? '' });
+    authResult = await connector.authenticate({
+      request_token: body.authCode ?? '',
+      access_token: body.authCode ?? body.apiKey ?? '',
+      api_key: body.apiKey ?? '',
+      api_secret: body.apiSecret ?? '',
+    });
   } catch (err: any) {
     return apiError(err.message, 400);
   }
 
-  const encryptedAccessToken = encrypt(authResult.accessToken);
-  const encryptedRefreshToken = authResult.refreshToken ? encrypt(authResult.refreshToken) : null;
-  const encryptedApiKey = body.apiKey ? encrypt(body.apiKey) : null;
-  const encryptedApiSecret = body.apiSecret ? encrypt(body.apiSecret) : null;
+  if (!authResult?.accessToken) {
+    return apiError('Authentication failed: broker did not return an access token', 400);
+  }
 
-  const [connection] = await db.insert(brokerConnections).values({
-    userId, brokerId: body.brokerId, brokerClientId: body.clientId ?? body.brokerId,
-    label: body.label ?? body.brokerId, authType: authResult.refreshToken ? 'oauth2' : 'api_key_secret',
-    accessToken: encryptedAccessToken, refreshToken: encryptedRefreshToken,
-    apiKey: encryptedApiKey, apiSecret: encryptedApiSecret,
-    tokenExpiresAt: authResult.expiresAt, status: 'ACTIVE', isActive: true,
-  }).returning();
+  let encryptedAccessToken: string;
+  let encryptedRefreshToken: string | null = null;
+  let encryptedApiKey: string | null = null;
+  let encryptedApiSecret: string | null = null;
+
+  try {
+    encryptedAccessToken = encrypt(authResult.accessToken);
+    if (authResult.refreshToken) encryptedRefreshToken = encrypt(authResult.refreshToken);
+    if (body.apiKey) encryptedApiKey = encrypt(body.apiKey);
+    if (body.apiSecret) encryptedApiSecret = encrypt(body.apiSecret);
+  } catch (encErr: any) {
+    console.error('[broker:connect] Encryption error:', encErr);
+    return apiError(`Encryption failed: ${encErr.message}`, 500);
+  }
+
+  const [connection] = await db
+    .insert(brokerConnections)
+    .values({
+      userId,
+      brokerId: body.brokerId,
+      brokerClientId: body.clientId ?? body.brokerId,
+      label: body.label || body.brokerId,
+      authType: authResult.refreshToken ? 'oauth2' : 'api_key_secret',
+      accessToken: encryptedAccessToken,
+      refreshToken: encryptedRefreshToken,
+      apiKey: encryptedApiKey,
+      apiSecret: encryptedApiSecret,
+      tokenExpiresAt: authResult.expiresAt,
+      status: 'ACTIVE',
+      isActive: true,
+    })
+    .onConflictDoUpdate({
+      target: [brokerConnections.userId, brokerConnections.brokerId, brokerConnections.brokerClientId],
+      set: {
+        label: body.label || body.brokerId,
+        authType: authResult.refreshToken ? 'oauth2' : 'api_key_secret',
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        apiKey: encryptedApiKey,
+        apiSecret: encryptedApiSecret,
+        tokenExpiresAt: authResult.expiresAt,
+        status: 'ACTIVE',
+        isActive: true,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
   if (!connection) return apiError('Failed to create connection', 500);
 
-  // Note: sync is now triggered via Supabase Edge Function / background job
-  // TODO: Enqueue initial-sync job via DB row insert to background_jobs table
-  await db.execute(
-    require('drizzle-orm').sql`
-      INSERT INTO public.background_jobs (type, payload, status)
-      VALUES ('sync-trades', ${JSON.stringify({ connectionId: connection.id, userId, brokerId: body.brokerId })}::jsonb, 'PENDING')
-    `
-  );
+  // Optional background sync job
+  try {
+    await db.insert(backgroundJobs).values({
+      queue: 'sync-trades',
+      jobName: `initial-sync-${body.brokerId}`,
+      payload: { connectionId: connection.id, userId, brokerId: body.brokerId },
+      status: 'PENDING',
+    });
+  } catch (bgErr) {
+    console.warn('[broker:connect] Background sync enqueue notice:', bgErr);
+  }
 
   console.log(`🔗 Broker connected: ${userId} -> ${body.brokerId}`);
   return created({ id: connection.id, brokerId: connection.brokerId, status: connection.status, message: `Successfully connected to ${body.brokerId}` });
@@ -214,13 +284,16 @@ async function handleSync(userId: string, connectionId: string) {
   const [connection] = await db.select().from(brokerConnections).where(and(eq(brokerConnections.id, connectionId), eq(brokerConnections.userId, userId))).limit(1);
   if (!connection) return notFound('Broker connection not found');
 
-  // Enqueue sync via background_jobs table (picked up by Edge Function / cron)
-  await db.execute(
-    require('drizzle-orm').sql`
-      INSERT INTO public.background_jobs (type, payload, status)
-      VALUES ('sync-trades', ${JSON.stringify({ connectionId, userId, brokerId: connection.brokerId })}::jsonb, 'PENDING')
-    `
-  );
+  try {
+    await db.insert(backgroundJobs).values({
+      queue: 'sync-trades',
+      jobName: `sync-${connection.brokerId}`,
+      payload: { connectionId, userId, brokerId: connection.brokerId },
+      status: 'PENDING',
+    });
+  } catch (bgErr) {
+    console.warn('[broker:sync] Background sync enqueue notice:', bgErr);
+  }
 
   return ok({ message: 'Sync initiated. This may take a few minutes.' });
 }
