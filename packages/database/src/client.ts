@@ -88,6 +88,7 @@ export function getDatabase() {
     max: 10,
     idle_timeout: 30,
     connect_timeout: 10,
+    ssl: 'require',
     prepare: false, // Required for Supabase's pgBouncer
   });
 

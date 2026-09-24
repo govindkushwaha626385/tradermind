@@ -42,7 +42,7 @@ async function generateWithGemini(opts: AiGenerateOptions): Promise<AiGenerateRe
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body = {
@@ -90,7 +90,7 @@ async function chatWithGemini(opts: AiChatOptions): Promise<AiGenerateResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const contents = opts.messages.map((m) => ({
@@ -146,7 +146,7 @@ async function generateVisionWithGemini(opts: AiVisionOptions): Promise<AiGenera
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_VISION_MODEL || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model = process.env.GEMINI_VISION_MODEL || process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Clean base64 if it has data URL prefix
@@ -214,7 +214,7 @@ async function generateWithGroq(opts: AiGenerateOptions): Promise<AiGenerateResu
   const url = 'https://api.groq.com/openai/v1/chat/completions';
 
   const body = {
-    model: 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     messages: [
       {
         role: 'system',
@@ -274,7 +274,7 @@ async function chatWithGroq(opts: AiChatOptions): Promise<AiGenerateResult> {
   ];
 
   const body = {
-    model: 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     messages,
     temperature: opts.temperature ?? 0.5,
     max_tokens: opts.maxOutputTokens ?? 800,

@@ -75,7 +75,7 @@ export async function getTraderLiveContext(userId: string): Promise<TraderLiveCo
     .where(
       and(
         eq(journalTrades.userId, userId),
-        gte(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`, thirtyDaysAgo),
+        sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt}) >= ${thirtyDaysAgo.toISOString()}::timestamptz`,
       ),
     )
     .orderBy(desc(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`))
