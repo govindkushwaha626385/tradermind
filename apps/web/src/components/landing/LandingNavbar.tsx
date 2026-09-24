@@ -19,6 +19,8 @@ const NAV_ITEMS = [
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Brokers', href: '#brokers' },
+  { label: 'Calculators', href: '/calculators' },
+  { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'Reviews', href: '#testimonials' },
   { label: 'Store', href: '/store' },

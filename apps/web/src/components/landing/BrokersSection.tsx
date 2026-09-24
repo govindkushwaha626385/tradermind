@@ -11,19 +11,23 @@ import { Zap } from 'lucide-react';
 const BROKERS = [
   { name: 'Zerodha', color: '#387ED1', abbr: 'Z' },
   { name: 'Dhan', color: '#00A86B', abbr: 'D' },
+  { name: 'Interactive Brokers', color: '#B91C1C', abbr: 'IB' },
   { name: 'Angel One', color: '#DC2626', abbr: 'A' },
+  { name: 'Binance Futures', color: '#F59E0B', abbr: 'BN' },
   { name: 'Upstox', color: '#6366F1', abbr: 'U' },
-  { name: 'Delta Exchange', color: '#F59E0B', abbr: 'Δ' },
+  { name: 'Delta Exchange', color: '#06B6D4', abbr: 'Δ' },
+  { name: 'Bybit', color: '#F97316', abbr: 'BY' },
   { name: 'Groww', color: '#00C853', abbr: 'G' },
+  { name: 'MetaTrader 4/5', color: '#0284C7', abbr: 'MT' },
   { name: 'Sahi', color: '#EC4899', abbr: 'S' },
   { name: 'Lemonn', color: '#FBBF24', abbr: 'L' },
 ];
 
 const STATS = [
-  { value: '9', label: 'Indian Brokers' },
-  { value: '₹0', label: 'Extra Setup Cost' },
-  { value: '< 2m', label: 'Avg Setup Time' },
-  { value: '100%', label: 'Read-Only API' },
+  { value: '12+', label: 'Global & Indian Brokers' },
+  { value: '100%', label: 'Read-Only API Access' },
+  { value: '< 2m', label: 'Instant Fast Sync' },
+  { value: '5+', label: 'Currencies ($ € £ ₹ ₮)' },
 ];
 
 function useInView(threshold = 0.1) {
@@ -75,7 +79,7 @@ export function BrokersSection() {
             className="text-slate-400 text-lg max-w-xl mx-auto"
             style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s 0.2s' }}
           >
-            All 9 integrations use secure, read-only API access. We sync your trades — we never place orders.
+            All integrations use secure, encrypted read-only API access. We sync your executions — we never place orders.
           </p>
         </div>
 

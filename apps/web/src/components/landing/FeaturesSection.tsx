@@ -18,6 +18,9 @@ import {
   Clock,
   Activity,
   Lock,
+  ArrowLeftRight,
+  Scale,
+  Award,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -89,9 +92,33 @@ const FEATURES = [
     icon: Clock,
     color: 'from-indigo-500 to-violet-500',
     glow: 'group-hover:shadow-indigo-500/20',
-    title: 'Trade Replay',
-    desc: 'Replay any trade with entry, exit and emotion overlays. Understand your decisions with full hindsight clarity.',
-    badge: 'Replay',
+    title: 'TradingView Candle Replay',
+    desc: 'Interactive TradingView candlesticks, indicators, VWAP, Bollinger Bands & bar replay with hindsight clarity.',
+    badge: 'TradingView',
+  },
+  {
+    icon: ArrowLeftRight,
+    color: 'from-purple-500 to-indigo-500',
+    glow: 'group-hover:shadow-purple-500/20',
+    title: 'Trade Comparison Studio',
+    desc: 'Side-by-side synchronized candlestick charts with execution variance matrix and AI comparative diagnosis.',
+    badge: 'Comparison',
+  },
+  {
+    icon: Scale,
+    color: 'from-amber-500 to-yellow-500',
+    glow: 'group-hover:shadow-amber-500/20',
+    title: 'In-Journal Position Sizing',
+    desc: 'Instant risk calculator computing max shares, contracts, R:R ratio, and automated portfolio tilt defense alerts.',
+    badge: 'Risk Sizing',
+  },
+  {
+    icon: Award,
+    color: 'from-cyan-500 to-blue-500',
+    glow: 'group-hover:shadow-cyan-500/20',
+    title: 'Prop Firm Challenge Tracker',
+    desc: 'Track FTMO, Topstep, FundedNext, Apex and custom evaluations with live daily loss and drawdown meters.',
+    badge: 'Prop Firms',
   },
 ];
 

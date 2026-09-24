@@ -25,7 +25,7 @@ import { APP_NAME } from '@trademind/shared';
 
 const BROKERS = [
   'Zerodha', 'Dhan', 'Angel One', 'Upstox', 'Delta Exchange',
-  'Groww', 'Sahi', 'Lemonn', 'Zerodha', 'Dhan', 'Angel One', 'Upstox',
+  'Groww', 'Interactive Brokers', 'Binance', 'Bybit', 'MetaTrader 4/5', 'Sahi', 'Lemonn',
 ];
 
 const TRUST_SIGNALS = [
@@ -147,7 +147,7 @@ export function HeroSection() {
               }}
             >
               <Zap className="w-3 h-3" />
-              Auto-sync from 8 Indian Brokers
+              Auto-Sync Global &amp; Indian Brokers · Stocks, F&amp;O, Crypto &amp; Forex
             </div>
 
             {/* Main headline */}
@@ -173,8 +173,7 @@ export function HeroSection() {
               className="text-lg sm:text-xl leading-relaxed mb-10 max-w-xl"
               style={{ color: 'rgba(255,255,255,0.55)' }}
             >
-              {APP_NAME} auto-syncs every trade from Indian brokers, calculates exact STT &amp; SEBI charges,
-              and reveals the behavioral patterns costing you money.
+              {APP_NAME} auto-syncs every trade across global and Indian markets, tracks real-time execution metrics with TradingView candlestick replay, and reveals the behavioral psychological leaks costing you money.
             </p>
 
             {/* CTAs */}
