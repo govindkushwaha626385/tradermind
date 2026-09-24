@@ -94,11 +94,35 @@ export class GrowwConnector implements IBrokerConnector {
    * Uses SHA-256 checksum (secret + epoch timestamp).
    */
   async authenticate(params: Record<string, string>): Promise<BrokerAuthTokens> {
+    // 1. Direct Access Token (from "Generate Access Token" on Groww portal)
+    const directToken =
+      params.access_token ||
+      params.request_token ||
+      (this.config.apiKey && !this.config.apiSecret ? this.config.apiKey : null);
+
+    if (directToken && directToken.trim().length > 15) {
+      return {
+        accessToken: directToken.trim(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Groww tokens reset daily at 6 AM
+      };
+    }
+
+    // 2. API Key + Secret checksum generation
     const apiKey = this.config.apiKey ?? params.api_key ?? '';
     const apiSecret = this.config.apiSecret ?? params.api_secret ?? '';
 
-    if (!apiKey || !apiSecret) {
-      throw new Error('Groww authentication requires both apiKey and apiSecret.');
+    if (!apiKey) {
+      throw new Error(
+        'Groww authentication requires an Access Token (click "Generate Access Token" on Groww) or API Key + Secret.',
+      );
+    }
+
+    // If only apiKey was provided, treat as direct access token
+    if (!apiSecret) {
+      return {
+        accessToken: apiKey.trim(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
     }
 
     return this.generateAccessToken(apiKey, apiSecret);

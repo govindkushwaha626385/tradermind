@@ -569,16 +569,27 @@ export default function BrokersPage() {
                 </div>
               )}
 
-              {/* API Key */}
+              {/* API Key / Access Token */}
               {selectedBroker.requires.includes('apiKey') && (
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">API Key</label>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {connectModal === 'groww' ? 'Access Token (or API Key)' : 'API Key'}
+                    {connectModal === 'groww' && (
+                      <span className="text-xs text-primary font-normal ml-2">
+                        ← Choose <b>Generate Access Token</b> on Groww
+                      </span>
+                    )}
+                  </label>
                   <div className="relative">
                     <input
                       type={showSecrets ? 'text' : 'password'}
                       value={form.apiKey}
                       onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
-                      placeholder="Enter your API key"
+                      placeholder={
+                        connectModal === 'groww'
+                          ? 'Paste your Groww Access Token here'
+                          : 'Enter your API key'
+                      }
                       className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button
@@ -596,13 +607,24 @@ export default function BrokersPage() {
               {/* API Secret */}
               {selectedBroker.requires.includes('apiSecret') && (
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">API Secret</label>
+                  <label className="block text-sm font-medium mb-1.5">
+                    API Secret
+                    {connectModal === 'groww' && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Leave blank if you pasted the Access Token above)
+                      </span>
+                    )}
+                  </label>
                   <div className="relative">
                     <input
                       type={showSecrets ? 'text' : 'password'}
                       value={form.apiSecret}
                       onChange={(e) => setForm({ ...form, apiSecret: e.target.value })}
-                      placeholder="Enter your API secret"
+                      placeholder={
+                        connectModal === 'groww'
+                          ? 'Optional — not needed if Access Token is provided'
+                          : 'Enter your API secret'
+                      }
                       className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button
