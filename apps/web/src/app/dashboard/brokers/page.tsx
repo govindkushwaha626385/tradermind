@@ -20,6 +20,7 @@ import {
   Wallet,
   Handshake,
   FileUp,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -69,7 +70,7 @@ const BROKER_META: Record<string, { name: string; symbol: string; color: string;
   dhan:           { name: 'Dhan HQ',         symbol: 'D', color: 'from-violet-600 to-violet-700', authType: 'API Key',           requires: ['apiKey'] },
   angelone:       { name: 'Angel One',       symbol: 'A', color: 'from-red-600 to-red-700',       authType: 'JWT + TOTP',        requires: ['clientId', 'password', 'totpSeed'] },
   upstox:         { name: 'Upstox',          symbol: 'U', color: 'from-green-600 to-green-700',   authType: 'OAuth 2.0',         requires: ['authCode'] },
-  groww:          { name: 'Groww',           symbol: 'G', color: 'from-emerald-600 to-emerald-700',authType: 'API Key + Secret',  requires: ['apiKey', 'apiSecret'] },
+  groww:          { name: 'Groww',           symbol: 'G', color: 'from-emerald-600 to-emerald-700',authType: 'API & CSV Import',  requires: ['apiKey', 'apiSecret'] },
   sahi:           { name: 'Sahi',            symbol: 'S', color: 'from-orange-600 to-orange-700', authType: 'CSV Import',        requires: [] },
   lemonn:         { name: 'Lemonn',          symbol: 'L', color: 'from-yellow-600 to-yellow-700', authType: 'CSV Import',        requires: [] },
   delta_exchange: { name: 'Delta Exchange',  symbol: 'Δ', color: 'from-cyan-600 to-cyan-700',    authType: 'API Key',           requires: ['apiKey', 'apiSecret'] },
@@ -387,13 +388,23 @@ export default function BrokersPage() {
 
                 <div className="flex gap-2 mt-4">
                   {broker.status === 'DISCONNECTED' && (
-                    <button
-                      onClick={() => openConnectModal(broker.id)}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      <Plug className="w-4 h-4" />
-                      Connect
-                    </button>
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={() => openConnectModal(broker.id)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                      >
+                        <Plug className="w-4 h-4" />
+                        Connect
+                      </button>
+                      <button
+                        onClick={() => setCsvImportOpen(true)}
+                        className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-accent text-xs font-semibold hover:bg-accent/80 transition-colors border border-border text-foreground"
+                        title={`Import ${broker.name} CSV`}
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                        CSV
+                      </button>
+                    </div>
                   )}
                   {broker.status === 'ACTIVE' && (
                     <>
@@ -486,10 +497,39 @@ export default function BrokersPage() {
               </button>
             </div>
 
+            {/* CSV Helper Banner */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/60 border border-border text-xs">
+              <span className="text-muted-foreground">Don't have API keys?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setConnectModal(null);
+                  setCsvImportOpen(true);
+                }}
+                className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                1-Click CSV Import (No API needed)
+              </button>
+            </div>
+
             {connectError && (
-              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-sm text-destructive" role="alert">
-                <AlertCircle className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                {connectError}
+              <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-2.5" role="alert">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <p className="leading-relaxed font-medium">{connectError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConnectModal(null);
+                    setCsvImportOpen(true);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-destructive/20 hover:bg-destructive/30 font-semibold text-destructive transition-colors text-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Use 1-Click CSV Import Instead (Instant)
+                </button>
               </div>
             )}
 

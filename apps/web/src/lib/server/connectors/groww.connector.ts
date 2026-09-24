@@ -294,11 +294,25 @@ export class GrowwConnector implements IBrokerConnector {
       }),
     });
 
-    const body: any = await response.json();
+    let body: any = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
 
-    if (body.status !== 'SUCCESS' || !body.payload?.token) {
+    if (!response.ok || body?.status !== 'SUCCESS' || !body?.payload?.token) {
+      const detail =
+        body?.error?.message ||
+        body?.message ||
+        body?.errorMessage ||
+        (typeof body?.error === 'string' ? body.error : null) ||
+        (response.status === 401 || response.status === 403
+          ? 'Invalid API Key / Secret or Developer approval pending from Groww'
+          : `HTTP ${response.status} ${response.statusText || 'Request failed'}`);
+
       throw new Error(
-        `Groww token generation failed: ${body.error?.message ?? 'Unknown error'}`,
+        `Groww token generation failed: ${detail}. If you do not have an active Groww Developer account, use 1-Click CSV Import instead.`,
       );
     }
 

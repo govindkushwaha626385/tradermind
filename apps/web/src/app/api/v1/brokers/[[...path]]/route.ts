@@ -153,8 +153,9 @@ async function handleConnect(req: NextRequest, userId: string) {
 
   const db = getDatabase();
 
-  // CSV-only brokers skip OAuth flow
-  if (CSV_BROKERS.has(body.brokerId)) {
+  // CSV-only brokers or credentials-free connect mode
+  const isCsvMode = CSV_BROKERS.has(body.brokerId) || (!body.apiKey && !body.authCode && !body.password);
+  if (isCsvMode) {
     const [connection] = await db.insert(brokerConnections).values({
       userId, brokerId: body.brokerId, brokerClientId: body.clientId ?? body.brokerId,
       label: body.label ?? body.brokerId, authType: 'csv_import', accessToken: 'csv_placeholder',
