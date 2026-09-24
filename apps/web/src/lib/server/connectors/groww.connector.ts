@@ -94,38 +94,29 @@ export class GrowwConnector implements IBrokerConnector {
    * Uses SHA-256 checksum (secret + epoch timestamp).
    */
   async authenticate(params: Record<string, string>): Promise<BrokerAuthTokens> {
-    // 1. Direct Access Token (from "Generate Access Token" on Groww portal)
-    const directToken =
-      params.access_token ||
-      params.request_token ||
-      (this.config.apiKey && !this.config.apiSecret ? this.config.apiKey : null);
+    const rawKey = (this.config.apiKey ?? params.api_key ?? params.access_token ?? params.request_token ?? '').trim();
+    const rawSecret = (this.config.apiSecret ?? params.api_secret ?? '').trim();
 
-    if (directToken && directToken.trim().length > 15) {
-      return {
-        accessToken: directToken.trim(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Groww tokens reset daily at 6 AM
-      };
-    }
-
-    // 2. API Key + Secret checksum generation
-    const apiKey = this.config.apiKey ?? params.api_key ?? '';
-    const apiSecret = this.config.apiSecret ?? params.api_secret ?? '';
-
-    if (!apiKey) {
+    if (!rawKey) {
       throw new Error(
         'Groww authentication requires an Access Token (click "Generate Access Token" on Groww) or API Key + Secret.',
       );
     }
 
-    // If only apiKey was provided, treat as direct access token
-    if (!apiSecret) {
+    // Detect if input is a JWT Bearer access token (starts with 'eyJ' or standard 3-part header.payload.signature)
+    const isJwt = rawKey.startsWith('eyJ') || (rawKey.split('.').length === 3 && rawKey.length > 40);
+
+    // 1. Direct Access Token (from "Generate Access Token" on Groww portal)
+    // If it's a JWT, or if no secret was provided, treat rawKey directly as the Bearer token
+    if (isJwt || !rawSecret) {
       return {
-        accessToken: apiKey.trim(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        accessToken: rawKey,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Groww tokens reset daily at 6 AM
       };
     }
 
-    return this.generateAccessToken(apiKey, apiSecret);
+    // 2. Standard API Key + Secret checksum generation
+    return this.generateAccessToken(rawKey, rawSecret);
   }
 
   /**

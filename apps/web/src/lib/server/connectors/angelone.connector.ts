@@ -91,10 +91,25 @@ export class AngelOneConnector implements IBrokerConnector {
   }
 
   async authenticate(params: Record<string, string>): Promise<BrokerAuthTokens> {
-    const { clientId, password, totpSeed, apiKey } = this.config;
+    // Direct JWT token if provided
+    const directToken = params.access_token || params.jwtToken || (this.config.accessToken && !this.config.password ? this.config.accessToken : null);
+    if (directToken && directToken.length > 20) {
+      this.jwtToken = directToken;
+      return {
+        accessToken: directToken,
+        apiKey: this.config.apiKey,
+        apiSecret: this.config.apiSecret,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
+    }
+
+    const clientId = this.config.clientId || params.clientId || params.clientcode;
+    const password = this.config.password || params.password;
+    const totpSeed = this.config.totpSeed || params.totpSeed;
+    const apiKey = this.config.apiKey || params.apiKey || params.api_key;
 
     if (!clientId || !password || !totpSeed || !apiKey) {
-      throw new Error('Angel One requires: clientId, password, totpSeed, apiKey');
+      throw new Error('Angel One requires: clientId, password, totpSeed, apiKey (or direct JWT token)');
     }
 
     const totp = generateTotp(totpSeed);
@@ -138,11 +153,18 @@ export class AngelOneConnector implements IBrokerConnector {
   }
 
   async fetchUserProfile(): Promise<any> {
-    return this.request('/rest/secure/angelbroking/user/v1/getProfile');
+    return this.request('/rest/secure/angelbroking/user/v1/getProfile').catch(() => ({ userName: 'Angel One Trader' }));
   }
 
   async fetchAccountBalance(): Promise<any> {
-    return this.request('/rest/secure/angelbroking/user/v1/getRMS');
+    const res = await this.request('/rest/secure/angelbroking/user/v1/getRMS');
+    const data = res?.data ?? res ?? {};
+    return {
+      availableCash: parseFloat(data.availablecash ?? data.net ?? '0'),
+      usedMargin: parseFloat(data.utilizedamount ?? '0'),
+      totalCollateral: parseFloat(data.collateral ?? '0'),
+      currency: 'INR',
+    };
   }
 
   async fetchHoldings(): Promise<any[]> {
@@ -167,12 +189,13 @@ export class AngelOneConnector implements IBrokerConnector {
   }
 
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const token = this.jwtToken || this.config.accessToken || '';
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'X-PrivateKey': this.config.apiKey ?? '',
-        'Authorization': `Bearer ${this.jwtToken}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
         ...options.headers,
       },

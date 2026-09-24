@@ -21,11 +21,15 @@ export class DhanConnector implements IBrokerConnector {
   }
 
   async authenticate(params: Record<string, string>): Promise<BrokerAuthTokens> {
-    // Dhan tokens are pre-generated from the portal
+    const token = (params.access_token || params.api_key || this.config.apiKey || this.config.accessToken || '').trim();
+    if (!token) {
+      throw new Error('Dhan Access Token is required. Please generate it from web.dhan.co → DhanHQ API.');
+    }
     return {
-      accessToken: params.access_token ?? this.config.accessToken ?? '',
-      apiKey: this.config.apiKey,
+      accessToken: token,
+      apiKey: token,
       apiSecret: this.config.apiSecret,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     };
   }
 
@@ -34,11 +38,22 @@ export class DhanConnector implements IBrokerConnector {
   }
 
   async fetchUserProfile(): Promise<any> {
-    return this.request('/user/profile');
+    return this.request('/user/profile').catch(() => ({ userName: 'Dhan Trader' }));
   }
 
   async fetchAccountBalance(): Promise<any> {
-    return this.request('/funds');
+    let data: any;
+    try {
+      data = await this.request('/fundlimit');
+    } catch {
+      data = await this.request('/funds');
+    }
+    return {
+      availableCash: Number(data?.availabelBalance ?? data?.availableBalance ?? data?.withdrawableBalance ?? 0),
+      usedMargin: Number(data?.utilizedAmount ?? 0),
+      totalCollateral: Number(data?.collateralAmount ?? 0),
+      currency: 'INR',
+    };
   }
 
   async fetchHoldings(): Promise<any[]> {

@@ -66,14 +66,14 @@ interface ConnectFormState {
 }
 
 const BROKER_META: Record<string, { name: string; symbol: string; color: string; authType: string; requires: string[] }> = {
-  zerodha:        { name: 'Zerodha Kite',    symbol: 'Z', color: 'from-blue-600 to-blue-700',    authType: 'OAuth 2.0',         requires: ['authCode'] },
-  dhan:           { name: 'Dhan HQ',         symbol: 'D', color: 'from-violet-600 to-violet-700', authType: 'API Key',           requires: ['apiKey'] },
-  angelone:       { name: 'Angel One',       symbol: 'A', color: 'from-red-600 to-red-700',       authType: 'JWT + TOTP',        requires: ['clientId', 'password', 'totpSeed'] },
-  upstox:         { name: 'Upstox',          symbol: 'U', color: 'from-green-600 to-green-700',   authType: 'OAuth 2.0',         requires: ['authCode'] },
+  zerodha:        { name: 'Zerodha Kite',    symbol: 'Z', color: 'from-blue-600 to-blue-700',    authType: 'OAuth 2.0 & Token', requires: ['authCode', 'apiKey'] },
+  dhan:           { name: 'Dhan HQ',         symbol: 'D', color: 'from-violet-600 to-violet-700', authType: 'API Access Token', requires: ['apiKey', 'clientId'] },
+  angelone:       { name: 'Angel One',       symbol: 'A', color: 'from-red-600 to-red-700',       authType: 'SmartAPI + TOTP',   requires: ['apiKey', 'clientId', 'password', 'totpSeed'] },
+  upstox:         { name: 'Upstox',          symbol: 'U', color: 'from-green-600 to-green-700',   authType: 'OAuth 2.0 & Token', requires: ['authCode', 'apiKey'] },
   groww:          { name: 'Groww',           symbol: 'G', color: 'from-emerald-600 to-emerald-700',authType: 'API & CSV Import',  requires: ['apiKey', 'apiSecret'] },
   sahi:           { name: 'Sahi',            symbol: 'S', color: 'from-orange-600 to-orange-700', authType: 'CSV Import',        requires: [] },
   lemonn:         { name: 'Lemonn',          symbol: 'L', color: 'from-yellow-600 to-yellow-700', authType: 'CSV Import',        requires: [] },
-  delta_exchange: { name: 'Delta Exchange',  symbol: 'Δ', color: 'from-cyan-600 to-cyan-700',    authType: 'API Key',           requires: ['apiKey', 'apiSecret'] },
+  delta_exchange: { name: 'Delta Exchange',  symbol: 'Δ', color: 'from-cyan-600 to-cyan-700',    authType: 'API Key & Secret',  requires: ['apiKey', 'apiSecret'] },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -573,10 +573,26 @@ export default function BrokersPage() {
               {selectedBroker.requires.includes('apiKey') && (
                 <div>
                   <label className="block text-sm font-medium mb-1.5">
-                    {connectModal === 'groww' ? 'Access Token (or API Key)' : 'API Key'}
+                    {connectModal === 'groww' && 'Access Token (or API Key)'}
+                    {connectModal === 'dhan' && 'Dhan Access Token'}
+                    {connectModal === 'angelone' && 'SmartAPI Key'}
+                    {connectModal === 'zerodha' && 'Kite API Key (or Access Token)'}
+                    {connectModal === 'upstox' && 'Upstox API Key (or Access Token)'}
+                    {connectModal === 'delta_exchange' && 'Delta API Key'}
+                    {!['groww', 'dhan', 'angelone', 'zerodha', 'upstox', 'delta_exchange'].includes(connectModal ?? '') && 'API Key'}
                     {connectModal === 'groww' && (
                       <span className="text-xs text-primary font-normal ml-2">
                         ← Choose <b>Generate Access Token</b> on Groww
+                      </span>
+                    )}
+                    {connectModal === 'dhan' && (
+                      <span className="text-xs text-muted-foreground font-normal ml-2">
+                        (Generate from web.dhan.co → DhanHQ API)
+                      </span>
+                    )}
+                    {connectModal === 'angelone' && (
+                      <span className="text-xs text-muted-foreground font-normal ml-2">
+                        (from smartapi.angelbroking.com)
                       </span>
                     )}
                   </label>
@@ -588,7 +604,11 @@ export default function BrokersPage() {
                       placeholder={
                         connectModal === 'groww'
                           ? 'Paste your Groww Access Token here'
-                          : 'Enter your API key'
+                          : connectModal === 'dhan'
+                          ? 'Paste your Dhan Access Token'
+                          : connectModal === 'angelone'
+                          ? 'Enter SmartAPI Key'
+                          : 'Enter your API key or Access Token'
                       }
                       className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     />
@@ -642,14 +662,77 @@ export default function BrokersPage() {
               {/* Client ID */}
               {selectedBroker.requires.includes('clientId') && (
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Client ID</label>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {connectModal === 'dhan' ? 'Dhan Client ID' : connectModal === 'angelone' ? 'Angel One Client ID' : 'Client ID'}
+                  </label>
                   <input
                     type="text"
                     value={form.clientId}
                     onChange={(e) => setForm({ ...form, clientId: e.target.value })}
-                    placeholder="Enter your client ID"
+                    placeholder={
+                      connectModal === 'dhan'
+                        ? 'e.g. 1000000000'
+                        : connectModal === 'angelone'
+                        ? 'e.g. A123456'
+                        : 'Enter your client ID'
+                    }
                     className="w-full px-3.5 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                </div>
+              )}
+
+              {/* Password / PIN */}
+              {selectedBroker.requires.includes('password') && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {connectModal === 'angelone' ? 'Client PIN / Password' : 'Password'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSecrets ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Enter your trading PIN or password"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecrets(!showSecrets)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showSecrets ? 'Hide secrets' : 'Show secrets'}
+                    >
+                      {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TOTP Seed */}
+              {selectedBroker.requires.includes('totpSeed') && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    TOTP Secret Key
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (Base32 key from SmartAPI TOTP setup)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSecrets ? 'text' : 'password'}
+                      value={form.totpSeed}
+                      onChange={(e) => setForm({ ...form, totpSeed: e.target.value })}
+                      placeholder="e.g. JBSWY3DPEHPK3PXP"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecrets(!showSecrets)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showSecrets ? 'Hide secrets' : 'Show secrets'}
+                    >
+                      {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               )}
 

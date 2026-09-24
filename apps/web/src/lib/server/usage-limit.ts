@@ -7,7 +7,7 @@
 // ──────────────────────────────────────────────
 
 import { NextResponse } from 'next/server';
-import { getDatabase, subscriptions, plans, brokerConnections, tradeExecutions } from '@trademind/database';
+import { getDatabase, subscriptions, plans, brokerConnections, tradeExecutions, users } from '@trademind/database';
 import { eq, and, sql } from 'drizzle-orm';
 
 export const FEATURES = {
@@ -24,30 +24,35 @@ export const FEATURES = {
  * Falls back to free plan defaults when no active subscription exists.
  */
 export async function getUserPlanFeatures(userId: string): Promise<Record<string, unknown>> {
-  const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-  const [sub] = await db
-    .select()
-    .from(subscriptions)
-    .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, 'active')))
-    .limit(1);
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, 'active')))
+      .limit(1);
 
-  if (sub) {
-    const [plan] = await db
+    if (sub) {
+      const [plan] = await db
+        .select()
+        .from(plans)
+        .where(eq(plans.id, sub.planId))
+        .limit(1);
+      return (plan?.features as Record<string, unknown>) ?? {};
+    }
+
+    const [freePlan] = await db
       .select()
       .from(plans)
-      .where(eq(plans.id, sub.planId))
+      .where(eq(plans.slug, 'free'))
       .limit(1);
-    return (plan?.features as Record<string, unknown>) ?? {};
+
+    return (freePlan?.features as Record<string, unknown>) ?? {};
+  } catch (err) {
+    console.warn('[usage-limit] Error getting plan features:', err);
+    return {};
   }
-
-  const [freePlan] = await db
-    .select()
-    .from(plans)
-    .where(eq(plans.slug, 'free'))
-    .limit(1);
-
-  return (freePlan?.features as Record<string, unknown>) ?? {};
 }
 
 /**
@@ -63,33 +68,49 @@ export async function userHasFeature(userId: string, feature: string): Promise<b
  * Returns a 403 NextResponse if at limit, null if OK.
  */
 export async function checkBrokerLimit(userId: string): Promise<NextResponse | null> {
-  const features = await getUserPlanFeatures(userId);
-  const maxBrokers = Number(features[FEATURES.MAX_BROKER_CONNECTIONS] ?? 1);
+  try {
+    const db = getDatabase();
 
-  const db = getDatabase();
-  const [result] = await db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(brokerConnections)
-    .where(eq(brokerConnections.userId, userId));
+    // Admins have no broker connection limits
+    const [user] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (user?.role === 'ADMIN') return null;
 
-  const currentCount = Number(result?.count ?? 0);
+    const features = await getUserPlanFeatures(userId);
+    const maxBrokers = Number(features[FEATURES.MAX_BROKER_CONNECTIONS] ?? 1);
 
-  if (maxBrokers > 0 && currentCount >= maxBrokers) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          message: `Broker connection limit reached (${maxBrokers}). Upgrade your plan to connect more brokers.`,
-          code: 'LIMIT_BROKER_CONNECTIONS',
-          limit: maxBrokers,
-          current: currentCount,
+    if (maxBrokers <= 0 || maxBrokers === -1) return null; // Unlimited
+
+    const [result] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(brokerConnections)
+      .where(and(eq(brokerConnections.userId, userId), eq(brokerConnections.isActive, true)));
+
+    const currentCount = Number(result?.count ?? 0);
+
+    if (currentCount >= maxBrokers) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: `Broker connection limit reached (${maxBrokers}). Upgrade your plan to connect more brokers.`,
+            code: 'LIMIT_BROKER_CONNECTIONS',
+            limit: maxBrokers,
+            current: currentCount,
+          },
         },
-      },
-      { status: 403 },
-    );
-  }
+        { status: 403 },
+      );
+    }
 
-  return null;
+    return null;
+  } catch (err) {
+    console.warn('[usage-limit] Broker limit check failed, allowing connection:', err);
+    return null;
+  }
 }
 
 /**

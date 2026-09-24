@@ -20,6 +20,7 @@ import { checkBrokerLimit } from '@/lib/server/usage-limit';
 import { ok, created, notFound, apiError, parseBody } from '@/lib/server/response';
 import { getBrokerConnector } from '@/lib/server/connectors/base';
 import { parseCsvTrades } from '@/lib/server/services/csv-import.service';
+import { syncBrokerConnection } from '@/lib/server/services/broker-sync.service';
 import type { BrokerId } from '@trademind/shared';
 import { BROKER_IDS } from '@trademind/shared';
 import type { BrokerConnectorConfig } from '@/lib/server/connectors/base';
@@ -275,6 +276,11 @@ async function handleConnect(req: NextRequest, userId: string) {
     console.warn('[broker:connect] Background sync enqueue notice:', bgErr);
   }
 
+  // Attempt immediate balance and trade sync (non-blocking)
+  syncBrokerConnection(connection.id, userId).catch((syncErr) => {
+    console.warn(`[broker:connect] Initial sync notice for ${connection.id}:`, syncErr?.message);
+  });
+
   console.log(`🔗 Broker connected: ${userId} -> ${body.brokerId}`);
   return created({ id: connection.id, brokerId: connection.brokerId, status: connection.status, message: `Successfully connected to ${body.brokerId}` });
 }
@@ -295,7 +301,15 @@ async function handleSync(userId: string, connectionId: string) {
     console.warn('[broker:sync] Background sync enqueue notice:', bgErr);
   }
 
-  return ok({ message: 'Sync initiated. This may take a few minutes.' });
+  // Execute in-process sync for real-time trade and balance synchronization
+  const syncResult = await syncBrokerConnection(connectionId, userId);
+
+  return ok({
+    message: syncResult.success
+      ? (syncResult.message ?? 'Broker synchronization completed.')
+      : `Sync queued. (Notice: ${syncResult.error})`,
+    ...syncResult,
+  });
 }
 
 async function handleCsvPreview(req: NextRequest) {
