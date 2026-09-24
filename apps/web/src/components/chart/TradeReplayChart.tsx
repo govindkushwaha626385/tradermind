@@ -17,9 +17,12 @@ import {
   Award,
 } from 'lucide-react';
 import type { TradeReplayData } from '@trademind/shared';
+import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface TradeReplayChartProps {
   data: TradeReplayData;
+  currency?: string;
 }
 
 export type ReplayTimeframe = '1m' | '3m' | '5m' | '15m' | '1D';
@@ -34,7 +37,10 @@ interface Candle {
   note?: string;
 }
 
-function TradeReplayChartInner({ data }: TradeReplayChartProps) {
+function TradeReplayChartInner({ data, currency: propCurrency }: TradeReplayChartProps) {
+  const { currency: globalCurrency } = useCurrency();
+  const currency = propCurrency || globalCurrency;
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<1 | 2 | 5>(1);
   const [currentStep, setCurrentStep] = useState(0);
@@ -84,7 +90,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
       low: entryLow,
       close: entryClose,
       phase: 'entry',
-      note: `Executed ${data.direction} @ ₹${entry.toFixed(2)}`,
+      note: `Executed ${data.direction} @ ${formatCurrency(entry, currency)}`,
     });
 
     // 3. MAE candle (adverse excursion / test of stop)
@@ -97,7 +103,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
       low: maeCandleLow,
       close: (entry + mae) / 2,
       phase: 'in_trade',
-      note: `Max Adverse Excursion tested: ₹${mae.toFixed(2)}`,
+      note: `Max Adverse Excursion tested: ${formatCurrency(mae, currency)}`,
     });
 
     // 4. Trend progression candles towards MFE
@@ -120,7 +126,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
       low: Math.min(curr, mfe) - Math.abs(noise()),
       close: mfe,
       phase: 'in_trade',
-      note: `Peak Profit Potential (MFE): ₹${mfe.toFixed(2)}`,
+      note: `Peak Profit Potential (MFE): ${formatCurrency(mfe, currency)}`,
     });
 
     // 6. Pullback / Exit candle
@@ -131,7 +137,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
       low: Math.min(mfe, exit) - Math.abs(noise()),
       close: exit,
       phase: 'exit',
-      note: `Closed @ ₹${exit.toFixed(2)}`,
+      note: `Closed @ ${formatCurrency(exit, currency)}`,
     });
 
     // 7. Post-exit follow-through (2 candles)
@@ -227,8 +233,8 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Qty: {data.quantity} • Entry: ₹{data.entryPrice.toFixed(2)}
-              {data.exitPrice && ` • Exit: ₹${data.exitPrice.toFixed(2)}`}
+              Qty: {data.quantity} • Entry: {formatCurrency(data.entryPrice, currency)}
+              {data.exitPrice && ` • Exit: ${formatCurrency(data.exitPrice, currency)}`}
             </p>
           </div>
         </div>
@@ -238,7 +244,9 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
           <div className="text-right">
             <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Realized P&L</div>
             <div className={`text-xl font-black ${isWin ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {data.realizedPnl !== undefined ? (isWin ? `+₹${data.realizedPnl.toFixed(2)}` : `-₹${Math.abs(data.realizedPnl).toFixed(2)}`) : 'Pending'}
+              {data.realizedPnl !== undefined
+                ? (isWin ? `+${formatCurrency(data.realizedPnl, currency)}` : `-${formatCurrency(Math.abs(data.realizedPnl), currency)}`)
+                : 'Pending'}
             </div>
           </div>
           {data.autopsyGrade && (
@@ -388,7 +396,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                   fontSize="10"
                   fontFamily="monospace"
                 >
-                  ₹{price.toFixed(1)}
+                  {formatCurrency(price, currency).replace('.00', '')}
                 </text>
               </g>
             );
@@ -409,7 +417,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               <rect
                 x={svgWidth - padding.right + 4}
                 y={getY(data.planTarget) - 10}
-                width={70}
+                width={80}
                 height={20}
                 rx={4}
                 fill="#064e3b"
@@ -421,7 +429,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                 fontSize="10"
                 fontWeight="bold"
               >
-                TP: ₹{data.planTarget.toFixed(1)}
+                TP: {formatCurrency(data.planTarget, currency)}
               </text>
             </g>
           )}
@@ -441,7 +449,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               <rect
                 x={svgWidth - padding.right + 4}
                 y={getY(data.planStop) - 10}
-                width={70}
+                width={80}
                 height={20}
                 rx={4}
                 fill="#4c0519"
@@ -453,7 +461,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                 fontSize="10"
                 fontWeight="bold"
               >
-                SL: ₹{data.planStop.toFixed(1)}
+                SL: {formatCurrency(data.planStop, currency)}
               </text>
             </g>
           )}
@@ -473,7 +481,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               <rect
                 x={svgWidth - padding.right + 4}
                 y={getY(data.entryPrice) - 10}
-                width={70}
+                width={85}
                 height={20}
                 rx={4}
                 fill="#312e81"
@@ -485,7 +493,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                 fontSize="10"
                 fontWeight="bold"
               >
-                Entry: ₹{data.entryPrice.toFixed(1)}
+                Entry: {formatCurrency(data.entryPrice, currency)}
               </text>
             </g>
           )}
@@ -505,7 +513,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               <rect
                 x={svgWidth - padding.right + 4}
                 y={getY(data.exitPrice) - 10}
-                width={70}
+                width={85}
                 height={20}
                 rx={4}
                 fill={isWin ? '#064e3b' : '#4c0519'}
@@ -618,7 +626,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                 fontSize="9"
                 fontFamily="monospace"
               >
-                MFE ₹{data.mfe.toFixed(1)}
+                MFE {formatCurrency(data.mfe, currency)}
               </text>
             </g>
           )}
@@ -641,7 +649,7 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
                 fontSize="9"
                 fontFamily="monospace"
               >
-                MAE ₹{data.mae.toFixed(1)}
+                MAE {formatCurrency(data.mae, currency)}
               </text>
             </g>
           )}
@@ -656,10 +664,10 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
               return (
                 <>
                   <span className="font-bold text-white uppercase">{c.time}</span>
-                  <span>O: <strong className="text-zinc-200">₹{c.open.toFixed(1)}</strong></span>
-                  <span>H: <strong className="text-emerald-400">₹{c.high.toFixed(1)}</strong></span>
-                  <span>L: <strong className="text-rose-400">₹{c.low.toFixed(1)}</strong></span>
-                  <span>C: <strong className={c.close >= c.open ? 'text-emerald-400' : 'text-rose-400'}>₹{c.close.toFixed(1)}</strong></span>
+                  <span>O: <strong className="text-zinc-200">{formatCurrency(c.open, currency)}</strong></span>
+                  <span>H: <strong className="text-emerald-400">{formatCurrency(c.high, currency)}</strong></span>
+                  <span>L: <strong className="text-rose-400">{formatCurrency(c.low, currency)}</strong></span>
+                  <span>C: <strong className={c.close >= c.open ? 'text-emerald-400' : 'text-rose-400'}>{formatCurrency(c.close, currency)}</strong></span>
                   {c.note && (
                     <span className="text-indigo-300 border-l border-zinc-700 pl-2 font-sans font-medium flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-indigo-400" />
@@ -710,11 +718,11 @@ function TradeReplayChartInner({ data }: TradeReplayChartProps) {
           <div className="space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-zinc-500">Max Excursion (MFE):</span>
-              <span className="font-semibold text-sky-400">{data.mfe ? `₹${data.mfe.toFixed(2)}` : 'N/A'}</span>
+              <span className="font-semibold text-sky-400">{data.mfe ? formatCurrency(data.mfe, currency) : 'N/A'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Drawdown Tested (MAE):</span>
-              <span className="font-semibold text-orange-400">{data.mae ? `₹${data.mae.toFixed(2)}` : 'N/A'}</span>
+              <span className="font-semibold text-orange-400">{data.mae ? formatCurrency(data.mae, currency) : 'N/A'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Holding Quality:</span>
