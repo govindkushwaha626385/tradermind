@@ -34,6 +34,7 @@ import {
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 interface PropFirmAccount {
   id: string;
@@ -155,6 +156,7 @@ export default function PropFirmPage() {
   const [selectedId, setSelectedId] = useState<string>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [simulatedLoss, setSimulatedLoss] = useState<string>('500');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // New account form state
   const [formPreset, setFormPreset] = useState<string>('custom');
@@ -170,9 +172,31 @@ export default function PropFirmPage() {
   const [formTodayPnl, setFormTodayPnl] = useState('0');
   const [formBalance, setFormBalance] = useState('100000');
 
-  // Load accounts from storage
-  useEffect(() => {
-    document.title = 'Prop Firm Tracker — TradeMind';
+  // Load accounts from cloud API with localStorage fallback
+  const loadAccounts = async () => {
+    try {
+      const res = await api.getPropFirmAccounts();
+      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped = res.data.map((a: any) => ({
+          ...a,
+          accountSize: Number(a.accountSize),
+          startingBalance: Number(a.startingBalance),
+          currentBalance: Number(a.currentBalance),
+          highWaterMark: Number(a.highWaterMark),
+          dailyLossLimitPct: Number(a.dailyLossLimitPct),
+          maxDrawdownPct: Number(a.maxDrawdownPct),
+          profitTargetPct: Number(a.profitTargetPct),
+          todayPnl: Number(a.todayPnl),
+        }));
+        setAccounts(mapped);
+        setSelectedId((prev) => (mapped.find((m: any) => m.id === prev) ? prev : mapped[0].id));
+        localStorage.setItem('trademind_prop_accounts', JSON.stringify(mapped));
+        return;
+      }
+    } catch {
+      // Fallback to local storage
+    }
+
     try {
       const stored = localStorage.getItem('trademind_prop_accounts');
       if (stored) {
@@ -185,11 +209,15 @@ export default function PropFirmPage() {
       }
       setAccounts(DEFAULT_ACCOUNTS);
       setSelectedId(DEFAULT_ACCOUNTS[0]?.id ?? '');
-      localStorage.setItem('trademind_prop_accounts', JSON.stringify(DEFAULT_ACCOUNTS));
     } catch {
       setAccounts(DEFAULT_ACCOUNTS);
       setSelectedId(DEFAULT_ACCOUNTS[0]?.id ?? '');
     }
+  };
+
+  useEffect(() => {
+    document.title = 'Prop Firm Tracker — TradeMind';
+    loadAccounts();
   }, []);
 
   const saveAccounts = (newAccounts: PropFirmAccount[]) => {
@@ -219,12 +247,11 @@ export default function PropFirmPage() {
     setFormMinDays(String(p.minDays));
   };
 
-  const handleCreateAccount = (e: React.FormEvent) => {
+  const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     const size = parseFloat(formSize) || 100000;
     const balance = parseFloat(formBalance) || size;
-    const newAcc: PropFirmAccount = {
-      id: `prop-${Date.now()}`,
+    const newAccData = {
       firmName: formFirm,
       accountName: formName || `${formFirm} $${size.toLocaleString()}`,
       accountSize: size,
@@ -241,25 +268,69 @@ export default function PropFirmPage() {
       todayPnl: parseFloat(formTodayPnl) || 0,
       weekendHoldingAllowed: false,
       newsTradingAllowed: true,
-      createdAt: new Date().toISOString(),
+      notes: `${formFirm} ${formPhase}`,
     };
 
-    const next = [...accounts, newAcc];
+    try {
+      const res = await api.createPropFirmAccount(newAccData);
+      if (res?.data) {
+        toast.success(`🎉 Created prop firm account in cloud: ${res.data.accountName}`);
+        await loadAccounts();
+        setSelectedId(res.data.id);
+        setIsAddModalOpen(false);
+        return;
+      }
+    } catch {
+      // Local fallback
+    }
+
+    const localAcc: PropFirmAccount = {
+      ...newAccData,
+      id: `prop-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...accounts, localAcc];
     saveAccounts(next);
-    setSelectedId(newAcc.id);
+    setSelectedId(localAcc.id);
     setIsAddModalOpen(false);
-    toast.success(`🎉 Created prop firm account: ${newAcc.accountName}`);
+    toast.success(`🎉 Created prop firm account: ${localAcc.accountName}`);
   };
 
-  const handleDeleteAccount = (id: string) => {
+  const handleDeleteAccount = async (id: string) => {
     if (accounts.length <= 1) {
       toast.error('You must keep at least one account');
       return;
     }
+    if (!confirm('Are you sure you want to delete this prop firm account?')) return;
+
+    try {
+      await api.deletePropFirmAccount(id);
+    } catch {
+      // ignore
+    }
+
     const next = accounts.filter((a) => a.id !== id);
     saveAccounts(next);
     setSelectedId(next[0]?.id ?? '');
     toast.success('Account deleted');
+  };
+
+  const handleSyncLiveTrades = async () => {
+    if (!currentAccount?.id) return;
+    setIsSyncing(true);
+    try {
+      const res = await api.syncPropFirmAccount(currentAccount.id);
+      if (res?.data) {
+        toast.success(`⚡ Live trades synced with ${currentAccount.accountName}`);
+        await loadAccounts();
+      } else {
+        toast.info('Account updated with current trade calculations');
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Sync failed');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleUpdateBalance = (newBalance: number) => {
@@ -286,7 +357,10 @@ export default function PropFirmPage() {
   }
 
   // Financial Calculations
-  const curSymbol = currentAccount.currency === 'USD' ? '$' : currentAccount.currency === 'EUR' ? '€' : '₹';
+  const curSymbol =
+    currentAccount.currency === 'USD' ? '$' :
+    currentAccount.currency === 'EUR' ? '€' :
+    currentAccount.currency === 'GBP' ? '£' : '₹';
   const netGain = currentAccount.currentBalance - currentAccount.startingBalance;
   const netGainPct = (netGain / currentAccount.startingBalance) * 100;
 
@@ -324,7 +398,7 @@ export default function PropFirmPage() {
         description="Monitor evaluation milestones, daily loss limits, and drawdown guardrails in real time"
         icon={Award}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <select
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
@@ -337,8 +411,17 @@ export default function PropFirmPage() {
               ))}
             </select>
             <button
+              onClick={handleSyncLiveTrades}
+              disabled={isSyncing}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+              title="Sync live trade PnL & recalculate drawdown"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sync Live PnL</span>
+            </button>
+            <button
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add Account

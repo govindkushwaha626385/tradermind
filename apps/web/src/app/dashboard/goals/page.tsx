@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/Badge';
 
 // ── Goal Types Config ─────────────────────────
 const GOAL_TYPES = [
-  { value: 'pnl',              label: 'Net P&L',         icon: TrendingUp,  unit: '₹',  desc: 'Total net profit/loss target' },
+  { value: 'pnl',              label: 'Net P&L',         icon: TrendingUp,  unit: '',   desc: 'Total net profit/loss target' },
   { value: 'win_rate',         label: 'Win Rate',        icon: Percent,     unit: '%',  desc: 'Percentage of winning trades' },
   { value: 'profit_factor',    label: 'Profit Factor',   icon: BarChart3,   unit: 'x',  desc: 'Gross win / gross loss ratio' },
   { value: 'trade_count',      label: 'Trade Count',     icon: Activity,    unit: '',   desc: 'Number of trades executed' },

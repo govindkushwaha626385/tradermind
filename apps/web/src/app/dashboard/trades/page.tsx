@@ -240,7 +240,13 @@ export default function TradesPage() {
                 <div key={trade.id} className="p-4 space-y-3 hover:bg-accent/30 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground text-sm font-mono">{trade.tradingsymbol}</span>
+                      <Link
+                        href={`/dashboard/trades/${trade.id}`}
+                        className="font-bold text-foreground text-sm font-mono hover:text-primary transition-colors hover:underline"
+                        title="View Trade Details"
+                      >
+                        {trade.tradingsymbol}
+                      </Link>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">
                         {trade.exchange}
                       </span>
@@ -342,7 +348,13 @@ export default function TradesPage() {
                       )}
                     >
                       <td className="px-4 py-3.5 font-semibold text-foreground">
-                        {trade.tradingsymbol}
+                        <Link
+                          href={`/dashboard/trades/${trade.id}`}
+                          className="hover:text-primary transition-colors hover:underline inline-flex items-center gap-1 font-bold"
+                          title="View Trade Details"
+                        >
+                          {trade.tradingsymbol}
+                        </Link>
                         <span className="ml-2 text-xs text-muted-foreground font-normal">
                           {trade.exchange}
                         </span>

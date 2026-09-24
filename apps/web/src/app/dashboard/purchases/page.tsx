@@ -19,8 +19,10 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { useCurrency } from '@/hooks/useCurrency';
 
 export default function UserPurchasesPage() {
+  const { format } = useCurrency();
   const [purchases, setPurchases] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'library' | 'orders'>('library');
@@ -242,7 +244,7 @@ export default function UserPurchasesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono font-bold text-zinc-200">
-                        {ord.amountPaid === 0 ? 'FREE' : `₹${(ord.amountPaid / 100).toFixed(0)}`}
+                        {ord.amountPaid === 0 ? 'FREE' : format(ord.amountPaid / 100)}
                       </td>
                       <td className="px-4 py-3 uppercase font-semibold text-zinc-400">
                         {ord.provider}

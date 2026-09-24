@@ -520,6 +520,26 @@ export const api = {
       body: JSON.stringify({ step, completed }),
     }),
 
+  // ── Prop Firm Accounts ────────────────────
+  getPropFirmAccounts: () =>
+    request<any[]>('/prop-firm'),
+  getPropFirmAccount: (id: string) =>
+    request<any>(`/prop-firm/${id}`),
+  createPropFirmAccount: (data: Record<string, unknown>) =>
+    request<any>('/prop-firm', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updatePropFirmAccount: (id: string, data: Record<string, unknown>) =>
+    request<any>(`/prop-firm/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deletePropFirmAccount: (id: string) =>
+    request<unknown>(`/prop-firm/${id}`, { method: 'DELETE' }),
+  syncPropFirmAccount: (id: string) =>
+    request<any>(`/prop-firm/${id}/sync`, { method: 'POST' }),
+
   // ── Payments & Subscriptions ─────────────
   getPlans: () => request<unknown[]>('/payments/plans'),
   getSubscription: () => request<unknown>('/payments/subscription'),

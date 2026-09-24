@@ -20,11 +20,13 @@ import {
 } from 'lucide-react';
 import { api, getAccessToken } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { StoreProduct } from '@trademind/shared';
 
 export default function DashboardProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { format } = useCurrency();
   const productId = params.productId as string;
 
   const [product, setProduct] = useState<StoreProduct | null>(null);
@@ -142,7 +144,7 @@ export default function DashboardProductDetailPage() {
   }
 
   const isFree = product.isFree || product.price === 0;
-  const formattedPrice = isFree ? 'FREE' : `₹${(product.price / 100).toFixed(0)}`;
+  const formattedPrice = isFree ? 'FREE' : format(product.price / 100);
 
   let youtubeEmbedUrl: string | null = null;
   if (product.videoUrl) {

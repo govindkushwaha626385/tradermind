@@ -42,46 +42,68 @@ async function generateWithGemini(opts: AiGenerateOptions): Promise<AiGenerateRe
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const candidateModels = Array.from(
+    new Set([
+      'gemini-3.5-flash',
+      process.env.GEMINI_MODEL,
+      'gemini-3.6-flash',
+      'gemini-flash-latest',
+    ].filter(Boolean) as string[])
+  );
 
-  const body = {
-    contents: [{ parts: [{ text: opts.prompt }] }],
-    generationConfig: {
-      temperature: opts.temperature ?? 0.4,
-      maxOutputTokens: opts.maxOutputTokens ?? 400,
-      topP: 0.85,
-    },
-  };
+  let lastError: Error | null = null;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  for (const model of candidateModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{ parts: [{ text: opts.prompt }] }],
+      generationConfig: {
+        temperature: opts.temperature ?? 0.4,
+        maxOutputTokens: opts.maxOutputTokens ?? 400,
+        topP: 0.85,
+      },
+    };
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${errText}`);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        if (res.status === 429 || res.status === 503) {
+          console.warn(`[Gemini Text] Model ${model} returned ${res.status}, trying fallback model...`);
+          lastError = new Error(`Gemini API error ${res.status}: ${errText}`);
+          continue;
+        }
+        throw new Error(`Gemini API error ${res.status}: ${errText}`);
+      }
+
+      const data = (await res.json()) as any;
+      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
+
+      if (!text) {
+        lastError = new Error(`Gemini model ${model} returned empty response`);
+        continue;
+      }
+
+      return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err as Error;
     }
-
-    const data = (await res.json()) as any;
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
-    const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
-
-    if (!text) throw new Error('Gemini returned empty response');
-
-    return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new Error('All Gemini candidate models failed');
 }
 
 // ── Gemini provider (Multi-turn Chat) ─────────
@@ -90,8 +112,14 @@ async function chatWithGemini(opts: AiChatOptions): Promise<AiGenerateResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const candidateModels = Array.from(
+    new Set([
+      'gemini-3.5-flash',
+      process.env.GEMINI_MODEL,
+      'gemini-3.6-flash',
+      'gemini-flash-latest',
+    ].filter(Boolean) as string[])
+  );
 
   const contents = opts.messages.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
@@ -105,39 +133,55 @@ async function chatWithGemini(opts: AiChatOptions): Promise<AiGenerateResult> {
     contents,
     generationConfig: {
       temperature: opts.temperature ?? 0.5,
-      maxOutputTokens: opts.maxOutputTokens ?? 800,
+      maxOutputTokens: opts.maxOutputTokens ?? 900,
       topP: 0.85,
     },
   };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25_000);
+  let lastError: Error | null = null;
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+  for (const model of candidateModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25_000);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini Chat API error ${res.status}: ${errText}`);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        if (res.status === 429 || res.status === 503) {
+          console.warn(`[Gemini Chat] Model ${model} returned ${res.status}, trying fallback model...`);
+          lastError = new Error(`Gemini Chat API error ${res.status}: ${errText}`);
+          continue;
+        }
+        throw new Error(`Gemini Chat API error ${res.status}: ${errText}`);
+      }
+
+      const data = (await res.json()) as any;
+      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
+
+      if (!text) {
+        lastError = new Error(`Gemini chat model ${model} returned empty response`);
+        continue;
+      }
+
+      return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err as Error;
     }
-
-    const data = (await res.json()) as any;
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
-    const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
-
-    if (!text) throw new Error('Gemini chat returned empty response');
-
-    return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new Error('All Gemini chat candidate models failed');
 }
 
 // ── Gemini provider (Vision / Chart Analysis) ──
@@ -146,63 +190,89 @@ async function generateVisionWithGemini(opts: AiVisionOptions): Promise<AiGenera
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
-  const model = process.env.GEMINI_VISION_MODEL || process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const candidateModels = Array.from(
+    new Set([
+      'gemini-3.5-flash',
+      process.env.GEMINI_VISION_MODEL,
+      process.env.GEMINI_MODEL,
+      'gemini-3.6-flash',
+      'gemini-flash-latest',
+    ].filter(Boolean) as string[])
+  );
 
-  // Clean base64 if it has data URL prefix
-  const cleanBase64 = opts.imageBase64.includes(',')
+  // Clean base64 if it has data URL prefix, and strip all whitespace/newlines
+  const cleanBase64 = (opts.imageBase64.includes(',')
     ? opts.imageBase64.split(',')[1]
-    : opts.imageBase64;
+    : opts.imageBase64
+  ).replace(/\s+/g, '');
 
-  const body = {
-    contents: [
-      {
-        parts: [
-          { text: opts.prompt },
-          {
-            inlineData: {
-              mimeType: opts.mimeType,
-              data: cleanBase64,
+  let lastError: Error | null = null;
+
+  for (const model of candidateModels) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const body = {
+      contents: [
+        {
+          parts: [
+            { text: opts.prompt },
+            {
+              inlineData: {
+                mimeType: opts.mimeType || 'image/png',
+                data: cleanBase64,
+              },
             },
-          },
-        ],
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: opts.temperature ?? 0.2,
+        maxOutputTokens: opts.maxOutputTokens ?? 1400,
+        topP: 0.9,
       },
-    ],
-    generationConfig: {
-      temperature: opts.temperature ?? 0.2,
-      maxOutputTokens: opts.maxOutputTokens ?? 1200,
-      topP: 0.9,
-    },
-  };
+    };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 35_000);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 35_000);
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini Vision error ${res.status}: ${errText}`);
+      if (!res.ok) {
+        const errText = await res.text();
+        if (res.status === 429 || res.status === 503) {
+          console.warn(`[Gemini Vision] Model ${model} returned ${res.status}, trying fallback model...`);
+          lastError = new Error(`Gemini Vision error ${res.status} on ${model}: ${errText}`);
+          continue;
+        }
+        throw new Error(`Gemini Vision error ${res.status}: ${errText}`);
+      }
+
+      const data = (await res.json()) as any;
+      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
+
+      if (!text) {
+        lastError = new Error(`Gemini vision model ${model} returned empty response`);
+        continue;
+      }
+
+      return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
+    } catch (err) {
+      clearTimeout(timeout);
+      lastError = err as Error;
+      console.warn(`[Gemini Vision] Warning on ${model}:`, (err as Error).message);
     }
-
-    const data = (await res.json()) as any;
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const promptTokens: number = data?.usageMetadata?.promptTokenCount ?? 0;
-    const outputTokens: number = data?.usageMetadata?.candidatesTokenCount ?? 0;
-
-    if (!text) throw new Error('Gemini vision returned empty response');
-
-    return { text: text.trim(), provider: 'gemini', tokensUsed: promptTokens + outputTokens };
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new Error('All Gemini vision candidate models failed');
 }
 
 // ── Groq provider (Text Fallback) ─────────────

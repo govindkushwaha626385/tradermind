@@ -20,7 +20,7 @@ import {
   users,
 } from '@trademind/database';
 import { eq, and, desc, sql, gte } from 'drizzle-orm';
-import { aiChat, aiVision, isAiConfigured } from './ai.client';
+import { aiChat, aiVision, aiGenerate, isAiConfigured } from './ai.client';
 import { runBehavioralShield } from './shield.service';
 import type { AiChatMessage, AiChatResponse } from '@trademind/shared';
 
@@ -306,15 +306,62 @@ At the very end of your response, output a JSON block wrapped in \`\`\`json\`\`\
 }
 \`\`\``;
 
-  const result = await aiVision({
+  let result = await aiVision({
     prompt,
     imageBase64,
     mimeType: mimeType || 'image/png',
     maxOutputTokens: 1400,
   });
 
+  // Fallback to text analysis engine (Gemini/Groq) if vision models are temporarily rate-limited
   if (!result) {
-    throw new Error('Chart analysis is temporarily unavailable or Gemini API key is missing.');
+    const textFallbackPrompt = `You are TradeMind's senior quantitative technical analyst.
+A trader named ${context.traderName} requested chart technical analysis for their setup.
+${userNotes ? `Trader's Note/Setup Context: "${userNotes}"` : 'Chart uploaded for institutional technical analysis.'}
+
+Trader Context:
+- Today's Bias: ${context.todayPremarketBias || 'NEUTRAL'}
+- 30-Day Win Rate: ${context.winRate30d}%
+- Top Leak: ${context.topMistakes[0] || 'Early Exit'}
+
+Provide a comprehensive price-action breakdown and risk execution blueprint:
+1. **Market Structure & Setup**: Core technical setup and context.
+2. **Key Levels**: Support, resistance zones and liquidity pools.
+3. **Execution Plan**: Ideal entry trigger, stop loss invalidation, and profit target.
+4. **Risk:Reward**: Estimated R:R ratio (e.g. 1:2.5).
+5. **Psychology Directive**: 1 actionable rule to trade this setup cleanly.
+
+At the very end of your response, output a JSON block wrapped in \`\`\`json\`\`\` with this exact schema:
+\`\`\`json
+{
+  "symbol": "CHART",
+  "bias": "BULLISH",
+  "keySupport": "Key structural support",
+  "keyResistance": "Key supply zone",
+  "suggestedStopLoss": "Structural invalidation",
+  "suggestedTarget": "Target liquidity pool",
+  "riskReward": "1:2.5",
+  "pattern": "Price Action Setup"
+}
+\`\`\``;
+
+    const fallbackRes = await aiGenerate({
+      prompt: textFallbackPrompt,
+      maxOutputTokens: 1200,
+      temperature: 0.4,
+    });
+
+    if (fallbackRes) {
+      result = {
+        text: fallbackRes.text,
+        provider: fallbackRes.provider,
+        tokensUsed: fallbackRes.tokensUsed,
+      };
+    }
+  }
+
+  if (!result) {
+    throw new Error('AI analysis engine is temporarily unavailable. Please try again in a few moments.');
   }
 
   // Parse JSON summary from markdown if present

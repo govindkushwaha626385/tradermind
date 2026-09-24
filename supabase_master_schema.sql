@@ -876,6 +876,33 @@ CREATE TABLE IF NOT EXISTS public.feature_flags (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS feature_flags_name_idx ON public.feature_flags(name);
 
+CREATE TABLE IF NOT EXISTS public.prop_firm_accounts (
+  id                        UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                   UUID           NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  firm_name                 VARCHAR(100)   NOT NULL,
+  account_name              VARCHAR(150)   NOT NULL,
+  account_size              NUMERIC(14, 2) NOT NULL,
+  currency                  VARCHAR(10)    NOT NULL DEFAULT 'USD',
+  phase                     VARCHAR(50)    NOT NULL DEFAULT 'Phase 1',
+  starting_balance          NUMERIC(14, 2) NOT NULL,
+  current_balance           NUMERIC(14, 2) NOT NULL,
+  high_water_mark           NUMERIC(14, 2) NOT NULL,
+  daily_loss_limit_pct      NUMERIC(5, 2)  NOT NULL DEFAULT 5.00,
+  max_drawdown_pct          NUMERIC(5, 2)  NOT NULL DEFAULT 10.00,
+  profit_target_pct         NUMERIC(5, 2)  NOT NULL DEFAULT 10.00,
+  min_trading_days          INTEGER        NOT NULL DEFAULT 4,
+  trading_days_completed    INTEGER        NOT NULL DEFAULT 0,
+  today_pnl                 NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  weekend_holding_allowed   BOOLEAN        NOT NULL DEFAULT false,
+  news_trading_allowed      BOOLEAN        NOT NULL DEFAULT true,
+  status                    VARCHAR(30)    NOT NULL DEFAULT 'ACTIVE',
+  notes                     TEXT,
+  created_at                TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+  updated_at                TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_prop_firm_accounts_user_id ON public.prop_firm_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_prop_firm_accounts_status  ON public.prop_firm_accounts(status);
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- HELPER FUNCTIONS
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -978,6 +1005,7 @@ ALTER TABLE public.cache_entries         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_rate_limits       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.background_jobs       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feature_flags         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.prop_firm_accounts    ENABLE ROW LEVEL SECURITY;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- RLS POLICIES — User-Scoped (Data Isolation)
@@ -1018,6 +1046,7 @@ CREATE POLICY reviews_user_own ON public.reviews             FOR ALL USING (auth
 CREATE POLICY sl_user_sel    ON public.sync_logs             FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY sl_user_ins    ON public.sync_logs             FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY sl_user_upd    ON public.sync_logs             FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY pfa_user_all   ON public.prop_firm_accounts    FOR ALL USING (auth.uid() = user_id);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- RLS POLICIES — Public Read (No Auth Required)
@@ -1041,6 +1070,7 @@ CREATE POLICY audit_logs_service_all ON public.admin_audit_logs   FOR ALL TO ser
 CREATE POLICY rp_service_all         ON public.risk_profiles      FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 CREATE POLICY partners_service_all   ON public.partners           FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 CREATE POLICY ff_service_all         ON public.feature_flags      FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+CREATE POLICY pfa_service_all        ON public.prop_firm_accounts FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- RLS POLICIES — Admin Full Access (Overrides all user policies)
@@ -1218,12 +1248,89 @@ INSERT INTO public.partners (
   '4.6',
   'Free',
   'Zero AMC'
+),
+(
+  'Interactive Brokers',
+  'ibkr',
+  'https://www.interactivebrokers.com/images/common/ib-logo-text.svg',
+  'https://www.interactivebrokers.com',
+  'https://www.interactivebrokers.com/mkt/?src=TRADEMIND',
+  'Premier global brokerage offering direct market access to US stocks, options, futures, forex, and bonds across 150+ electronic exchanges worldwide with automated TradeMind Flex sync.',
+  'full_service',
+  'US',
+  true,
+  true,
+  7,
+  'Low margin rates | Direct US Options & Futures access',
+  'Global Markets',
+  ARRAY['TradeMind Flex Query Sync', '150+ Global Markets', 'US Stocks & Options', 'Lowest Margin Rates'],
+  '4.9',
+  '$0',
+  '$0 Account Minimum'
+),
+(
+  'Binance',
+  'binance',
+  'https://bin.bnbstatic.com/static/images/common/favicon.ico',
+  'https://www.binance.com',
+  'https://accounts.binance.com/register?ref=TRADEMIND',
+  'World''s largest cryptocurrency exchange by trading volume. Trade Bitcoin, Ethereum, and 350+ altcoins across spot and USDT-margined perpetual futures with TradeMind CSV export support.',
+  'crypto',
+  'GLOBAL',
+  true,
+  true,
+  8,
+  '0.02% / 0.04% Maker/Taker on Futures | 20% Fee Discount with BNB',
+  'Top Crypto Exchange',
+  ARRAY['Spot & USDT Perpetuals', 'High Liquidity Orderbooks', 'CSV Trade Export', 'Sub-millisecond API'],
+  '4.8',
+  'Free',
+  '$0 Maintenance'
+),
+(
+  'Bybit',
+  'bybit',
+  'https://www.bybit.com/favicon.ico',
+  'https://www.bybit.com',
+  'https://www.bybit.com/register?affiliate_id=TRADEMIND',
+  'Fast-growing crypto derivatives exchange known for 100x leverage, copy trading, and comprehensive futures trade logs seamlessly importable into TradeMind.',
+  'crypto',
+  'GLOBAL',
+  false,
+  true,
+  9,
+  'Competitive derivatives fees | Up to 100x leverage on BTC/ETH',
+  'Top Derivatives',
+  ARRAY['USDT & Coin-M Futures', 'Fast Execution Engine', 'Derivatives Trade Export', 'Deep Liquidity'],
+  '4.8',
+  'Free',
+  '$0 Maintenance'
+),
+(
+  'MetaTrader (IC Markets)',
+  'metatrader',
+  'https://www.icmarkets.com/favicon.ico',
+  'https://www.icmarkets.com',
+  'https://www.icmarkets.com/?camp=TRADEMIND',
+  'Institutional-grade true ECN forex and CFD trading on MetaTrader 4 and MetaTrader 5. Raw spreads from 0.0 pips with automatic HTML/CSV statement import into TradeMind.',
+  'discount',
+  'GLOBAL',
+  false,
+  true,
+  10,
+  'Raw spreads from 0.0 pips | Low commission $3.5 per lot',
+  'Forex & CFDs',
+  ARRAY['Raw ECN Spreads 0.0 pips', 'MT4 & MT5 Statements', 'Currencies, Gold & Indices', 'Up to 1:500 Leverage'],
+  '4.7',
+  'Free',
+  '$0 Maintenance'
 )
 ON CONFLICT (slug) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- END OF MASTER DATABASE SCHEMA v5.0
+-- END OF MASTER DATABASE SCHEMA v5.1
 -- Tables: 39 | Indexes: 100+ | Triggers: updated_at + auth-provision
 -- RLS: User isolation + Admin override + Public reads + Service role
--- Seed: 5 Plans, 9 Tax Rates, 12 Admin Configs, 6 Top Partners
+-- Seed: 5 Plans, 9 Tax Rates, 12 Admin Configs, 10 Verified Global & Indian Partners
 -- ═══════════════════════════════════════════════════════════════════════════
+

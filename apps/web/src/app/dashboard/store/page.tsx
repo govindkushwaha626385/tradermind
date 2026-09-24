@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { api, getAccessToken } from '@/lib/api';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { StoreProduct, StoreProductType } from '@trademind/shared';
 
 declare global {
@@ -43,6 +44,7 @@ const CATEGORIES = [
 
 export default function DashboardStorePage() {
   const router = useRouter();
+  const { format } = useCurrency();
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -271,7 +273,7 @@ export default function DashboardStorePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((prod) => {
             const isFree = prod.isFree || prod.price === 0;
-            const formattedPrice = isFree ? 'Free' : `₹${(prod.price / 100).toLocaleString('en-IN')}`;
+            const formattedPrice = isFree ? 'Free' : format(prod.price / 100);
 
             return (
               <div
@@ -422,7 +424,7 @@ export default function DashboardStorePage() {
                 <div className="text-lg font-black text-white">
                   {previewProduct.isFree || previewProduct.price === 0
                     ? 'Free'
-                    : `₹${(previewProduct.price / 100).toLocaleString('en-IN')}`}
+                    : format(previewProduct.price / 100)}
                 </div>
               </div>
 

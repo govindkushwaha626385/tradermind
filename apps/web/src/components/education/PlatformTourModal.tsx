@@ -36,14 +36,14 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'brokers',
     badge: 'Step 1 of 6 · Automated Imports',
     title: 'Multi-Broker Real-Time Sync',
-    subtitle: 'Connect Groww, Zerodha, Upstox, Dhan, Angel One & Delta Exchange',
+    subtitle: 'Connect Zerodha, Dhan, Upstox, Angel One, Interactive Brokers, Binance & MetaTrader',
     description:
       'Seamlessly link your live brokerage accounts or import CSV statements. TradeMind automatically syncs your order fills, cash margins, and executes statutory tax & fee calculations.',
     keyFeatures: [
-      'Live Groww API direct token & key connection',
+      'Live broker API & OAuth direct sync (Indian, US & Crypto)',
       'One-click Quick Sync from any screen in the dashboard',
       'Accurate statutory STT, GST, Stamp Duty & Exchange charges',
-      'Encrypted AES-256-GCM token security',
+      'Universal CSV statement import for 50+ global brokers',
     ],
     ctaText: 'Open Broker Hub',
     ctaHref: '/dashboard/brokers',

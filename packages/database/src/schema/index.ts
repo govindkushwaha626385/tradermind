@@ -95,3 +95,7 @@ export type { FeatureFlagSelect, FeatureFlagInsert } from './feature-flags';
 // ── User Goals & Target Tracking ─────────────────────────────
 export { userGoals } from './user-goals';
 export type { UserGoalSelect, UserGoalInsert } from './user-goals';
+
+// ── Prop Firm Accounts & Challenges ──────────────────────────
+export { propFirmAccounts } from './prop-firm';
+export type { PropFirmAccount, NewPropFirmAccount } from './prop-firm';
