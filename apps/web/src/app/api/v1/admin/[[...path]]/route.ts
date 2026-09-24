@@ -43,6 +43,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const adminError = await requireAdmin(user);
@@ -470,6 +471,11 @@ export async function GET(
   }
 
   return apiError('Admin route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Admin GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── POST Handler ─────────────────────────────
@@ -478,6 +484,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const adminError = await requireAdmin(user);
@@ -562,6 +569,11 @@ export async function POST(
   }
 
   return apiError('Admin route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Admin POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── PUT Handler ──────────────────────────────
@@ -570,6 +582,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const adminError = await requireAdmin(user);
@@ -674,6 +687,11 @@ export async function PUT(
   }
 
   return apiError('Admin route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Admin PUT] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── PATCH Handler ────────────────────────────
@@ -682,6 +700,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const adminError = await requireAdmin(user);
@@ -760,6 +779,11 @@ export async function PATCH(
   }
 
   return apiError('Admin route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Admin PATCH] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── DELETE Handler ───────────────────────────
@@ -768,6 +792,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const adminError = await requireAdmin(user);
@@ -853,4 +878,9 @@ export async function DELETE(
   }
 
   return apiError('Admin route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Admin DELETE] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }

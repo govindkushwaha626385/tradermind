@@ -49,6 +49,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const rl = await checkRateLimit(req, user.id);
@@ -61,12 +62,18 @@ export async function GET(
   if (id === 'unlogged') return handleUnlogged(user.id);
   if (id === 'export' && sub === 'csv') return handleExportCsv(req, user.id);
   return handleDetail(user.id, id);
+  } catch (err: unknown) {
+    console.error('[Journal GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return new NextResponse(JSON.stringify({ success: false, error: { message } }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
 }
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -88,6 +95,11 @@ export async function PATCH(
     .returning();
 
   return ok(updated);
+  } catch (err: unknown) {
+    console.error('[Journal PATCH] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return new NextResponse(JSON.stringify({ success: false, error: { message } }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
 }
 
 async function handleList(req: NextRequest, userId: string) {

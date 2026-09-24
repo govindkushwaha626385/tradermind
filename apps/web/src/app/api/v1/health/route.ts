@@ -45,5 +45,13 @@ async function healthHandler() {
 }
 
 export async function GET() {
-  return healthHandler();
+  try {
+    return await healthHandler();
+  } catch (err: unknown) {
+    console.error('[Health GET] Unhandled error:', err);
+    return NextResponse.json(
+      { success: false, status: 'unhealthy', error: { message: 'Health check failed' } },
+      { status: 503 },
+    );
+  }
 }

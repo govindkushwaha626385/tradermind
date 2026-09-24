@@ -25,6 +25,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { path } = await params;
   const action = path?.[0];
 
@@ -75,12 +76,18 @@ export async function GET(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Payments GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -118,4 +125,9 @@ export async function POST(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Payments POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }

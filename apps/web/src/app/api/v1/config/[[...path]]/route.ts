@@ -15,11 +15,17 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
+  try {
+    const { path } = await params;
+    const action = path?.[0];
 
-  if (action === 'banner') return handleBanner();
-  return handlePublic();
+    if (action === 'banner') return handleBanner();
+    return handlePublic();
+  } catch (err: unknown) {
+    console.error('[Config GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 async function handlePublic() {

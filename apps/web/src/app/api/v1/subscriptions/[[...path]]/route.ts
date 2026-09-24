@@ -32,38 +32,45 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
+  try {
+    const { path } = await params;
+    const action = path?.[0];
 
-  if (action === 'plans') {
-    try {
-      const activePlans = await getActivePlans();
-      return ok(activePlans);
-    } catch (err: any) {
-      console.error('[subscriptions/plans] DB error:', err.message);
-      return NextResponse.json({ success: false, error: { message: 'Service temporarily unavailable' } }, { status: 503 });
+    if (action === 'plans') {
+      try {
+        const activePlans = await getActivePlans();
+        return ok(activePlans);
+      } catch (err: any) {
+        console.error('[subscriptions/plans] DB error:', err.message);
+        return NextResponse.json({ success: false, error: { message: 'Service temporarily unavailable' } }, { status: 503 });
+      }
     }
+
+    const { user, error } = await authenticate(req);
+    if (error) return error;
+
+    if (action === 'me') {
+      const sub = await getUserSubscription(user.id);
+      if (!sub) return ok(null);
+      const db = getDatabase();
+      const [plan] = await db.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
+      return ok({ ...sub, plan: plan ?? null });
+    }
+
+    return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Subscriptions GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
   }
-
-  const { user, error } = await authenticate(req);
-  if (error) return error;
-
-  if (action === 'me') {
-    const sub = await getUserSubscription(user.id);
-    if (!sub) return ok(null);
-    const db = getDatabase();
-    const [plan] = await db.select().from(plans).where(eq(plans.id, sub.planId)).limit(1);
-    return ok({ ...sub, plan: plan ?? null });
-  }
-
-  return apiError('Route not found', 404);
 }
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
+  try {
+    const { path } = await params;
   const [action, sub1, sub2] = path ?? [];
 
   if (action === 'webhook') {
@@ -216,4 +223,9 @@ export async function POST(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Subscriptions POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }

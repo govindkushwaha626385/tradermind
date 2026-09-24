@@ -31,15 +31,21 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
 
-  const { path } = await params;
-  const action = path?.[0];
+    const { path } = await params;
+    const action = path?.[0];
 
-  if (action === 'screenshot') return handleScreenshot(req, user.id);
-  if (action === 'audio') return handleAudio(req, user.id);
-  return apiError(`Route not found: POST /api/v1/uploads/${action}`, 404);
+    if (action === 'screenshot') return handleScreenshot(req, user.id);
+    if (action === 'audio') return handleAudio(req, user.id);
+    return apiError(`Route not found: POST /api/v1/uploads/${action}`, 404);
+  } catch (err: unknown) {
+    console.error('[Uploads POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 async function handleScreenshot(req: NextRequest, userId: string) {

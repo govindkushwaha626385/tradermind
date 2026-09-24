@@ -45,6 +45,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -62,6 +63,11 @@ export async function GET(
   if (sub === 'replay') return handleReplay(req, user.id, id);
   // GET /trades/:id
   return handleDetail(user.id, id);
+  } catch (err: unknown) {
+    console.error('[Trades GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return new NextResponse(JSON.stringify({ success: false, error: { message } }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
 }
 
 // ── List ─────────────────────────────────────────────────────

@@ -120,22 +120,43 @@ async function request<T>(
       });
       clearTimeout(timeoutId);
 
-      const json = await response.json();
+      // Safely parse the JSON body — some error responses have empty bodies
+      let json: any = null;
+      const contentType = response.headers.get('content-type') ?? '';
+      const contentLength = response.headers.get('content-length');
+      const hasBody = contentLength !== '0' && contentType.includes('json');
+
+      if (hasBody) {
+        try {
+          json = await response.json();
+        } catch {
+          // Body wasn't valid JSON — treat as empty
+          json = null;
+        }
+      }
 
       if (!response.ok) {
-        throw new Error(json.error?.message ?? `Request failed: ${response.status}`);
+        const errMsg =
+          json?.error?.message ??
+          json?.message ??
+          `Request failed with status ${response.status}`;
+        const err = new Error(errMsg) as any;
+        err.status = response.status;
+        throw err;
       }
 
       return json;
     } catch (err: any) {
       lastError = err;
 
-      // Don't retry on 4xx errors (client mistakes) or abort from timeout on last attempt
-      const isClientError = err?.message?.includes('Request failed: 4');
-      const isAbort = err?.name === 'AbortError';
+      // Don't retry on 4xx errors (client mistakes)
+      const status: number = err?.status ?? 0;
+      const isClientError = status >= 400 && status < 500;
+      // Don't retry on 5xx auth errors (register/login/forgot-password)
+      const isAuthEndpoint = endpoint.startsWith('/auth/');
+      const isServerError = status >= 500;
 
-      // Retry only on network errors / 5xx / timeouts, and not on the last attempt
-      if (isClientError || attempt === MAX_RETRIES) break;
+      if (isClientError || (isServerError && isAuthEndpoint) || attempt === MAX_RETRIES) break;
 
       // Exponential backoff: 300ms, 900ms
       const delay = 300 * Math.pow(3, attempt);

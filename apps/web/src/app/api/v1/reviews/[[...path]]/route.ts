@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { getDatabase, reviews } from '@trademind/database';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { authenticate, authenticateOptional } from '@/lib/server/auth';
-import { ok, created, parseBody } from '@/lib/server/response';
+import { ok, created, parseBody, apiError } from '@/lib/server/response';
 
 export const runtime = 'nodejs';
 
@@ -26,19 +26,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
-
-  if (action === 'mine') {
-    const { user, error } = await authenticate(req);
-    if (error) return error;
-    const db = getDatabase();
-    const [review] = await db.select().from(reviews).where(eq(reviews.userId, user.id)).limit(1);
-    return ok(review ?? null);
-  }
-
-  // Public list
   try {
+    const { path } = await params;
+    const action = path?.[0];
+
+    if (action === 'mine') {
+      const { user, error } = await authenticate(req);
+      if (error) return error;
+      const db = getDatabase();
+      const [review] = await db.select().from(reviews).where(eq(reviews.userId, user.id)).limit(1);
+      return ok(review ?? null);
+    }
+
+    // Public list
     const url = new URL(req.url);
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 20), 50);
     const featuredOnly = url.searchParams.get('featured') === 'true';
@@ -53,9 +53,10 @@ export async function GET(
     const [countRow] = await db.select({ count: sql<number>`COUNT(*)` }).from(reviews).where(eq(reviews.isApproved, true));
 
     return ok(rows, { total: Number(countRow?.count ?? 0) });
-  } catch (err: any) {
-    console.error('[reviews] DB error:', err.message);
-    return NextResponse.json({ success: false, error: { message: 'Service temporarily unavailable' } }, { status: 503 });
+  } catch (err: unknown) {
+    console.error('[Reviews GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
   }
 }
 
@@ -63,27 +64,33 @@ export async function POST(
   req: NextRequest,
   _ctx: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
 
-  const { data: body, error: bodyErr } = await parseBody(req, submitReviewSchema);
-  if (bodyErr) return bodyErr;
+    const { data: body, error: bodyErr } = await parseBody(req, submitReviewSchema);
+    if (bodyErr) return bodyErr;
 
-  const db = getDatabase();
-  const [existing] = await db.select({ id: reviews.id }).from(reviews).where(eq(reviews.userId, user.id)).limit(1);
+    const db = getDatabase();
+    const [existing] = await db.select({ id: reviews.id }).from(reviews).where(eq(reviews.userId, user.id)).limit(1);
 
-  if (existing) {
-    const [updated] = await db.update(reviews)
-      .set({ rating: body.rating, headline: body.headline, body: body.body, traderType: body.traderType, displayName: body.displayName, isApproved: false, updatedAt: new Date() })
-      .where(eq(reviews.id, existing.id)).returning();
-    return ok({ ...updated, message: 'Review updated. It will appear after admin approval.' });
+    if (existing) {
+      const [updated] = await db.update(reviews)
+        .set({ rating: body.rating, headline: body.headline, body: body.body, traderType: body.traderType, displayName: body.displayName, isApproved: false, updatedAt: new Date() })
+        .where(eq(reviews.id, existing.id)).returning();
+      return ok({ ...updated, message: 'Review updated. It will appear after admin approval.' });
+    }
+
+    const [review] = await db.insert(reviews).values({
+      userId: user.id, rating: body.rating, headline: body.headline, body: body.body,
+      traderType: body.traderType ?? null, displayName: body.displayName ?? null,
+      isApproved: false, isFeatured: false,
+    }).returning();
+
+    return created({ ...review, message: 'Review submitted successfully. It will appear after admin approval.' });
+  } catch (err: unknown) {
+    console.error('[Reviews POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
   }
-
-  const [review] = await db.insert(reviews).values({
-    userId: user.id, rating: body.rating, headline: body.headline, body: body.body,
-    traderType: body.traderType ?? null, displayName: body.displayName ?? null,
-    isApproved: false, isFeatured: false,
-  }).returning();
-
-  return created({ ...review, message: 'Review submitted successfully. It will appear after admin approval.' });
 }

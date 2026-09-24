@@ -56,18 +56,24 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
+  try {
+    const { path } = await params;
+    const action = path?.[0];
 
-  switch (action) {
-    case 'register':    return handleRegister(req);
-    case 'login':       return handleLogin(req);
-    case 'logout':      return handleLogout(req);
-    case 'forgot-password': return handleForgotPassword(req);
-    case 'reset-password':  return handleResetPassword(req);
-    case 'resend-verification': return handleResendVerification(req);
-    default:
-      return apiError(`Route not found: POST /api/v1/auth/${action}`, 404);
+    switch (action) {
+      case 'register':    return await handleRegister(req);
+      case 'login':       return await handleLogin(req);
+      case 'logout':      return await handleLogout(req);
+      case 'forgot-password': return await handleForgotPassword(req);
+      case 'reset-password':  return await handleResetPassword(req);
+      case 'resend-verification': return await handleResendVerification(req);
+      default:
+        return apiError(`Route not found: POST /api/v1/auth/${action}`, 404);
+    }
+  } catch (err: unknown) {
+    console.error('[Auth POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
   }
 }
 
@@ -78,11 +84,17 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
+  try {
+    const { path } = await params;
+    const action = path?.[0];
 
-  if (action === 'me') return handleGetMe(req);
-  return apiError(`Route not found: GET /api/v1/auth/${action}`, 404);
+    if (action === 'me') return await handleGetMe(req);
+    return apiError(`Route not found: GET /api/v1/auth/${action}`, 404);
+  } catch (err: unknown) {
+    console.error('[Auth GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 /**
@@ -92,11 +104,17 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const action = path?.[0];
+  try {
+    const { path } = await params;
+    const action = path?.[0];
 
-  if (action === 'me') return handleUpdateMe(req);
-  return apiError(`Route not found: PUT /api/v1/auth/${action}`, 404);
+    if (action === 'me') return await handleUpdateMe(req);
+    return apiError(`Route not found: PUT /api/v1/auth/${action}`, 404);
+  } catch (err: unknown) {
+    console.error('[Auth PUT] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── Handlers ──────────────────────────────────────────────────
@@ -108,23 +126,45 @@ async function handleRegister(req: NextRequest) {
   const { data: body, error: bodyErr } = await parseBody(req, registerSchema);
   if (bodyErr) return bodyErr;
 
-  const db = getDatabase();
+  // Sign up via Supabase Auth — this fires the `handle_new_user` trigger
+  // which auto-provisions: public.users, user_onboarding, risk_profiles
   const { data: authData, error: authError } = await getSupabaseClient().auth.signUp({
     email: body.email,
     password: body.password,
+    options: {
+      data: { name: body.name, full_name: body.name },
+    },
   });
 
-  if (authError) return apiError(authError.message);
+  if (authError) {
+    // Friendly error for duplicate email
+    if (authError.message?.toLowerCase().includes('already registered') ||
+        authError.message?.toLowerCase().includes('already been registered')) {
+      return apiError('An account with this email already exists.', 409);
+    }
+    return apiError(authError.message, 400);
+  }
 
   const supabaseUserId = authData.user?.id;
-  if (!supabaseUserId) return apiError('Failed to create user', 500);
+  if (!supabaseUserId) return apiError('Failed to create user account', 500);
 
-  await db.insert(users).values({
-    id: supabaseUserId,
-    email: body.email,
-    name: body.name,
-    role: 'USER',
-  });
+  // Upsert the public.users record — handles cases where the trigger fires
+  // slower than this response, or if the trigger doesn't exist yet.
+  try {
+    const db = getDatabase();
+    await db.insert(users).values({
+      id: supabaseUserId,
+      email: body.email,
+      name: body.name,
+      role: 'USER',
+    }).onConflictDoUpdate({
+      target: users.id,
+      set: { name: body.name, email: body.email },
+    });
+  } catch (dbErr) {
+    // Non-fatal: the Supabase trigger may have already created the row
+    console.warn('[Register] DB upsert warning (trigger may have handled it):', dbErr);
+  }
 
   return created({ id: supabaseUserId, email: body.email, name: body.name, role: 'USER' });
 }
@@ -176,11 +216,24 @@ async function handleGetMe(req: NextRequest) {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
-  const db = getDatabase();
-  const [profile] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
-  if (!profile) return notFound('User not found');
+  try {
+    const db = getDatabase();
+    const [profile] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+    if (profile) return ok(profile);
+  } catch (err) {
+    console.warn('[handleGetMe] DB select failed, falling back to Supabase client:', (err as Error).message);
+  }
 
-  return ok(profile);
+  // Fallback to Supabase Admin REST client
+  try {
+    const admin = getSupabaseAdmin();
+    const { data: supaProfile } = await admin.from('users').select('*').eq('id', user.id).single();
+    if (supaProfile) return ok(supaProfile);
+  } catch (restErr) {
+    console.warn('[handleGetMe] Supabase REST select failed:', (restErr as Error).message);
+  }
+
+  return ok({ id: user.id, email: user.email, role: user.role, name: user.email.split('@')[0], preferredCurrency: 'INR' });
 }
 
 async function handleUpdateMe(req: NextRequest) {

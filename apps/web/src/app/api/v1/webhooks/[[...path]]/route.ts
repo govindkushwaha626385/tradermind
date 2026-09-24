@@ -35,8 +35,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const broker = path?.[0];
+  try {
+    const { path } = await params;
+    const broker = path?.[0];
 
   if (broker === 'zerodha') {
     const body = await req.json();
@@ -172,4 +173,9 @@ export async function POST(
   }
 
   return apiError(`Unknown webhook broker: ${broker}`, 404);
+  } catch (err: unknown) {
+    console.error('[Webhooks POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }

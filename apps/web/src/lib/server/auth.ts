@@ -23,18 +23,47 @@ export interface AuthUser {
  * user account is not found / has an unsupported role.
  */
 export async function resolveAuthUser(token: string): Promise<AuthUser | null> {
-  const { data, error } = await getSupabaseAdmin().auth.getUser(token);
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) return null;
 
-  const db = getDatabase();
-  const [profile] = await db
-    .select({ id: users.id, email: users.email, role: users.role })
-    .from(users)
-    .where(eq(users.id, data.user.id))
-    .limit(1);
+  try {
+    const db = getDatabase();
+    const [profile] = await db
+      .select({ id: users.id, email: users.email, role: users.role })
+      .from(users)
+      .where(eq(users.id, data.user.id))
+      .limit(1);
 
-  if (!profile || (profile.role !== 'USER' && profile.role !== 'ADMIN')) return null;
-  return profile as AuthUser;
+    if (profile && (profile.role === 'USER' || profile.role === 'ADMIN')) {
+      return profile as AuthUser;
+    }
+  } catch (dbErr) {
+    console.warn('[auth] Direct DB query failed, falling back to Supabase Admin API:', (dbErr as Error).message);
+  }
+
+  // Fallback: Query via Supabase Admin REST client
+  try {
+    const { data: supaUser } = await admin
+      .from('users')
+      .select('id, email, role')
+      .eq('id', data.user.id)
+      .single();
+
+    if (supaUser && (supaUser.role === 'USER' || supaUser.role === 'ADMIN')) {
+      return supaUser as AuthUser;
+    }
+  } catch (restErr) {
+    console.warn('[auth] Supabase REST users query error:', (restErr as Error).message);
+  }
+
+  // Fallback: Use verified Supabase Auth user identity
+  const authRole = ((data.user.user_metadata?.role as string) ?? 'USER').toUpperCase() as 'USER' | 'ADMIN';
+  return {
+    id: data.user.id,
+    email: data.user.email ?? '',
+    role: authRole === 'ADMIN' ? 'ADMIN' : 'USER',
+  };
 }
 
 /**

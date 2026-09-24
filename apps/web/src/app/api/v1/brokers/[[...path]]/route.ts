@@ -43,6 +43,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const rl = await checkRateLimit(req, user.id);
@@ -55,12 +56,18 @@ export async function GET(
   if (seg1 === 'funds') return handleFunds(user.id);
   if (seg2 === 'status') return handleStatus(user.id, seg1);
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Brokers GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const rl = await checkRateLimit(req, user.id);
@@ -74,12 +81,18 @@ export async function POST(
   if (seg1 === 'import' && seg2 === 'csv' && seg3 === 'preview') return handleCsvPreview(req);
   if (seg1 === 'import' && seg2 === 'csv') return handleCsvImport(req, user.id);
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Brokers POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -93,6 +106,11 @@ export async function DELETE(
 
   await db.update(brokerConnections).set({ status: 'DISCONNECTED', isActive: false }).where(eq(brokerConnections.id, id));
   return ok({ message: 'Broker disconnected successfully' });
+  } catch (err: unknown) {
+    console.error('[Brokers DELETE] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── Handlers ─────────────────────────────────────────────────

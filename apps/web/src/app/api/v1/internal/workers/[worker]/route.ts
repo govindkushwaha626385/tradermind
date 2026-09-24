@@ -150,12 +150,13 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ worker?: string }> },
 ) {
-  if (!verifyInternalSecret(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try {
+    if (!verifyInternalSecret(req)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const { worker } = await params;
-  const db = getDatabase();
+    const { worker } = await params;
+    const db = getDatabase();
 
   // ── sync ──────────────────────────────────────────────────────
   if (worker === 'sync') {
@@ -329,4 +330,9 @@ export async function POST(
   }
 
   return NextResponse.json({ error: 'Unknown worker' }, { status: 404 });
+  } catch (err: unknown) {
+    console.error('[Internal Workers POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ status: 'error', message }, { status: 500 });
+  }
 }

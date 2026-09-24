@@ -7,7 +7,7 @@
 // DELETE /api/v1/playbooks/[id]
 // ──────────────────────────────────────────────
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getDatabase, setupPlaybooks } from '@trademind/database';
 import { eq, and } from 'drizzle-orm';
@@ -30,83 +30,131 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
-  const rl = await checkRateLimit(req, user.id);
-  if (rl) return rl;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
+    const rl = await checkRateLimit(req, user.id);
+    if (rl) return rl;
 
-  const { path } = await params;
-  const id = path?.[0];
-  const db = getDatabase();
+    const { path } = await params;
+    const id = path?.[0];
+    const db = getDatabase();
 
-  if (!id) {
-    const playbooks = await db.select().from(setupPlaybooks).where(eq(setupPlaybooks.userId, user.id)).orderBy(setupPlaybooks.createdAt);
-    return ok(playbooks);
+    if (!id) {
+      const playbooks = await db
+        .select()
+        .from(setupPlaybooks)
+        .where(eq(setupPlaybooks.userId, user.id))
+        .orderBy(setupPlaybooks.createdAt);
+      return ok(playbooks);
+    }
+
+    const [playbook] = await db
+      .select()
+      .from(setupPlaybooks)
+      .where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id)))
+      .limit(1);
+    if (!playbook) return notFound('Playbook not found');
+    return ok(playbook);
+  } catch (err: unknown) {
+    console.error('[Playbooks GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
   }
-
-  const [playbook] = await db.select().from(setupPlaybooks).where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id))).limit(1);
-  if (!playbook) return notFound('Playbook not found');
-  return ok(playbook);
 }
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
-  void params;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
+    void params;
 
-  const { data: body, error: bodyErr } = await parseBody(req, playbookSchema);
-  if (bodyErr) return bodyErr;
+    const { data: body, error: bodyErr } = await parseBody(req, playbookSchema);
+    if (bodyErr) return bodyErr;
 
-  const db = getDatabase();
-  const [playbook] = await db.insert(setupPlaybooks).values({
-    userId: user.id, name: body.name, description: body.description,
-    entryCriteria: body.entryCriteria, exitCriteria: body.exitCriteria,
-    riskRules: body.riskRules as Record<string, unknown> | undefined,
-    isActive: body.isActive,
-  }).returning();
+    const db = getDatabase();
+    const [playbook] = await db
+      .insert(setupPlaybooks)
+      .values({
+        userId: user.id,
+        name: body.name,
+        description: body.description,
+        entryCriteria: body.entryCriteria,
+        exitCriteria: body.exitCriteria,
+        riskRules: body.riskRules as Record<string, unknown> | undefined,
+        isActive: body.isActive,
+      })
+      .returning();
 
-  return created(playbook);
+    return created(playbook);
+  } catch (err: unknown) {
+    console.error('[Playbooks POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
+  }
 }
 
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
 
-  const { path } = await params;
-  const id = path?.[0];
-  if (!id) return notFound('Playbook ID required');
+    const { path } = await params;
+    const id = path?.[0];
+    if (!id) return notFound('Playbook ID required');
 
-  const { data: body, error: bodyErr } = await parseBody(req, playbookSchema);
-  if (bodyErr) return bodyErr;
+    const { data: body, error: bodyErr } = await parseBody(req, playbookSchema);
+    if (bodyErr) return bodyErr;
 
-  const db = getDatabase();
-  const [updated] = await db.update(setupPlaybooks)
-    .set({ name: body.name, description: body.description, entryCriteria: body.entryCriteria, exitCriteria: body.exitCriteria, riskRules: body.riskRules as Record<string, unknown> | undefined, isActive: body.isActive })
-    .where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id)))
-    .returning();
+    const db = getDatabase();
+    const [updated] = await db
+      .update(setupPlaybooks)
+      .set({
+        name: body.name,
+        description: body.description,
+        entryCriteria: body.entryCriteria,
+        exitCriteria: body.exitCriteria,
+        riskRules: body.riskRules as Record<string, unknown> | undefined,
+        isActive: body.isActive,
+      })
+      .where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id)))
+      .returning();
 
-  if (!updated) return notFound('Playbook not found');
-  return ok(updated);
+    if (!updated) return notFound('Playbook not found');
+    return ok(updated);
+  } catch (err: unknown) {
+    console.error('[Playbooks PUT] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
+  }
 }
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
+  try {
+    const { user, error } = await authenticate(req);
+    if (error) return error;
 
-  const { path } = await params;
-  const id = path?.[0];
-  if (!id) return notFound('Playbook ID required');
+    const { path } = await params;
+    const id = path?.[0];
+    if (!id) return notFound('Playbook ID required');
 
-  const db = getDatabase();
-  await db.delete(setupPlaybooks).where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id)));
-  return ok({ message: 'Playbook deleted' });
+    const db = getDatabase();
+    await db
+      .delete(setupPlaybooks)
+      .where(and(eq(setupPlaybooks.id, id), eq(setupPlaybooks.userId, user.id)));
+    return ok({ message: 'Playbook deleted' });
+  } catch (err: unknown) {
+    console.error('[Playbooks DELETE] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
+  }
 }

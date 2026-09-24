@@ -44,6 +44,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
   const rl = await checkRateLimit(req, user.id);
@@ -101,6 +102,11 @@ export async function GET(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Discipline GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── POST ──────────────────────────────────────────────────────
@@ -109,6 +115,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -193,6 +200,11 @@ export async function POST(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Discipline POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── PUT ───────────────────────────────────────────────────────
@@ -201,6 +213,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -218,6 +231,11 @@ export async function PUT(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Discipline PUT] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }
 
 // ── DELETE ────────────────────────────────────────────────────
@@ -226,6 +244,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
+  try {
   const { user, error } = await authenticate(req);
   if (error) return error;
 
@@ -241,4 +260,9 @@ export async function DELETE(
   }
 
   return apiError('Route not found', 404);
+  } catch (err: unknown) {
+    console.error('[Discipline DELETE] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return apiError(message, 500);
+  }
 }

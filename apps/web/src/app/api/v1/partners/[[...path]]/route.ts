@@ -17,21 +17,33 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const slugOrId = path?.[0];
+  try {
+    const { path } = await params;
+    const slugOrId = path?.[0];
 
-  if (!slugOrId) return handleList(req);
-  return handleDetail(slugOrId);
+    if (!slugOrId) return handleList(req);
+    return handleDetail(slugOrId);
+  } catch (err: unknown) {
+    console.error('[Partners GET] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
+  }
 }
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await params;
-  const [id, action] = path ?? [];
-  if (action === 'click') return handleClick(id);
-  return notFound('Route not found');
+  try {
+    const { path } = await params;
+    const [id, action] = path ?? [];
+    if (action === 'click') return handleClick(id);
+    return notFound('Route not found');
+  } catch (err: unknown) {
+    console.error('[Partners POST] Unhandled error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: { message } }, { status: 500 });
+  }
 }
 
 async function handleList(req: NextRequest) {
