@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { api } from '@/lib/api';
+import { api, getAccessToken } from '@/lib/api';
 
 const ADMIN_NAV = [
   { label: 'Dashboard',      href: '/admin',               icon: LayoutGrid },
@@ -77,7 +77,7 @@ export default function AdminLayout({
   const [adminEmail, setAdminEmail]     = useState<string | null>(null);
 
   useEffect(() => {
-    const token = sessionStorage.getItem('trademind_access_token');
+    const token = getAccessToken();
     if (!token) {
       router.push('/login');
       return;
@@ -179,7 +179,7 @@ export default function AdminLayout({
         </Link>
         <button
           onClick={() => {
-            sessionStorage.removeItem('trademind_access_token');
+            api.logout();
             window.location.href = '/login';
           }}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-all w-full"
