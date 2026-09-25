@@ -46,6 +46,8 @@ import { toast } from '@/components/Toast';
 import { SkeletonStatRow } from '@/components/ui/SkeletonCard';
 import { AdminBroadcastModal } from '@/components/admin/AdminBroadcastModal';
 import { AdminLiveHealthMonitor } from '@/components/admin/AdminLiveHealthMonitor';
+import { AdminQuickUserLookup } from '@/components/admin/AdminQuickUserLookup';
+import { AdminAuditStream } from '@/components/admin/AdminAuditStream';
 
 interface AdminConfig {
   key: string;
@@ -87,6 +89,8 @@ const CONFIG_CATEGORIES = [
   { id: 'health', label: 'System Vitals', icon: Activity },
   { id: 'feature_flags', label: 'Feature Flags', icon: Flag },
   { id: 'live_sync', label: 'Live Broker Sync & Health', icon: RefreshCw },
+  { id: 'users_quick', label: 'Users & Quota Overrides', icon: Users },
+  { id: 'audit_stream', label: 'Live Audit Log Stream', icon: Shield },
   { id: 'fees', label: 'Fees & Brokerage', icon: DollarSign },
   { id: 'general', label: 'General', icon: Settings },
   { id: 'broker', label: 'Broker Settings', icon: Plug },
@@ -715,8 +719,22 @@ export default function AdminPage() {
           </div>
         )}
 
+          {/* TAB 5: QUICK USERS & QUOTA OVERRIDES */}
+          {activeCategory === 'users_quick' && (
+            <div className="glass-card rounded-2xl p-5 space-y-4">
+              <AdminQuickUserLookup />
+            </div>
+          )}
+
+          {/* TAB 6: LIVE AUDIT TRAIL STREAM */}
+          {activeCategory === 'audit_stream' && (
+            <div className="glass-card rounded-2xl p-5 space-y-4">
+              <AdminAuditStream />
+            </div>
+          )}
+
           {/* STANDARD CONFIG TABS (fees, general, broker, rate_limits, ai) */}
-          {!['revenue', 'health', 'feature_flags', 'live_sync'].includes(activeCategory) && (
+          {!['revenue', 'health', 'feature_flags', 'live_sync', 'users_quick', 'audit_stream'].includes(activeCategory) && (
             <div className="glass-card rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold">

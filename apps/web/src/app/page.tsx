@@ -20,6 +20,8 @@ import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { BrokersSection } from '@/components/landing/BrokersSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
+import { GlobalMarketTickerStrip } from '@/components/landing/GlobalMarketTickerStrip';
+import { TradingLeakCalculator } from '@/components/landing/TradingLeakCalculator';
 import { Footer } from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
@@ -162,6 +164,11 @@ export default function HomePage() {
       {/* ── Sticky Navigation Bar ────────── */}
       <LandingNavbar />
 
+      {/* ── Live Global Market Pulse Ticker ─ */}
+      <div className="pt-16">
+        <GlobalMarketTickerStrip />
+      </div>
+
       {/* ── Hero Section ─────────────────── */}
       <HeroSection />
 
@@ -170,6 +177,9 @@ export default function HomePage() {
 
       {/* ── Interactive Live Trading Terminal & Simulation ── */}
       <LiveTradingSimulationTerminal />
+
+      {/* ── Behavioral Leak & Edge Recovery Calculator ── */}
+      <TradingLeakCalculator />
 
       {/* ── Features Section ──────────────── */}
       <FeaturesSection />

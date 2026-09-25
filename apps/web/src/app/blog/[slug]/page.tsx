@@ -25,6 +25,7 @@ import remarkGfm from 'remark-gfm';
 import { BLOG_POSTS, type BlogPost } from '@/lib/blog-data';
 import { ArticleShareActions } from '@/components/blog/ArticleShareActions';
 import { InlineRiskCalculatorWidget } from '@/components/blog/InlineRiskCalculatorWidget';
+import { ArticleReadingProgressBar } from '@/components/blog/ArticleReadingProgressBar';
 
 interface ArticlePageProps {
   params: Promise<{
@@ -98,6 +99,9 @@ export default async function BlogPostPage({ params }: ArticlePageProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground animate-fade-in">
+      {/* Viewport Top Reading Progress Bar */}
+      <ArticleReadingProgressBar />
+
       {/* Inject JSON-LD Schema */}
       <script
         type="application/ld+json"

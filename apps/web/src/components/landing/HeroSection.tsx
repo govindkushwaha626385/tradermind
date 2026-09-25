@@ -102,7 +102,7 @@ export function HeroSection() {
   return (
     <section
       className="relative min-h-screen flex items-center overflow-hidden"
-      style={{ paddingTop: '80px' }}
+      style={{ paddingTop: '24px' }}
     >
       {/* Layered background */}
       <div
