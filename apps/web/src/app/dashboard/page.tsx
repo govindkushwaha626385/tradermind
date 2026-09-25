@@ -58,8 +58,21 @@ import { StatCard } from '@/components/ui/StatCard';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { Badge } from '@/components/ui/Badge';
 import { LiveDot } from '@/components/ui/LiveDot';
+import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
 import type { EquityPoint } from '@/components/EquityCurve';
 import type { DashboardStats, BehavioralInsight, Partner } from '@trademind/shared';
+
+const DASHBOARD_TERMINAL_PRESETS = [
+  { label: 'NIFTY 50', symbol: 'NSE:NIFTY', badge: '🇮🇳' },
+  { label: 'BANK NIFTY', symbol: 'NSE:BANKNIFTY', badge: '🇮🇳' },
+  { label: 'BTC / USD', symbol: 'BINANCE:BTCUSDT', badge: '🪙' },
+  { label: 'ETH / USD', symbol: 'BINANCE:ETHUSDT', badge: '🪙' },
+  { label: 'S&P 500', symbol: 'SP:SPX', badge: '🇺🇸' },
+  { label: 'NASDAQ', symbol: 'NASDAQ:NDX', badge: '🇺🇸' },
+  { label: 'NVIDIA', symbol: 'NASDAQ:NVDA', badge: '🇺🇸' },
+  { label: 'GOLD', symbol: 'OANDA:XAUUSD', badge: '💱' },
+  { label: 'EUR / USD', symbol: 'FX:EURUSD', badge: '💱' },
+];
 
 interface TradeSummary {
   symbol: string;
@@ -124,6 +137,8 @@ export default function DashboardPage() {
   const [debriefOpen, setDebriefOpen]     = useState(false);
   const [reviewOpen, setReviewOpen]       = useState(false);
   const [lastUpdated, setLastUpdated]     = useState<string>('');
+  const [mainViewMode, setMainViewMode]   = useState<'equity' | 'terminal'>('equity');
+  const [terminalSymbol, setTerminalSymbol] = useState<string>('NSE:NIFTY');
 
   useEffect(() => { document.title = 'Dashboard — TradeMind'; }, []);
   useEffect(() => { fetchDashboard(false, timeframe); }, [timeframe]);
@@ -462,54 +477,132 @@ export default function DashboardPage() {
 
       {/* ── Main 2-col: Equity + Side panel ──────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Equity curve — 2/3 */}
+        {/* Equity curve / Live Terminal — 2/3 */}
         <div className="xl:col-span-2">
           <SectionCard
-            title="Equity Curve"
-            icon={TrendingUp}
-            iconGradient="from-blue-500 to-violet-500"
-            headerRight={
-              <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-                {TIMEFRAMES.map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setTimeframe(tf)}
-                    className={cn(
-                      'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150',
-                      timeframe === tf
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {tf}
-                  </button>
-                ))}
+            title={mainViewMode === 'equity' ? 'Equity Curve' : 'Live Market Terminal'}
+            badge={
+              <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/40 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMainViewMode('equity')}
+                  className={cn(
+                    'px-2 py-0.5 rounded-md text-xs font-bold transition-all cursor-pointer',
+                    mainViewMode === 'equity'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Equity
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMainViewMode('terminal')}
+                  className={cn(
+                    'px-2 py-0.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer',
+                    mainViewMode === 'terminal'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Terminal</span>
+                </button>
               </div>
             }
+            icon={mainViewMode === 'equity' ? TrendingUp : BarChart3}
+            iconGradient="from-blue-500 to-violet-500"
+            headerRight={
+              mainViewMode === 'equity' ? (
+                <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+                  {TIMEFRAMES.map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => setTimeframe(tf)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150',
+                        timeframe === tf
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-emerald-400 hidden sm:inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
+                    <span>Real-Time Stream</span>
+                  </span>
+                  <Link
+                    href="/dashboard/replay"
+                    className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <span>Full Replay</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              )
+            }
             noPadding
-            bodyClassName="px-4 pb-4 pt-2"
+            bodyClassName="px-3 sm:px-4 pb-4 pt-2"
           >
-            {loading ? (
-              <div className="skeleton h-52 rounded-xl" />
-            ) : equityData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-52 gap-3 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-muted-foreground" />
+            {mainViewMode === 'equity' ? (
+              loading ? (
+                <div className="skeleton h-52 rounded-xl" />
+              ) : equityData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-52 gap-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">No trade data yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Connect a broker or log your first trade</p>
+                  </div>
+                  <Link
+                    href="/dashboard/brokers"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl gradient-brand text-white text-xs font-semibold shadow-brand hover:opacity-90 transition-opacity"
+                  >
+                    <Plug className="w-3.5 h-3.5" />
+                    Connect Broker
+                  </Link>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">No trade data yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Connect a broker or log your first trade</p>
-                </div>
-                <Link
-                  href="/dashboard/brokers"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl gradient-brand text-white text-xs font-semibold shadow-brand hover:opacity-90 transition-opacity"
-                >
-                  <Plug className="w-3.5 h-3.5" />
-                  Connect Broker
-                </Link>
-              </div>
+              ) : (
+                <EquityCurve data={equityData} height={220} />
+              )
             ) : (
-              <EquityCurve data={equityData} height={220} />
+              <div className="space-y-3 pt-1">
+                {/* Benchmark selector pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+                  {DASHBOARD_TERMINAL_PRESETS.map((preset) => (
+                    <button
+                      key={preset.symbol}
+                      onClick={() => setTerminalSymbol(preset.symbol)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer',
+                        terminalSymbol === preset.symbol
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <span className="text-[11px]">{preset.badge}</span>
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* TradingView Live Terminal Widget */}
+                <div className="w-full h-[380px] sm:h-[440px] rounded-xl overflow-hidden border border-border/40 bg-zinc-950">
+                  <TradingViewLiveWidget
+                    symbol={terminalSymbol}
+                    height="100%"
+                    interval="5"
+                    allowSymbolChange={true}
+                  />
+                </div>
+              </div>
             )}
           </SectionCard>
         </div>

@@ -16,6 +16,8 @@ import { api } from '@/lib/api';
 import { useCurrency } from '@/hooks/useCurrency';
 import { TradeReplayChart } from '@/components/chart/TradeReplayChart';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
+import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
+import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 import type { TradeReplayData } from '@trademind/shared';
 
 export default function TradeReplayPage() {
@@ -27,7 +29,7 @@ export default function TradeReplayPage() {
   const [replayData, setReplayData] = useState<TradeReplayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [chartMode, setChartMode] = useState<'canvas' | 'scrubber'>('canvas');
+  const [chartMode, setChartMode] = useState<'live' | 'canvas' | 'scrubber'>('live');
 
   useEffect(() => {
     if (!tradeId) return;
@@ -72,20 +74,31 @@ export default function TradeReplayPage() {
         {replayData && (
           <div className="flex items-center gap-2 flex-wrap">
             {/* View Mode Switcher */}
-            <div className="flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl">
+            <div className="flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl text-xs">
+              <button
+                onClick={() => setChartMode('live')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  chartMode === 'live'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Live Terminal</span>
+              </button>
               <button
                 onClick={() => setChartMode('canvas')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   chartMode === 'canvas'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                Candlestick (TradingView)
+                Execution Replay
               </button>
               <button
                 onClick={() => setChartMode('scrubber')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   chartMode === 'scrubber'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-white'
@@ -134,6 +147,20 @@ export default function TradeReplayPage() {
         </div>
       ) : replayData ? (() => {
         const activeCurrency = (replayData as any)?.currency || (['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(replayData.exchange?.toUpperCase() ?? '') ? 'USD' : currency);
+        if (chartMode === 'live') {
+          const resolved = resolveTradingViewSymbol(replayData.symbol, replayData.exchange);
+          return (
+            <div className="w-full h-[520px] sm:h-[620px] rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950">
+              <TradingViewLiveWidget
+                symbol={resolved.cleanSymbol}
+                height="100%"
+                interval="5"
+                allowSymbolChange={true}
+                onFallbackToCanvas={() => setChartMode('canvas')}
+              />
+            </div>
+          );
+        }
         return chartMode === 'canvas' ? (
           <LightweightCandleChart data={replayData} currency={activeCurrency} />
         ) : (

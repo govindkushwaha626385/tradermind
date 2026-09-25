@@ -396,7 +396,8 @@ export default function TradeReplayPage() {
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [chartView, setChartView] = useState<'live' | 'canvas' | 'scrubber'>('live');
-  const [liveSymbol, setLiveSymbol] = useState<string>('BINANCE:ETHUSDT');
+  const [liveSymbol, setLiveSymbol] = useState<string>('NSE:NIFTY');
+  const [mobileLiveView, setMobileLiveView] = useState<'chart' | 'watchlist'>('chart');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const selectTrade = useCallback((trade: TradeOption) => {
@@ -408,10 +409,18 @@ export default function TradeReplayPage() {
     setShowDropdown(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
 
-    // Sync live terminal symbol if switching
+    // Sync live terminal symbol when switching trade
     const resolved = resolveTradingViewSymbol(trade.tradingsymbol, trade.exchange);
     setLiveSymbol(resolved.cleanSymbol);
   }, []);
+
+  // Guarantee liveSymbol always updates whenever selectedTrade changes
+  useEffect(() => {
+    if (selectedTrade) {
+      const resolved = resolveTradingViewSymbol(selectedTrade.tradingsymbol, selectedTrade.exchange);
+      setLiveSymbol(resolved.cleanSymbol);
+    }
+  }, [selectedTrade?.id, selectedTrade?.tradingsymbol, selectedTrade?.exchange]);
 
   const loadTrades = useCallback(async () => {
     setLoading(true);
@@ -432,11 +441,13 @@ export default function TradeReplayPage() {
 
       setTrades(normalized);
       if (normalized.length > 0) {
-        setSelectedTrade((prev) => {
-          if (prev && normalized.some((t: TradeOption) => t.id === prev.id)) return prev;
-          selectTrade(normalized[0]!);
-          return normalized[0]!;
-        });
+        const first = normalized[0]!;
+        setSelectedTrade(first);
+        const c = generateCandles(first, 40);
+        setCandles(c);
+        setReplayIndex(c.length - 1);
+        const resolved = resolveTradingViewSymbol(first.tradingsymbol, first.exchange);
+        setLiveSymbol(resolved.cleanSymbol);
       }
     } catch {
       try {
@@ -445,14 +456,22 @@ export default function TradeReplayPage() {
         const execList = Array.isArray(execRaw) ? execRaw : (execRaw?.trades ?? []);
         const normalized = execList.map(normalizeTrade);
         setTrades(normalized);
-        if (normalized.length > 0) selectTrade(normalized[0]!);
+        if (normalized.length > 0) {
+          const first = normalized[0]!;
+          setSelectedTrade(first);
+          const c = generateCandles(first, 40);
+          setCandles(c);
+          setReplayIndex(c.length - 1);
+          const resolved = resolveTradingViewSymbol(first.tradingsymbol, first.exchange);
+          setLiveSymbol(resolved.cleanSymbol);
+        }
       } catch {
         toast.error('Failed to load trades');
       }
     } finally {
       setLoading(false);
     }
-  }, [selectTrade]);
+  }, []);
 
   // Fetch on mount
   useEffect(() => {
@@ -549,16 +568,16 @@ export default function TradeReplayPage() {
           <p className="text-muted-foreground">No closed trades yet. Complete a trade to replay it here.</p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-[1fr,320px] gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr,330px] gap-5">
 
           {/* ── Chart Panel ─────────────────────────────────────────── */}
-          <div className="glass-card rounded-2xl p-5 space-y-4">
-            {/* Trade selector */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-xs">
+          <div className="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+            {/* Trade selector & Mode Switchers */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-full sm:max-w-md">
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-background text-sm font-medium hover:bg-accent transition-colors"
+                  className="w-full flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl border border-border bg-background text-xs sm:text-sm font-medium hover:bg-accent transition-colors"
                 >
                   <span className="truncate">
                     {selectedTrade
@@ -568,18 +587,21 @@ export default function TradeReplayPage() {
                   <ChevronDown className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
                 </button>
                 {showDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded-xl border border-border bg-card shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-border bg-card shadow-2xl max-h-72 overflow-y-auto">
                     {trades.map((t) => (
                       <button
                         key={t.id}
                         onClick={() => selectTrade(t)}
                         className={cn(
-                          'w-full flex items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-accent transition-colors text-left',
-                          selectedTrade?.id === t.id && 'bg-accent',
+                          'w-full flex items-center justify-between gap-2 px-4 py-3 text-xs sm:text-sm hover:bg-accent transition-colors text-left border-b border-border/40 last:border-0',
+                          selectedTrade?.id === t.id && 'bg-accent/60',
                         )}
                       >
-                        <span className="font-medium truncate">{t.tradingsymbol} ({t.exchange})</span>
-                        <span className={cn('text-xs font-semibold flex-shrink-0', t.netPnl >= 0 ? 'text-profit' : 'text-loss')}>
+                        <div className="min-w-0">
+                          <span className="font-semibold block truncate text-foreground">{t.tradingsymbol}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{t.exchange} · {t.direction} · {new Date(t.openedAt).toLocaleDateString()}</span>
+                        </div>
+                        <span className={cn('text-xs font-bold flex-shrink-0 tabular-nums', t.netPnl >= 0 ? 'text-profit' : 'text-loss')}>
                           {t.netPnl >= 0 ? '+' : ''}{formatCurrency(t.netPnl, currency)}
                         </span>
                       </button>
@@ -589,13 +611,13 @@ export default function TradeReplayPage() {
               </div>
 
               {/* View switch & Playback controls */}
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
                 <div className="flex items-center rounded-xl p-1 bg-muted/40 border border-border/40 text-xs">
                   <button
                     type="button"
                     onClick={() => setChartView('live')}
                     className={cn(
-                      'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-xs',
                       chartView === 'live'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -608,7 +630,7 @@ export default function TradeReplayPage() {
                     type="button"
                     onClick={() => setChartView('canvas')}
                     className={cn(
-                      'px-3 py-1.5 rounded-lg font-medium transition-all',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs',
                       chartView === 'canvas'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -620,7 +642,7 @@ export default function TradeReplayPage() {
                     type="button"
                     onClick={() => setChartView('scrubber')}
                     className={cn(
-                      'px-3 py-1.5 rounded-lg font-medium transition-all',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs',
                       chartView === 'scrubber'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -631,7 +653,7 @@ export default function TradeReplayPage() {
                 </div>
 
                 {chartView === 'scrubber' && (
-                  <>
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => { setReplayIndex(candles.length - 1); setIsPlaying(false); }}
                       className="p-2 rounded-xl border border-border hover:bg-accent transition-colors text-muted-foreground"
@@ -641,40 +663,112 @@ export default function TradeReplayPage() {
                     </button>
                     <button
                       onClick={isPlaying ? () => setIsPlaying(false) : startReplay}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
+                      className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20"
                     >
                       {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                      {isPlaying ? 'Pause' : 'Replay'}
+                      <span>{isPlaying ? 'Pause' : 'Replay'}</span>
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
 
+            {/* Active Symbol Feed Status Banner */}
+            {chartView === 'live' && selectedTrade && (() => {
+              const resolved = resolveTradingViewSymbol(selectedTrade.tradingsymbol, selectedTrade.exchange);
+              const isWatchlistOverride = liveSymbol !== resolved.cleanSymbol;
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="text-zinc-400 text-xs truncate">
+                      Real-Time Feed: <strong className="text-white font-mono">{liveSymbol}</strong>
+                    </span>
+                    {resolved.isDerivative && !isWatchlistOverride && (
+                      <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 text-[10px] font-mono">
+                        Underlying of {selectedTrade.tradingsymbol}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Mobile toggle for Watchlist vs Chart */}
+                    <div className="inline-flex lg:hidden rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setMobileLiveView('chart')}
+                        className={cn(
+                          'px-2 py-0.5 rounded font-medium transition-colors',
+                          mobileLiveView === 'chart' ? 'bg-indigo-600 text-white' : 'text-zinc-400'
+                        )}
+                      >
+                        Chart
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobileLiveView('watchlist')}
+                        className={cn(
+                          'px-2 py-0.5 rounded font-medium transition-colors',
+                          mobileLiveView === 'watchlist' ? 'bg-indigo-600 text-white' : 'text-zinc-400'
+                        )}
+                      >
+                        Watchlist
+                      </button>
+                    </div>
+
+                    {isWatchlistOverride && (
+                      <button
+                        type="button"
+                        onClick={() => setLiveSymbol(resolved.cleanSymbol)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[11px] font-medium transition-colors shrink-0 cursor-pointer"
+                      >
+                        <span>← Return to {selectedTrade.tradingsymbol}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Chart Area */}
             {chartView === 'live' ? (
-              <div className="flex flex-col lg:flex-row rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 min-h-[580px]">
-                <div className="flex-1 min-h-[520px]">
+              <div className="flex flex-col lg:flex-row rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 h-[480px] sm:h-[560px] lg:h-[620px] xl:h-[660px]">
+                {/* Chart Viewport (full width on desktop or when mobileLiveView === 'chart') */}
+                <div className={cn(
+                  'flex-1 h-full min-w-0',
+                  mobileLiveView === 'watchlist' ? 'hidden lg:block' : 'block'
+                )}>
                   <TradingViewLiveWidget
                     symbol={liveSymbol}
-                    height={580}
+                    height="100%"
                     interval="5"
-                    hideSideToolbar={false}
                     allowSymbolChange={true}
                     onFallbackToCanvas={() => setChartView('canvas')}
                   />
                 </div>
-                <TradingWatchlistSidebar
-                  activeSymbol={liveSymbol}
-                  onSelectSymbol={(sym) => setLiveSymbol(sym)}
-                />
+
+                {/* Watchlist Sidebar */}
+                <div className={cn(
+                  'h-full shrink-0',
+                  mobileLiveView === 'chart' ? 'hidden lg:block' : 'block w-full lg:w-auto'
+                )}>
+                  <TradingWatchlistSidebar
+                    activeSymbol={liveSymbol}
+                    onSelectSymbol={(sym) => {
+                      setLiveSymbol(sym);
+                      setMobileLiveView('chart');
+                    }}
+                    defaultCollapsed={false}
+                    className="h-full"
+                  />
+                </div>
               </div>
             ) : chartView === 'canvas' && replayData ? (
               <div className="rounded-xl overflow-hidden border border-border/40">
                 <LightweightCandleChart
                   data={replayData}
                   currency={selectedTrade?.currency || (['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(selectedTrade?.exchange?.toUpperCase() ?? '') ? 'USD' : currency)}
-                  className="h-[460px]"
+                  className="h-[460px] sm:h-[520px]"
                 />
               </div>
             ) : (

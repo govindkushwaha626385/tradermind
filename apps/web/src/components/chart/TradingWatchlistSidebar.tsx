@@ -71,14 +71,16 @@ interface TradingWatchlistSidebarProps {
   activeSymbol: string;
   onSelectSymbol: (symbol: string, item: WatchlistItem) => void;
   className?: string;
+  defaultCollapsed?: boolean;
 }
 
 export function TradingWatchlistSidebar({
   activeSymbol,
   onSelectSymbol,
   className,
+  defaultCollapsed = false,
 }: TradingWatchlistSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'indian' | 'crypto' | 'us' | 'forex'>('all');
 

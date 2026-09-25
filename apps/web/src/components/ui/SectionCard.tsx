@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 interface SectionCardProps {
-  title?: string;
+  title?: ReactNode;
   description?: string;
   icon?: LucideIcon;
   iconGradient?: string;

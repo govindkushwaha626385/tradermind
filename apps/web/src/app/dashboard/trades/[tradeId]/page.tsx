@@ -41,6 +41,8 @@ import {
 import { api } from '@/lib/api';
 import { useCurrency } from '@/hooks/useCurrency';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
+import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
+import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 import { TradeScreenshotGallery } from '@/components/chart/TradeScreenshotGallery';
 import { TradeAutopsy } from '@/components/ai/TradeAutopsy';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -64,6 +66,7 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autopsyOpen, setAutopsyOpen] = useState(false);
+  const [chartViewMode, setChartViewMode] = useState<'live' | 'replay'>('live');
 
   useEffect(() => {
     if (!tradeId) return;
@@ -264,38 +267,88 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
 
       {/* Main Interactive Candlestick Chart */}
       <div className="rounded-2xl border border-border/70 bg-card overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-border/50 bg-muted/20 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              TradingView Lightweight Chart
-            </span>
-            <span className="text-xs text-muted-foreground">• Multiple Timeframes with Fills & Levels</span>
+        <div className="p-3.5 sm:p-4 border-b border-border/50 bg-muted/20 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center rounded-xl p-1 bg-muted/50 border border-border/40 text-xs">
+              <button
+                type="button"
+                onClick={() => setChartViewMode('live')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer',
+                  chartViewMode === 'live'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Real-Time TradingView Terminal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartViewMode('replay')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer',
+                  chartViewMode === 'replay'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span>Execution Replay & Fills</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
-            <span>
-              Entry: <strong className="text-foreground">{format(replayData.entryPrice, tradeData?.currency)}</strong>
-            </span>
-            {replayData.exitPrice && (
-              <span>
-                Exit: <strong className="text-foreground">{format(replayData.exitPrice, tradeData?.currency)}</strong>
-              </span>
-            )}
-            {returnPct !== null && (
-              <span className={cn('font-bold', returnPct >= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                {returnPct >= 0 ? '+' : ''}
-                {returnPct.toFixed(2)}%
-              </span>
+
+          <div className="flex items-center gap-3 sm:gap-4 text-xs font-mono">
+            {chartViewMode === 'live' ? (() => {
+              const tvRes = resolveTradingViewSymbol(replayData.symbol, replayData.exchange);
+              return (
+                <span className="flex items-center gap-1.5 text-emerald-400 text-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Live Feed: <strong className="text-white font-mono">{tvRes.cleanSymbol}</strong>
+                  {tvRes.isDerivative && (
+                    <span className="hidden sm:inline text-zinc-400">· Underlying of {replayData.symbol}</span>
+                  )}
+                </span>
+              );
+            })() : (
+              <>
+                <span>
+                  Entry: <strong className="text-foreground">{format(replayData.entryPrice, tradeData?.currency)}</strong>
+                </span>
+                {replayData.exitPrice && (
+                  <span>
+                    Exit: <strong className="text-foreground">{format(replayData.exitPrice, tradeData?.currency)}</strong>
+                  </span>
+                )}
+                {returnPct !== null && (
+                  <span className={cn('font-bold', returnPct >= 0 ? 'text-emerald-500' : 'text-red-500')}>
+                    {returnPct >= 0 ? '+' : ''}
+                    {returnPct.toFixed(2)}%
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
 
         <div className="p-2 sm:p-4">
-          <LightweightCandleChart
-            data={replayData}
-            currency={tradeData?.currency ?? currency}
-            timeframe="5m"
-          />
+          {chartViewMode === 'live' ? (
+            <div className="w-full h-[480px] sm:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden border border-border/40 bg-zinc-950">
+              <TradingViewLiveWidget
+                symbol={resolveTradingViewSymbol(replayData.symbol, replayData.exchange).cleanSymbol}
+                height="100%"
+                interval="5"
+                allowSymbolChange={true}
+                onFallbackToCanvas={() => setChartViewMode('replay')}
+              />
+            </div>
+          ) : (
+            <LightweightCandleChart
+              data={replayData}
+              currency={tradeData?.currency ?? currency}
+              timeframe="5m"
+            />
+          )}
         </div>
       </div>
 

@@ -75,7 +75,7 @@ function TradingViewLiveWidgetInternal({
   timezone = 'Asia/Kolkata',
   className,
   height = '100%',
-  hideSideToolbar = false,
+  hideSideToolbar,
   allowSymbolChange = true,
   onFallbackToCanvas,
 }: TradingViewLiveWidgetProps) {
@@ -85,6 +85,10 @@ function TradingViewLiveWidgetInternal({
   const containerIdRef = useRef<string>(`tv_chart_container_${Math.random().toString(36).substring(2, 9)}`);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // Smart responsive toolbar: on mobile (<640px), auto-hide side toolbar to give maximum room for candles
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
+  const effectiveHideToolbar = hideSideToolbar !== undefined ? hideSideToolbar : isMobile;
 
   // Normalize symbol to valid TradingView ticker
   const resolved = resolveTradingViewSymbol(symbol);
@@ -109,7 +113,7 @@ function TradingViewLiveWidgetInternal({
           locale: 'en',
           toolbar_bg: '#09090b',
           enable_publishing: false,
-          hide_side_toolbar: hideSideToolbar,
+          hide_side_toolbar: effectiveHideToolbar,
           allow_symbol_change: allowSymbolChange,
           container_id: containerId,
           backgroundColor: '#09090b',
@@ -203,7 +207,7 @@ function TradingViewLiveWidgetInternal({
         chartMountRef.current.innerHTML = '';
       }
     };
-  }, [targetSymbol, interval, theme, timezone, hideSideToolbar, allowSymbolChange]);
+  }, [targetSymbol, interval, theme, timezone, effectiveHideToolbar, allowSymbolChange]);
 
   return (
     <div className="relative w-full h-full flex flex-col">
