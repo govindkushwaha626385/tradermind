@@ -59,6 +59,7 @@ import {
 } from 'lucide-react';
 import type { TradeReplayData } from '@trademind/shared';
 import { formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 import { toast } from '@/components/Toast';
 
 export type ChartTimeframe = '1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1D' | '1W';
@@ -76,9 +77,11 @@ export function LightweightCandleChart({
   data,
   timeframe: initialTf = '5m',
   onTimeframeChange,
-  currency = 'INR',
+  currency: propCurrency,
   className = '',
 }: LightweightCandleChartProps) {
+  const { currency: userCurrency } = useCurrency();
+  const currency = propCurrency || (data as any)?.currency || userCurrency;
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 

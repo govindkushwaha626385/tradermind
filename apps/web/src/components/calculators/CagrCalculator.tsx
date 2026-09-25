@@ -16,7 +16,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { calculateCagr } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface CagrCalculatorProps {
   currency: Currency;
@@ -24,7 +24,7 @@ interface CagrCalculatorProps {
 }
 
 export function CagrCalculator({ currency, onCopySummary }: CagrCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const initialValId = useId();
   const finalValId = useId();
   const yearsId = useId();

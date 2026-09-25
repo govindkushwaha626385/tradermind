@@ -7,6 +7,7 @@
 // ──────────────────────────────────────────────
 
 import type { MetadataRoute } from 'next';
+import { BLOG_POSTS } from '@/lib/blog-data';
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
@@ -14,6 +15,13 @@ const APP_URL =
   'https://trademind.app';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const blogUrls = BLOG_POSTS.map((post) => ({
+    url: `${APP_URL}/blog/${post.slug}`,
+    lastModified: new Date(post.publishedAt),
+    changeFrequency: 'monthly' as const,
+    priority: 0.85,
+  }));
+
   return [
     // ── Landing & public marketing pages ───────
     {
@@ -58,7 +66,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'yearly',
       priority: 0.4,
     },
-
     {
       url: `${APP_URL}/partners`,
       lastModified: new Date(),
@@ -71,6 +78,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.75,
     },
+    {
+      url: `${APP_URL}/education`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
+    {
+      url: `${APP_URL}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
+    ...blogUrls,
 
     // ── Auth pages ──────────────────────────────
     {
@@ -91,9 +111,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'yearly',
       priority: 0.2,
     },
-
-    // NOTE: /dashboard, /admin, and all sub-routes are intentionally
-    // excluded — they are gated by authentication and would return 401
-    // when crawled, wasting crawl budget.
   ];
 }
+

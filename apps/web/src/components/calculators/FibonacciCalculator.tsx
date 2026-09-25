@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { calculateFibonacciLevels } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface FibonacciCalculatorProps {
   currency: Currency;
@@ -23,7 +23,7 @@ interface FibonacciCalculatorProps {
 }
 
 export function FibonacciCalculator({ currency, onCopySummary }: FibonacciCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const highId = useId();
   const lowId = useId();
 

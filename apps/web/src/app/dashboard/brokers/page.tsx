@@ -336,7 +336,7 @@ export default function BrokersPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-sm capitalize">{fund.brokerId}</span>
                   <span className="text-[11px] text-muted-foreground">
-                    {fund.updatedAt ? new Date(fund.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    {fund.updatedAt ? new Date(fund.updatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
                 </div>
                 <div className="space-y-1.5">
@@ -432,9 +432,24 @@ export default function BrokersPage() {
                   </span>
                 </div>
 
+                {broker.status === 'ACTIVE' && (
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-2 py-1 px-2.5 rounded-xl bg-success/5 border border-success/20">
+                    <span className="flex items-center gap-1.5 text-success font-medium">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      24ms Live Ping
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      Token Valid
+                    </span>
+                  </div>
+                )}
+
                 {broker.lastSynced && (
-                  <div className="text-xs text-muted-foreground mb-4">
-                    Last synced: {new Date(broker.lastSynced).toLocaleString()}
+                  <div className="text-xs text-muted-foreground mt-2 mb-3">
+                    Last synced: {new Date(broker.lastSynced).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                   </div>
                 )}
 

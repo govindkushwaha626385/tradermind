@@ -30,8 +30,10 @@ import {
 import { api } from '@/lib/api';
 import type { RiskStatus, RiskProfile } from '@trademind/shared';
 import { formatCurrency, cn } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 
 export function RiskKillSwitchWidget() {
+  const { currencySymbol, format } = useCurrency();
   const [status, setStatus] = useState<RiskStatus | null>(null);
   const [profile, setProfile] = useState<RiskProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -230,9 +232,9 @@ export function RiskKillSwitchWidget() {
             <span className="text-slate-400">Daily Loss Allowance</span>
             <span className="font-mono font-medium">
               <span className={todayPnl < 0 ? 'text-red-400' : 'text-emerald-400'}>
-                {formatCurrency(todayPnl)}
+                {format(todayPnl)}
               </span>
-              <span className="text-slate-500"> / {formatCurrency(dailyLimitAbs)}</span>
+              <span className="text-slate-500"> / {format(dailyLimitAbs)}</span>
             </span>
           </div>
 
@@ -381,7 +383,7 @@ export function RiskKillSwitchWidget() {
             <form onSubmit={handleSaveSettings} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Daily Loss Limit (₹ Absolute)
+                  Daily Loss Limit ({currencySymbol} Absolute)
                 </label>
                 <input
                   type="number"

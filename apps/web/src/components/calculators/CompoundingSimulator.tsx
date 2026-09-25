@@ -16,7 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { simulateCompounding } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface CompoundingSimulatorProps {
   currency: Currency;
@@ -24,7 +24,7 @@ interface CompoundingSimulatorProps {
 }
 
 export function CompoundingSimulator({ currency, onCopySummary }: CompoundingSimulatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const initialCapId = useId();
   const rateId = useId();
   const periodsId = useId();

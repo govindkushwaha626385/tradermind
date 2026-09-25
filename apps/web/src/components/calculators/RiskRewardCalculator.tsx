@@ -16,7 +16,7 @@ import {
   TrendingUp,
   Percent,
 } from 'lucide-react';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface RiskRewardCalculatorProps {
   currency: Currency;
@@ -24,7 +24,7 @@ interface RiskRewardCalculatorProps {
 }
 
 export function RiskRewardCalculator({ currency, onCopySummary }: RiskRewardCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const entryPriceId = useId();
   const stopLossPriceId = useId();
   const quantityId = useId();

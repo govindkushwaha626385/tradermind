@@ -16,7 +16,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { calculateAveraging, type AverageTranche } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface PositionAveragingCalculatorProps {
   currency: Currency;
@@ -24,7 +24,7 @@ interface PositionAveragingCalculatorProps {
 }
 
 export function PositionAveragingCalculator({ currency, onCopySummary }: PositionAveragingCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const targetProfitPctId = useId();
   const cmpId = useId();
 

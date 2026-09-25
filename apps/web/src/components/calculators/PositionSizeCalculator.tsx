@@ -17,7 +17,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { calculatePositionSize } from './engine/financialMath';
-import { INSTRUMENT_PRESETS, type Currency } from './types';
+import { INSTRUMENT_PRESETS, getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface PositionSizeCalculatorProps {
   currency: Currency;
@@ -25,7 +25,7 @@ interface PositionSizeCalculatorProps {
 }
 
 export function PositionSizeCalculator({ currency, onCopySummary }: PositionSizeCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const balanceId = useId();
   const entryPriceId = useId();
   const stopLossPriceId = useId();

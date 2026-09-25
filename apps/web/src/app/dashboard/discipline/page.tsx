@@ -32,6 +32,7 @@ import {
   Moon,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 import { api } from '@/lib/api';
 import { EMOTION_EMOJIS, MISTAKE_LABELS } from '@trademind/shared';
 import type { DisciplineStatsResponse, StreakResponse } from '@trademind/shared';
@@ -43,6 +44,7 @@ import { PremarketRoutineModal } from '@/components/discipline/PremarketRoutineM
 import { RiskKillSwitchWidget } from '@/components/dashboard/RiskKillSwitchWidget';
 
 export default function DisciplinePage() {
+  const { format } = useCurrency();
   const [stats, setStats] = useState<DisciplineStatsResponse | null>(null);
   const [streaks, setStreaks] = useState<StreakResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,7 +194,7 @@ export default function DisciplinePage() {
             </div>
             <div>
               <h2 className="font-semibold text-base">Cost of Mistakes</h2>
-              <p className="text-xs text-muted-foreground">Quantified rupee impact of trading errors</p>
+              <p className="text-xs text-muted-foreground">Quantified financial impact of trading errors</p>
             </div>
           </div>
           {!stats?.mistakeCosts || stats.mistakeCosts.length === 0 ? (
@@ -221,7 +223,7 @@ export default function DisciplinePage() {
                       m.totalCost < 0 ? 'text-destructive' : 'text-success',
                     )}
                   >
-                    {formatCurrency(m.totalCost)}
+                    {format(m.totalCost)}
                   </div>
                 </div>
               ))}
@@ -269,7 +271,7 @@ export default function DisciplinePage() {
                       e.avgPnl < 0 ? 'text-destructive' : 'text-success',
                     )}
                   >
-                    {formatCurrency(e.avgPnl)} avg
+                    {format(e.avgPnl)} avg
                   </div>
                 </div>
               ))}
@@ -325,7 +327,7 @@ export default function DisciplinePage() {
                         p.avgPnl >= 0 ? 'text-success' : 'text-destructive',
                       )}
                     >
-                      {formatCurrency(p.avgPnl)} avg
+                      {format(p.avgPnl)} avg
                     </span>
                   </div>
                 </div>

@@ -24,11 +24,14 @@ import {
   TrendingDown,
   Scale,
   Activity,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { DailyPremarketPlan, PremarketChecklistItem, PremarketWatchlistItem } from '@trademind/shared';
 
 interface PremarketRoutineModalProps {
@@ -39,13 +42,14 @@ interface PremarketRoutineModalProps {
 
 const DEFAULT_CHECKLIST: PremarketChecklistItem[] = [
   { id: '1', label: 'Mentally rested, calm, and zero revenge mindset from yesterday', checked: false },
-  { id: '2', label: 'Checked macroeconomic calendar, RBI/Fed events & earnings news', checked: false },
+  { id: '2', label: 'Checked macroeconomic calendar, central bank events & earnings news', checked: false },
   { id: '3', label: 'Identified major support / resistance zones on higher timeframes', checked: false },
   { id: '4', label: 'Fixed stop-loss and position size calculated before entering any trade', checked: false },
   { id: '5', label: 'Committed to walk away from terminal if 2 consecutive stop-losses are hit', checked: false },
 ];
 
 export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: PremarketRoutineModalProps) {
+  const { currencySymbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [marketBias, setMarketBias] = useState<'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'VOLATILE'>('NEUTRAL');
@@ -59,6 +63,70 @@ export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: Premarke
   const [newDirection, setNewDirection] = useState<'LONG' | 'SHORT' | 'WATCH'>('LONG');
   const [newNotes, setNewNotes] = useState('');
   const [isLocked, setIsLocked] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleAudioBriefing = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      toast.error('Voice synthesis is not supported on this browser.');
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const watchlistSummary =
+      watchlist.length > 0
+        ? `Your focused watchlist has ${watchlist.length} asset${watchlist.length > 1 ? 's' : ''}: ` +
+          watchlist.map((w) => `${w.symbol}, ${w.direction}`).join(', ') +
+          '.'
+        : 'No specific watchlist assets added yet.';
+
+    const keyLevelsSummary = keyLevels.trim()
+      ? `Key levels noted for today: ${keyLevels.trim()}.`
+      : 'No specific key levels recorded.';
+
+    const textToSpeak = `Good morning Trader. Here is your pre-market strategy and risk briefing.
+Your market bias for today is set to ${marketBias}.
+Your risk parameters are locked: your maximum daily loss ceiling is ${maxDailyLoss} ${currencySymbol}, with a limit of ${maxDailyTrades} trades, and maximum risk per trade of ${maxRiskPerTrade} ${currencySymbol}.
+${keyLevelsSummary}
+${watchlistSummary}
+Remember the golden rule of trading: protect your principal at all times. Do not chase impulses, and walk away immediately if your daily loss threshold is reached. Trade your plan, and stay disciplined.`;
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice =
+      voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.includes('Natural') ||
+            v.name.includes('Google') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Daniel'))
+      ) || voices.find((v) => v.lang.startsWith('en'));
+
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -190,12 +258,38 @@ export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: Premarke
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleAudioBriefing}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm',
+                isSpeaking
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                  : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20 hover:text-white'
+              )}
+              title={isSpeaking ? 'Pause audio briefing' : 'Listen to AI audio briefing'}
+            >
+              {isSpeaking ? (
+                <>
+                  <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Stop Briefing</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Audio Brief</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* 1. Market Bias Selector */}
@@ -237,7 +331,7 @@ export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: Premarke
             type="text"
             value={keyLevels}
             onChange={(e) => setKeyLevels(e.target.value)}
-            placeholder="e.g., Nifty 25,200 Support / 25,500 Major Resistance, US Fed rate decision today"
+            placeholder="e.g., Key Support / Resistance zones, CPI / Fed / Nifty levels, high-impact macro catalysts"
             className="w-full px-3.5 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
@@ -255,7 +349,7 @@ export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: Premarke
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] text-muted-foreground block mb-1">Max Daily Loss (₹ Stop)</label>
+              <label className="text-[11px] text-muted-foreground block mb-1">Max Daily Loss ({currencySymbol} Stop)</label>
               <input
                 type="number"
                 value={maxDailyLoss}
@@ -279,7 +373,7 @@ export function PremarketRoutineModal({ isOpen, onClose, onPlanSaved }: Premarke
             </div>
 
             <div>
-              <label className="text-[11px] text-muted-foreground block mb-1">Risk Per Trade (₹)</label>
+              <label className="text-[11px] text-muted-foreground block mb-1">Risk Per Trade ({currencySymbol})</label>
               <input
                 type="number"
                 value={maxRiskPerTrade}

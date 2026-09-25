@@ -18,11 +18,13 @@ import {
   Play,
 } from 'lucide-react';
 import { api, getAccessToken } from '@/lib/api';
+import { useCurrency } from '@/hooks/useCurrency';
 import type { StoreProduct } from '@trademind/shared';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { currency, format } = useCurrency();
   const productId = params.productId as string;
 
   const [product, setProduct] = useState<StoreProduct | null>(null);
@@ -134,7 +136,7 @@ export default function ProductDetailPage() {
   }
 
   const isFree = product.isFree || product.price === 0;
-  const formattedPrice = isFree ? 'FREE' : `₹${(product.price / 100).toFixed(0)}`;
+  const formattedPrice = isFree ? 'FREE' : format(product.price / 100, product.currency || currency);
 
   // Embed YouTube video if present
   let youtubeEmbedUrl: string | null = null;

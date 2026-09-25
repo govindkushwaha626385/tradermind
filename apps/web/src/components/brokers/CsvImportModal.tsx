@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface BrokerConnection {
   id: string;
@@ -82,6 +83,7 @@ const SAMPLE_FORMAT_DOCS: Record<string, string> = {
 type Step = 'upload' | 'preview' | 'confirm' | 'success';
 
 export function CsvImportModal({ isOpen, onClose, connections, onImportComplete }: CsvImportModalProps) {
+  const { currencySymbol } = useCurrency();
   const [step, setStep] = useState<Step>('upload');
   const [csvContent, setCsvContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
@@ -352,6 +354,12 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
                       {preview.preview.slice(0, 10).map((row, i) => {
                         const r = row as Record<string, unknown>;
                         const pnl = Number(r['netPnl'] ?? 0);
+                        const rowExchange = String(r['exchange'] ?? '').toUpperCase();
+                        const rowCur = String(r['currency'] ?? '').toUpperCase();
+                        const sym = rowCur === 'USD' || ['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(rowExchange)
+                          ? '$'
+                          : rowCur === 'EUR' ? '€' : rowCur === 'GBP' ? '£' : rowCur === 'USDT' ? '₮' : currencySymbol;
+
                         return (
                           <tr key={i} className="border-t border-slate-800/60 hover:bg-slate-900/40">
                             <td className="px-3 py-2 font-mono font-medium text-white">{String(r['tradingsymbol'] ?? '')}</td>
@@ -360,10 +368,10 @@ export function CsvImportModal({ isOpen, onClose, connections, onImportComplete 
                               {String(r['direction'] ?? '')}
                             </td>
                             <td className="px-3 py-2 text-slate-300">{String(r['totalQuantity'] ?? '')}</td>
-                            <td className="px-3 py-2 font-mono text-slate-300">₹{Number(r['avgEntryPrice'] ?? 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 font-mono text-slate-300">{sym}{Number(r['avgEntryPrice'] ?? 0).toFixed(2)}</td>
                             <td className="px-3 py-2 text-slate-400">{String(r['status'] ?? '')}</td>
                             <td className={cn('px-3 py-2 font-mono font-semibold', pnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                              {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
+                              {pnl >= 0 ? '+' : '-'}{sym}{Math.abs(pnl).toFixed(2)}
                             </td>
                           </tr>
                         );

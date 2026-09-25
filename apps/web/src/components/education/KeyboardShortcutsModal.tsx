@@ -25,6 +25,7 @@ import {
   Sun,
   Moon,
   HelpCircle,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ const SHORTCUT_ITEMS: ShortcutItem[] = [
   { keys: ['A'], description: 'Open Performance Analytics & Heatmaps', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics' },
   { keys: ['D'], description: 'Jump to Dashboard Overview', category: 'Navigation', icon: Navigation, href: '/dashboard' },
   { keys: ['B'], description: 'Open Multi-Broker Hub & Sync', category: 'Navigation', icon: Plug, href: '/dashboard/brokers' },
+  { keys: ['M'], description: 'Jump to Trader Progression Roadmap', category: 'Navigation', icon: Compass, href: '/dashboard/roadmap' },
   { keys: ['K'], description: 'Open Checklist & Rulebook Studio', category: 'Navigation', icon: Zap, href: '/dashboard/checklists' },
 
   // Actions & Rituals

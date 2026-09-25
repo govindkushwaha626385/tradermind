@@ -18,7 +18,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { calculateBrokerage, type MarketSegment } from './engine/brokerageMath';
-import type { Currency } from './types';
+import { type Currency, getCalculatorCurrencySymbol } from './types';
 
 interface BrokerageCalculatorProps {
   currency: Currency;
@@ -26,7 +26,7 @@ interface BrokerageCalculatorProps {
 }
 
 export function BrokerageCalculator({ currency, onCopySummary }: BrokerageCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const buyPriceId = useId();
   const sellPriceId = useId();
   const quantityId = useId();
@@ -37,7 +37,7 @@ export function BrokerageCalculator({ currency, onCopySummary }: BrokerageCalcul
   const [quantity, setQuantity] = useState<number>(100);
   const [copied, setCopied] = useState<boolean>(false);
 
-  const isGlobal = currency === 'USD';
+  const isGlobal = currency !== 'INR';
 
   const breakdown = calculateBrokerage({
     segment,

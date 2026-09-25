@@ -57,6 +57,13 @@ function buildAutofillPrompt(trade: any, plan: any): string {
   const entry = Number(trade.avgEntryPrice ?? 0).toFixed(2);
   const exit = trade.avgExitPrice ? Number(trade.avgExitPrice).toFixed(2) : 'N/A';
   const qty = trade.totalQuantity ?? 0;
+  const cur = trade.currency || 'USD';
+  const curSymbol =
+    cur === 'USD' ? '$' :
+    cur === 'EUR' ? '€' :
+    cur === 'GBP' ? '£' :
+    cur === 'USDT' ? '₮' :
+    cur === 'INR' ? '₹' : '$';
 
   return `You are an elite trading performance psychologist and prop desk risk manager.
 Analyze this closed trade execution and generate the trader's post-trade journal entry.
@@ -78,13 +85,13 @@ Respond ONLY with a valid JSON object matching this schema (no markdown, no othe
 TRADE METRICS:
 Symbol: ${trade.tradingsymbol}
 Direction: ${trade.direction}
-Entry: ₹${entry} | Exit: ₹${exit}
+Entry: ${curSymbol}${entry} | Exit: ${curSymbol}${exit}
 Quantity: ${qty}
 Holding Period: ${holdMin} minutes
-Net P&L: ₹${pnl.toFixed(2)} (${isWin ? 'PROFITABLE' : 'LOSS'})
+Net P&L: ${curSymbol}${pnl.toFixed(2)} (${isWin ? 'PROFITABLE' : 'LOSS'})
 Compliance: ${trade.ruleComplianceScore ? `${Math.round(trade.ruleComplianceScore * 100)}%` : 'unrated'}
-Planned SL: ${plan?.plannedStopLoss ? `₹${plan.plannedStopLoss}` : 'unspecified'}
-Planned TP: ${plan?.plannedTakeProfit ? `₹${plan.plannedTakeProfit}` : 'unspecified'}`;
+Planned SL: ${plan?.plannedStopLoss ? `${curSymbol}${plan.plannedStopLoss}` : 'unspecified'}
+Planned TP: ${plan?.plannedTakeProfit ? `${curSymbol}${plan.plannedTakeProfit}` : 'unspecified'}`;
 }
 
 /**
@@ -96,6 +103,13 @@ function buildRuleBasedAutofill(trade: any): JournalAutofillResult {
   const holdMin = Number(trade.holdingPeriodMinutes ?? 0);
   const symbol = trade.tradingsymbol || 'Instrument';
   const dir = trade.direction || 'LONG';
+  const cur = trade.currency || 'USD';
+  const curSymbol =
+    cur === 'USD' ? '$' :
+    cur === 'EUR' ? '€' :
+    cur === 'GBP' ? '£' :
+    cur === 'USDT' ? '₮' :
+    cur === 'INR' ? '₹' : '$';
 
   if (isWin) {
     const isQuickScalp = holdMin > 0 && holdMin <= 5;
@@ -108,7 +122,7 @@ function buildRuleBasedAutofill(trade: any): JournalAutofillResult {
       executionRating: 4,
       planRating: 4,
       psychologyRating: 5,
-      reflection: `Clean ${dir} trade on ${symbol} returning +₹${pnl.toFixed(2)}. Entry executed in alignment with technical structure and held for ${holdMin || 10} minutes with composed risk management.`,
+      reflection: `Clean ${dir} trade on ${symbol} returning +${curSymbol}${pnl.toFixed(2)}. Entry executed in alignment with technical structure and held for ${holdMin || 10} minutes with composed risk management.`,
       lessonLearned: `Maintain systematic discipline and allow high-probability runners to reach full technical targets.`,
       suggestedSetup: isQuickScalp ? 'Momentum Scalp' : 'Trend Continuation',
       keyHighlights: ['Positive risk-to-reward realized', 'Controlled execution'],
@@ -126,7 +140,7 @@ function buildRuleBasedAutofill(trade: any): JournalAutofillResult {
       executionRating: 3,
       planRating: 3,
       psychologyRating: 3,
-      reflection: `${dir} trade on ${symbol} reached stop loss of -₹${Math.abs(pnl).toFixed(2)}. Market failed to follow through on the breakout level. Accepted the loss without revenge-trading.`,
+      reflection: `${dir} trade on ${symbol} reached stop loss of -${curSymbol}${Math.abs(pnl).toFixed(2)}. Market failed to follow through on the breakout level. Accepted the loss without revenge-trading.`,
       lessonLearned: `Honor technical invalidation levels immediately to preserve mental capital and drawdown limits.`,
       suggestedSetup: 'Breakout Failure / Mean Reversion',
       keyHighlights: ['Loss contained within risk budget', 'No impulsive revenge trades taken'],

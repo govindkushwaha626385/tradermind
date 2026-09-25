@@ -65,17 +65,21 @@ export async function sendDailySummary(
     netPnl: number;
     bestTrade: number;
     worstTrade: number;
+    currency?: string;
   },
 ) {
+  const sym = stats.currency === 'USD' ? '$' : stats.currency === 'EUR' ? '€' : stats.currency === 'GBP' ? '£' : stats.currency === 'USDT' ? '₮' : '₹';
+  const locale = stats.currency === 'USD' ? 'en-US' : stats.currency === 'EUR' ? 'de-DE' : stats.currency === 'GBP' ? 'en-GB' : 'en-IN';
+
   const html = `
     <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto;">
       <h2 style="color: #2563eb;">TradeMind Daily Summary</h2>
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td>Trades Today</td><td style="text-align:right;font-weight:bold;">${stats.totalTrades}</td></tr>
         <tr><td>Win Rate</td><td style="text-align:right;font-weight:bold;">${(stats.winRate * 100).toFixed(1)}%</td></tr>
-        <tr><td>Net P&L</td><td style="text-align:right;font-weight:bold;color:${stats.netPnl >= 0 ? '#22c55e' : '#ef4444'};">₹${(stats.netPnl).toLocaleString('en-IN')}</td></tr>
-        <tr><td>Best Trade</td><td style="text-align:right;font-weight:bold;color:#22c55e;">+₹${stats.bestTrade.toLocaleString('en-IN')}</td></tr>
-        <tr><td>Worst Trade</td><td style="text-align:right;font-weight:bold;color:#ef4444;">-₹${Math.abs(stats.worstTrade).toLocaleString('en-IN')}</td></tr>
+        <tr><td>Net P&L</td><td style="text-align:right;font-weight:bold;color:${stats.netPnl >= 0 ? '#22c55e' : '#ef4444'};">${stats.netPnl >= 0 ? '+' : '-'}${sym}${Math.abs(stats.netPnl).toLocaleString(locale)}</td></tr>
+        <tr><td>Best Trade</td><td style="text-align:right;font-weight:bold;color:#22c55e;">+${sym}${stats.bestTrade.toLocaleString(locale)}</td></tr>
+        <tr><td>Worst Trade</td><td style="text-align:right;font-weight:bold;color:#ef4444;">-${sym}${Math.abs(stats.worstTrade).toLocaleString(locale)}</td></tr>
       </table>
       <p style="color: #6b7280; font-size: 12px;">Log in to TradeMind for full analytics.</p>
     </div>
@@ -108,8 +112,12 @@ export async function sendWeeklyReport(
     totalPnl: number;
     dominantEmotion: string;
     grade: string;
+    currency?: string;
   },
 ) {
+  const sym = data.currency === 'USD' ? '$' : data.currency === 'EUR' ? '€' : data.currency === 'GBP' ? '£' : data.currency === 'USDT' ? '₮' : '₹';
+  const locale = data.currency === 'USD' ? 'en-US' : data.currency === 'EUR' ? 'de-DE' : data.currency === 'GBP' ? 'en-GB' : 'en-IN';
+
   const html = `
     <div style="font-family: Inter, sans-serif; max-width: 480px; margin: 0 auto;">
       <h2 style="color: #2563eb;">TradeMind Weekly Report</h2>
@@ -117,7 +125,7 @@ export async function sendWeeklyReport(
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td>Trades</td><td style="text-align:right;font-weight:bold;">${data.totalTrades}</td></tr>
         <tr><td>Win Rate</td><td style="text-align:right;font-weight:bold;">${(data.winRate * 100).toFixed(1)}%</td></tr>
-        <tr><td>P&L</td><td style="text-align:right;font-weight:bold;color:${data.totalPnl >= 0 ? '#22c55e' : '#ef4444'};">₹${(data.totalPnl).toLocaleString('en-IN')}</td></tr>
+        <tr><td>P&L</td><td style="text-align:right;font-weight:bold;color:${data.totalPnl >= 0 ? '#22c55e' : '#ef4444'};">${data.totalPnl >= 0 ? '+' : '-'}${sym}${Math.abs(data.totalPnl).toLocaleString(locale)}</td></tr>
         <tr><td>Dominant Emotion</td><td style="text-align:right;font-weight:bold;">${data.dominantEmotion}</td></tr>
       </table>
       <p style="color: #6b7280; font-size: 12px;">Full insights available in your dashboard.</p>

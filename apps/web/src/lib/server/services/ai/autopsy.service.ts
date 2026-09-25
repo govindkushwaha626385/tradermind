@@ -202,7 +202,8 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
   const curSymbol =
     currency === 'INR' ? '₹' :
     currency === 'EUR' ? '€' :
-    currency === 'GBP' ? '£' : '$';
+    currency === 'GBP' ? '£' :
+    currency === 'USDT' ? '₮' : '$';
 
   // ── 5. Call AI ────────────────────────────────
   const prompt = buildAutopsyPrompt(trade, rating, plan, curSymbol);

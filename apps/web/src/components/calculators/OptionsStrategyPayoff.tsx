@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   AlertOctagon,
 } from 'lucide-react';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 export interface OptionLeg {
   id: string;
@@ -34,7 +34,7 @@ interface OptionsStrategyPayoffProps {
 }
 
 export function OptionsStrategyPayoff({ currency, onCopySummary }: OptionsStrategyPayoffProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const spotPriceId = useId();
 
   const [spotPrice, setSpotPrice] = useState<number>(currency === 'INR' ? 25000 : 500);

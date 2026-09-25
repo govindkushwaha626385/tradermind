@@ -16,7 +16,11 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
-import { calculateBlackScholes, generateSpotSensitivity } from './engine/blackScholes';
+import {
+  calculateBlackScholes,
+  generateSpotSensitivity,
+  generateVolatilityScenarioMatrix,
+} from './engine/blackScholes';
 import type { Currency } from './types';
 
 interface OptionsGreeksCalculatorProps {
@@ -24,8 +28,20 @@ interface OptionsGreeksCalculatorProps {
   onCopySummary?: (text: string) => void;
 }
 
+function getCurrencySymbol(c: Currency): string {
+  switch (c) {
+    case 'INR': return '₹';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'USDT': return '₮';
+    case 'BTC': return '₿';
+    case 'USD':
+    default: return '$';
+  }
+}
+
 export function OptionsGreeksCalculator({ currency, onCopySummary }: OptionsGreeksCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCurrencySymbol(currency);
   const spotPriceId = useId();
   const strikePriceId = useId();
   const dteId = useId();
@@ -40,6 +56,7 @@ export function OptionsGreeksCalculator({ currency, onCopySummary }: OptionsGree
   const [riskFreeRate, setRiskFreeRate] = useState<number>(6.5);
   const [copied, setCopied] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'CALL' | 'PUT'>('CALL');
+  const [simulationView, setSimulationView] = useState<'spot' | 'volatility_surface'>('volatility_surface');
 
   const output = calculateBlackScholes({
     spotPrice,
@@ -50,6 +67,14 @@ export function OptionsGreeksCalculator({ currency, onCopySummary }: OptionsGree
   });
 
   const sensitivity = generateSpotSensitivity({
+    spotPrice,
+    strikePrice,
+    timeToExpiryDays: timeToExpiry,
+    volatilityPercent: iv,
+    riskFreeRatePercent: riskFreeRate,
+  });
+
+  const volSurface = generateVolatilityScenarioMatrix({
     spotPrice,
     strikePrice,
     timeToExpiryDays: timeToExpiry,
@@ -368,59 +393,193 @@ export function OptionsGreeksCalculator({ currency, onCopySummary }: OptionsGree
             </div>
           </div>
 
-          {/* Price Sensitivity Table */}
-          <div className="p-4 rounded-xl bg-card/60 backdrop-blur-sm border border-border space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-primary" />
-              Underlying Spot Price Sensitivity Simulator
-            </h4>
+          {/* ── Multi-Dimensional Scenario Simulators ── */}
+          <div className="p-4 rounded-xl bg-card/60 backdrop-blur-sm border border-border space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2 border-b border-border/40 pb-2.5">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                  Options Scenario Engines
+                </span>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="border-b border-border/50 text-muted-foreground">
-                    <th className="py-2 px-2">Spot Move</th>
-                    <th className="py-2 px-2">New Spot</th>
-                    <th className="py-2 px-2">Simulated Price</th>
-                    <th className="py-2 px-2">P&L vs Current</th>
-                    <th className="py-2 px-2">Delta (Δ)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                  {sensitivity.map((row) => {
-                    const simPrice = activeTab === 'CALL' ? row.callPrice : row.putPrice;
-                    const simDelta = activeTab === 'CALL' ? row.callDelta : row.putDelta;
-                    const diff = simPrice - currentGreek.price;
-                    const isZero = row.percentChange === 0;
-
-                    return (
-                      <tr
-                        key={row.percentChange}
-                        className={`hover:bg-muted/40 transition-colors ${
-                          isZero ? 'bg-primary/10 font-bold' : ''
-                        }`}
-                      >
-                        <td className="py-2 px-2">
-                          {row.percentChange > 0 ? `+${row.percentChange}%` : `${row.percentChange}%`}
-                        </td>
-                        <td className="py-2 px-2 font-mono">
-                          {sym}{Math.round(row.spotPrice).toLocaleString()}
-                        </td>
-                        <td className="py-2 px-2 font-mono font-semibold">
-                          {sym}{simPrice.toFixed(2)}
-                        </td>
-                        <td className={`py-2 px-2 font-mono ${diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'text-muted-foreground'}`}>
-                          {diff > 0 ? `+${sym}${diff.toFixed(2)}` : diff < 0 ? `-${sym}${Math.abs(diff).toFixed(2)}` : '0.00'}
-                        </td>
-                        <td className="py-2 px-2 font-mono text-muted-foreground">
-                          {simDelta.toFixed(3)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {/* View Toggle */}
+              <div className="flex rounded-lg bg-secondary/80 p-0.5 border border-border text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setSimulationView('volatility_surface')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    simulationView === 'volatility_surface'
+                      ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  ⚡ IV Crush &amp; DTE Surface
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSimulationView('spot')}
+                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                    simulationView === 'spot'
+                      ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  📈 Spot Delta Sensitivity
+                </button>
+              </div>
             </div>
+
+            {simulationView === 'volatility_surface' ? (
+              <div className="space-y-2.5 animate-fade-in">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>
+                    Simulating <strong>{activeTab}</strong> value across IV crush / surge and elapsed calendar days:
+                  </span>
+                  <span className="text-[10px] text-primary/80 font-mono">
+                    Baseline: {iv}% IV · {timeToExpiry} DTE
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-border/50">
+                  <table className="w-full text-xs text-center border-collapse">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border/60 text-[11px] font-semibold text-muted-foreground">
+                        <th className="py-2 px-2.5 text-left border-r border-border/40">IV Shift \ Decay</th>
+                        {volSurface.daysPassedSteps.map((d) => (
+                          <th key={d} className="py-2 px-2.5">
+                            {d === 0 ? 'Today (0d)' : `+${d}d passed`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30 font-mono text-[11px]">
+                      {volSurface.matrix.map((row, rIdx) => {
+                        const shift = volSurface.ivShifts[rIdx];
+                        const isBaseShift = shift === 0;
+
+                        return (
+                          <tr key={shift} className={isBaseShift ? 'bg-primary/5 font-semibold' : ''}>
+                            {/* Row Header: IV Shift */}
+                            <td className="py-2 px-2.5 text-left border-r border-border/40 font-sans text-xs">
+                              <span
+                                className={`font-semibold ${
+                                  shift > 0 ? 'text-blue-400' : shift < 0 ? 'text-amber-400' : 'text-foreground'
+                                }`}
+                              >
+                                {shift > 0 ? `+${shift}%` : `${shift}%`} IV
+                              </span>
+                              <span className="text-[10px] text-muted-foreground ml-1">
+                                ({Math.max(1, iv + shift).toFixed(1)}%)
+                              </span>
+                            </td>
+
+                            {/* Cells */}
+                            {row.map((cell, cIdx) => {
+                              const price = activeTab === 'CALL' ? cell.callPrice : cell.putPrice;
+                              const pnlPct = activeTab === 'CALL' ? cell.callPnlPct : cell.putPnlPct;
+                              const isCenter = isBaseShift && cIdx === 0;
+
+                              // Heatmap color determination
+                              let cellBg = '';
+                              let cellText = 'text-foreground';
+                              if (isCenter) {
+                                cellBg = 'bg-primary/20 ring-1 ring-primary/40';
+                                cellText = 'text-primary font-bold';
+                              } else if (pnlPct >= 20) {
+                                cellBg = 'bg-emerald-500/20';
+                                cellText = 'text-emerald-400 font-semibold';
+                              } else if (pnlPct > 0) {
+                                cellBg = 'bg-emerald-500/10';
+                                cellText = 'text-emerald-400';
+                              } else if (pnlPct <= -20) {
+                                cellBg = 'bg-rose-500/20';
+                                cellText = 'text-rose-400 font-semibold';
+                              } else if (pnlPct < 0) {
+                                cellBg = 'bg-rose-500/10';
+                                cellText = 'text-rose-400';
+                              }
+
+                              return (
+                                <td
+                                  key={cIdx}
+                                  className={`py-2 px-2 transition-colors ${cellBg}`}
+                                  title={`${activeTab} Price: ${sym}${price.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%)`}
+                                >
+                                  <div className={`text-xs ${cellText}`}>
+                                    {sym}{price.toFixed(2)}
+                                  </div>
+                                  <div className="text-[9px] text-muted-foreground">
+                                    {pnlPct > 0 ? `+${pnlPct.toFixed(0)}%` : pnlPct < 0 ? `${pnlPct.toFixed(0)}%` : 'Base'}
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30 text-[11px] text-muted-foreground">
+                  <Info className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span>
+                    <strong>Hedge &amp; Earnings Tip:</strong> Long options suffer severe loss on post-earnings IV crush
+                    even if the underlying moves in favor. Options sellers capture both theta decay and volatility contraction.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 animate-fade-in">
+                <div className="overflow-x-auto rounded-lg border border-border/50">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border/60 text-muted-foreground">
+                        <th className="py-2 px-2.5">Spot Move</th>
+                        <th className="py-2 px-2.5">New Spot</th>
+                        <th className="py-2 px-2.5">Simulated Price</th>
+                        <th className="py-2 px-2.5">P&amp;L vs Current</th>
+                        <th className="py-2 px-2.5">Delta (Δ)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {sensitivity.map((row) => {
+                        const simPrice = activeTab === 'CALL' ? row.callPrice : row.putPrice;
+                        const simDelta = activeTab === 'CALL' ? row.callDelta : row.putDelta;
+                        const diff = simPrice - currentGreek.price;
+                        const isZero = row.percentChange === 0;
+
+                        return (
+                          <tr
+                            key={row.percentChange}
+                            className={`hover:bg-muted/40 transition-colors ${
+                              isZero ? 'bg-primary/10 font-bold' : ''
+                            }`}
+                          >
+                            <td className="py-2 px-2.5">
+                              {row.percentChange > 0 ? `+${row.percentChange}%` : `${row.percentChange}%`}
+                            </td>
+                            <td className="py-2 px-2.5 font-mono">
+                              {sym}{Math.round(row.spotPrice).toLocaleString()}
+                            </td>
+                            <td className="py-2 px-2.5 font-mono font-semibold">
+                              {sym}{simPrice.toFixed(2)}
+                            </td>
+                            <td className={`py-2 px-2.5 font-mono ${diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                              {diff > 0 ? `+${sym}${diff.toFixed(2)}` : diff < 0 ? `-${sym}${Math.abs(diff).toFixed(2)}` : '0.00'}
+                            </td>
+                            <td className="py-2 px-2.5 font-mono text-muted-foreground">
+                              {simDelta.toFixed(3)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

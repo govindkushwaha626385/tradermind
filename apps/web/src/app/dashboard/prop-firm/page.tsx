@@ -9,6 +9,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Award,
   Shield,
@@ -30,11 +31,14 @@ import {
   Flame,
   Check,
   Percent,
+  Compass,
+  Sparkles,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
 
 interface PropFirmAccount {
   id: string;
@@ -54,6 +58,7 @@ interface PropFirmAccount {
   todayPnl: number;
   weekendHoldingAllowed: boolean;
   newsTradingAllowed: boolean;
+  drawdownType?: 'STATIC' | 'TRAILING';
   notes?: string;
   createdAt: string;
 }
@@ -69,6 +74,7 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 10,
     profitTarget: 10,
     minDays: 4,
+    drawdownType: 'STATIC' as const,
   },
   {
     name: 'FTMO $50K (2-Step)',
@@ -80,6 +86,7 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 10,
     profitTarget: 10,
     minDays: 4,
+    drawdownType: 'STATIC' as const,
   },
   {
     name: 'FundedNext $50K (Stellar)',
@@ -91,6 +98,7 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 10,
     profitTarget: 8,
     minDays: 5,
+    drawdownType: 'STATIC' as const,
   },
   {
     name: 'Apex Trader Funding $50K',
@@ -102,6 +110,7 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 5, // $2,500 trailing
     profitTarget: 6, // $3,000
     minDays: 1,
+    drawdownType: 'TRAILING' as const,
   },
   {
     name: 'Topstep $50K Trading Combine',
@@ -113,6 +122,7 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 4, // $2,000
     profitTarget: 6, // $3,000
     minDays: 2,
+    drawdownType: 'TRAILING' as const,
   },
   {
     name: 'The5ers $100K High Stakes',
@@ -124,37 +134,16 @@ const PROP_FIRM_PRESETS = [
     maxDrawdown: 10,
     profitTarget: 8,
     minDays: 3,
-  },
-];
-
-const DEFAULT_ACCOUNTS: PropFirmAccount[] = [
-  {
-    id: 'demo-ftmo-100k',
-    firmName: 'FTMO',
-    accountName: 'FTMO $100K Challenge (Phase 1)',
-    accountSize: 100000,
-    currency: 'USD',
-    phase: 'Phase 1',
-    startingBalance: 100000,
-    currentBalance: 104250,
-    highWaterMark: 104500,
-    dailyLossLimitPct: 5,
-    maxDrawdownPct: 10,
-    profitTargetPct: 10,
-    minTradingDays: 4,
-    tradingDaysCompleted: 4,
-    todayPnl: 450,
-    weekendHoldingAllowed: false,
-    newsTradingAllowed: true,
-    notes: 'EURUSD & NAS100 scalping strategy with 1:2 R:R minimum',
-    createdAt: new Date().toISOString(),
+    drawdownType: 'STATIC' as const,
   },
 ];
 
 export default function PropFirmPage() {
   const [accounts, setAccounts] = useState<PropFirmAccount[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isCredentialOpen, setIsCredentialOpen] = useState(false);
   const [simulatedLoss, setSimulatedLoss] = useState<string>('500');
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -171,30 +160,42 @@ export default function PropFirmPage() {
   const [formMinDays, setFormMinDays] = useState('4');
   const [formTodayPnl, setFormTodayPnl] = useState('0');
   const [formBalance, setFormBalance] = useState('100000');
+  const [formDrawdownType, setFormDrawdownType] = useState<'STATIC' | 'TRAILING'>('STATIC');
 
   // Load accounts from cloud API with localStorage fallback
   const loadAccounts = async () => {
+    setLoading(true);
     try {
       const res = await api.getPropFirmAccounts();
-      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped = res.data.map((a: any) => ({
-          ...a,
-          accountSize: Number(a.accountSize),
-          startingBalance: Number(a.startingBalance),
-          currentBalance: Number(a.currentBalance),
-          highWaterMark: Number(a.highWaterMark),
-          dailyLossLimitPct: Number(a.dailyLossLimitPct),
-          maxDrawdownPct: Number(a.maxDrawdownPct),
-          profitTargetPct: Number(a.profitTargetPct),
-          todayPnl: Number(a.todayPnl),
-        }));
-        setAccounts(mapped);
-        setSelectedId((prev) => (mapped.find((m: any) => m.id === prev) ? prev : mapped[0].id));
-        localStorage.setItem('trademind_prop_accounts', JSON.stringify(mapped));
-        return;
+      if (res?.data && Array.isArray(res.data)) {
+        if (res.data.length > 0) {
+          const mapped = res.data.map((a: any) => ({
+            ...a,
+            accountSize: Number(a.accountSize),
+            startingBalance: Number(a.startingBalance),
+            currentBalance: Number(a.currentBalance),
+            highWaterMark: Number(a.highWaterMark),
+            dailyLossLimitPct: Number(a.dailyLossLimitPct),
+            maxDrawdownPct: Number(a.maxDrawdownPct),
+            profitTargetPct: Number(a.profitTargetPct),
+            todayPnl: Number(a.todayPnl),
+          }));
+          setAccounts(mapped);
+          setSelectedId((prev) => (mapped.find((m: any) => m.id === prev) ? prev : mapped[0].id));
+          localStorage.setItem('trademind_prop_accounts', JSON.stringify(mapped));
+          return;
+        } else {
+          // Explicit empty set from DB
+          setAccounts([]);
+          setSelectedId('');
+          localStorage.removeItem('trademind_prop_accounts');
+          return;
+        }
       }
     } catch {
-      // Fallback to local storage
+      // Fallback to local storage if API offline
+    } finally {
+      setLoading(false);
     }
 
     try {
@@ -207,12 +208,59 @@ export default function PropFirmPage() {
           return;
         }
       }
-      setAccounts(DEFAULT_ACCOUNTS);
-      setSelectedId(DEFAULT_ACCOUNTS[0]?.id ?? '');
+      setAccounts([]);
+      setSelectedId('');
     } catch {
-      setAccounts(DEFAULT_ACCOUNTS);
-      setSelectedId(DEFAULT_ACCOUNTS[0]?.id ?? '');
+      setAccounts([]);
+      setSelectedId('');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleQuickStartPreset = async (preset: typeof PROP_FIRM_PRESETS[0]) => {
+    const newAccData = {
+      firmName: preset.firm,
+      accountName: preset.name,
+      accountSize: preset.size,
+      currency: preset.currency,
+      phase: preset.phase,
+      startingBalance: preset.size,
+      currentBalance: preset.size,
+      highWaterMark: preset.size,
+      dailyLossLimitPct: preset.dailyLoss,
+      maxDrawdownPct: preset.maxDrawdown,
+      profitTargetPct: preset.profitTarget,
+      minTradingDays: preset.minDays,
+      tradingDaysCompleted: 0,
+      todayPnl: 0,
+      weekendHoldingAllowed: false,
+      newsTradingAllowed: true,
+      drawdownType: preset.drawdownType,
+      notes: `${preset.firm} Evaluation Challenge [${preset.drawdownType} DRAWDOWN]`,
+    };
+
+    try {
+      const res = await api.createPropFirmAccount(newAccData);
+      if (res?.data) {
+        toast.success(`🎉 Created prop challenge: ${res.data.accountName}`);
+        await loadAccounts();
+        setSelectedId(res.data.id);
+        return;
+      }
+    } catch {
+      // Local fallback
+    }
+
+    const localAcc: PropFirmAccount = {
+      ...newAccData,
+      id: `prop-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...accounts, localAcc];
+    saveAccounts(next);
+    setSelectedId(localAcc.id);
+    toast.success(`🎉 Initialized prop challenge: ${localAcc.accountName}`);
   };
 
   useEffect(() => {
@@ -245,6 +293,7 @@ export default function PropFirmPage() {
     setFormMaxDrawdown(String(p.maxDrawdown));
     setFormProfitTarget(String(p.profitTarget));
     setFormMinDays(String(p.minDays));
+    setFormDrawdownType(p.drawdownType);
   };
 
   const handleCreateAccount = async (e: React.FormEvent) => {
@@ -253,22 +302,23 @@ export default function PropFirmPage() {
     const balance = parseFloat(formBalance) || size;
     const newAccData = {
       firmName: formFirm,
-      accountName: formName || `${formFirm} $${size.toLocaleString()}`,
+      accountName: formName || `${formFirm} ${formCurrency === 'EUR' ? '€' : formCurrency === 'GBP' ? '£' : formCurrency === 'INR' ? '₹' : formCurrency === 'USDT' ? '₮' : '$'}${size.toLocaleString()}`,
       accountSize: size,
       currency: formCurrency,
       phase: formPhase,
       startingBalance: size,
       currentBalance: balance,
       highWaterMark: Math.max(size, balance),
-      dailyLossLimitPct: parseFloat(formDailyLoss) || 5,
+      dailyLossLimitPct: parseFloat(formDailyLoss) || 0,
       maxDrawdownPct: parseFloat(formMaxDrawdown) || 10,
       profitTargetPct: parseFloat(formProfitTarget) || 10,
       minTradingDays: parseInt(formMinDays, 10) || 4,
-      tradingDaysCompleted: 1,
+      tradingDaysCompleted: 0,
       todayPnl: parseFloat(formTodayPnl) || 0,
       weekendHoldingAllowed: false,
       newsTradingAllowed: true,
-      notes: `${formFirm} ${formPhase}`,
+      drawdownType: formDrawdownType,
+      notes: `${formFirm} ${formPhase} [${formDrawdownType} DRAWDOWN]`,
     };
 
     try {
@@ -297,10 +347,6 @@ export default function PropFirmPage() {
   };
 
   const handleDeleteAccount = async (id: string) => {
-    if (accounts.length <= 1) {
-      toast.error('You must keep at least one account');
-      return;
-    }
     if (!confirm('Are you sure you want to delete this prop firm account?')) return;
 
     try {
@@ -348,10 +394,314 @@ export default function PropFirmPage() {
     toast.success('Balance updated');
   };
 
-  if (!currentAccount) {
+  const renderAddAccountModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-slate-950 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-bold text-white mb-1">Add Prop Firm Challenge Account</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Select a standard firm preset or enter custom challenge rules
+        </p>
+
+        <form onSubmit={handleCreateAccount} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Load Firm Preset
+            </label>
+            <select
+              value={formPreset}
+              onChange={(e) => handleApplyPreset(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="custom">Custom Prop Firm...</option>
+              {PROP_FIRM_PRESETS.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Prop Firm Name</label>
+              <input
+                type="text"
+                required
+                value={formFirm}
+                onChange={(e) => setFormFirm(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="FTMO, FundedNext, Apex..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Account Label</label>
+              <input
+                type="text"
+                required
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="My Challenge #1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Account Size</label>
+              <input
+                type="number"
+                required
+                value={formSize}
+                onChange={(e) => {
+                  setFormSize(e.target.value);
+                  setFormBalance(e.target.value);
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Currency</label>
+              <select
+                value={formCurrency}
+                onChange={(e) => setFormCurrency(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="INR">INR (₹)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="USDT">USDT (₮)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Stage</label>
+              <select
+                value={formPhase}
+                onChange={(e) => setFormPhase(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="Phase 1">Phase 1 (Challenge)</option>
+                <option value="Phase 2">Phase 2 (Verification)</option>
+                <option value="Funded">Funded / Live</option>
+                <option value="Instant">Instant Funding</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Daily Loss Limit %</label>
+              <input
+                type="number"
+                step="0.5"
+                value={formDailyLoss}
+                onChange={(e) => setFormDailyLoss(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="5"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Max Drawdown %</label>
+              <input
+                type="number"
+                step="0.5"
+                value={formMaxDrawdown}
+                onChange={(e) => setFormMaxDrawdown(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Profit Target %</label>
+              <input
+                type="number"
+                step="0.5"
+                value={formProfitTarget}
+                onChange={(e) => setFormProfitTarget(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="10"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Min Trading Days</label>
+              <input
+                type="number"
+                min="0"
+                value={formMinDays}
+                onChange={(e) => setFormMinDays(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="4"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Drawdown Model</label>
+              <select
+                value={formDrawdownType}
+                onChange={(e) => setFormDrawdownType(e.target.value as 'STATIC' | 'TRAILING')}
+                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="STATIC">Static Floor (FTMO, 5ers, FundedNext)</option>
+                <option value="TRAILING">Trailing High Watermark (Apex, Topstep)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-accent text-foreground transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
+            >
+              Create Account
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
+  if (loading) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        Loading prop firm tracker...
+      <div className="space-y-6 animate-fade-in pb-12">
+        <PageHeader
+          title="Prop Firm Challenge Tracker"
+          description="Monitor evaluation milestones, daily loss limits, and drawdown guardrails in real time"
+          icon={Award}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+          <div className="h-44 rounded-2xl bg-zinc-900 border border-zinc-800" />
+          <div className="h-44 rounded-2xl bg-zinc-900 border border-zinc-800" />
+          <div className="h-44 rounded-2xl bg-zinc-900 border border-zinc-800" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentAccount || accounts.length === 0) {
+    return (
+      <div className="space-y-6 animate-fade-in pb-12">
+        <PageHeader
+          title="Prop Firm Challenge Tracker"
+          description="Monitor evaluation milestones, daily loss limits, and drawdown guardrails in real time"
+          icon={Award}
+          actions={
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Add Custom Challenge
+            </button>
+          }
+        />
+
+        {/* Hero Onboarding Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-zinc-900/80 to-zinc-950 p-6 sm:p-8 shadow-2xl">
+          <div className="relative z-10 max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Real-Time Prop Desk Compliance Engine</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Track Your Prop Firm Challenge with Trailing Drawdown Guardrails
+            </h2>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              Never breach an evaluation rule again. Select your prop firm below to automatically enforce daily loss limits, trailing drawdowns, minimum trading days, and profit targets with real data.
+            </p>
+            <div className="flex items-center gap-3 pt-2 flex-wrap">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Configure Custom Challenge
+              </button>
+              <Link
+                href="/dashboard/roadmap?track=prop_firm"
+                className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs sm:text-sm transition-colors border border-zinc-700/60 flex items-center gap-1.5"
+              >
+                <Compass className="w-4 h-4 text-emerald-400" />
+                View Funded Trader Roadmap
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* 1-Click Starter Presets Grid */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-400" />
+            1-Click Official Challenge Starters
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {PROP_FIRM_PRESETS.map((preset, idx) => (
+              <div
+                key={idx}
+                className="group relative rounded-2xl bg-zinc-900/80 border border-zinc-800 hover:border-indigo-500/50 transition-all p-5 flex flex-col justify-between shadow-lg hover:shadow-indigo-500/10"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-zinc-700">
+                      {preset.firm}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-400">
+                      {preset.currency === 'USD' ? '$' : '€'}{preset.size.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-bold text-white group-hover:text-indigo-400 transition-colors">
+                      {preset.name}
+                    </h4>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      {preset.phase} Evaluation Challenge
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800/80 text-xs">
+                    <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                      <span className="text-zinc-500 block text-[10px]">Profit Target</span>
+                      <span className="font-bold text-emerald-400">+{preset.profitTarget}%</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                      <span className="text-zinc-500 block text-[10px]">Daily Loss Limit</span>
+                      <span className="font-bold text-amber-400">{preset.dailyLoss > 0 ? `${preset.dailyLoss}%` : 'Trailing'}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                      <span className="text-zinc-500 block text-[10px]">Max Drawdown</span>
+                      <span className="font-bold text-rose-400">{preset.maxDrawdown}% {preset.drawdownType === 'TRAILING' ? 'Trailing' : 'Static'}</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/60">
+                      <span className="text-zinc-500 block text-[10px]">Min Trading Days</span>
+                      <span className="font-bold text-zinc-200">{preset.minDays} Days</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleQuickStartPreset(preset)}
+                  className="mt-4 w-full py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-transparent text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Start This Challenge</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {isAddModalOpen && renderAddAccountModal()}
       </div>
     );
   }
@@ -360,7 +710,8 @@ export default function PropFirmPage() {
   const curSymbol =
     currentAccount.currency === 'USD' ? '$' :
     currentAccount.currency === 'EUR' ? '€' :
-    currentAccount.currency === 'GBP' ? '£' : '₹';
+    currentAccount.currency === 'GBP' ? '£' :
+    currentAccount.currency === 'USDT' ? '₮' : '₹';
   const netGain = currentAccount.currentBalance - currentAccount.startingBalance;
   const netGainPct = (netGain / currentAccount.startingBalance) * 100;
 
@@ -368,22 +719,31 @@ export default function PropFirmPage() {
   const remainingProfitTarget = Math.max(0, targetProfitAbs - netGain);
   const targetProgressPct = Math.min(100, Math.max(0, (netGain / targetProfitAbs) * 100));
 
+  const isTrailing =
+    currentAccount.drawdownType === 'TRAILING' ||
+    currentAccount.notes?.toUpperCase().includes('TRAILING') ||
+    currentAccount.firmName.toUpperCase().includes('APEX') ||
+    currentAccount.firmName.toUpperCase().includes('TOPSTEP') ||
+    currentAccount.dailyLossLimitPct === 0;
+
   const maxDrawdownAbs = (currentAccount.accountSize * currentAccount.maxDrawdownPct) / 100;
-  const maxLossLevel = currentAccount.startingBalance - maxDrawdownAbs;
+  const staticLossLevel = currentAccount.startingBalance - maxDrawdownAbs;
+  const trailingLossLevel = Math.max(staticLossLevel, currentAccount.highWaterMark - maxDrawdownAbs);
+  const maxLossLevel = isTrailing ? trailingLossLevel : staticLossLevel;
   const currentDrawdownBuffer = Math.max(0, currentAccount.currentBalance - maxLossLevel);
-  const drawdownUsedPct = Math.min(100, Math.max(0, ((maxDrawdownAbs - currentDrawdownBuffer) / maxDrawdownAbs) * 100));
+  const drawdownUsedPct = maxDrawdownAbs > 0 ? Math.min(100, Math.max(0, ((maxDrawdownAbs - currentDrawdownBuffer) / maxDrawdownAbs) * 100)) : 0;
 
   const dailyLossLimitAbs = (currentAccount.accountSize * currentAccount.dailyLossLimitPct) / 100;
   // If today's pnl is negative, it consumes from daily loss limit
   const todayLossUsed = currentAccount.todayPnl < 0 ? Math.abs(currentAccount.todayPnl) : 0;
-  const dailyLossRemaining = Math.max(0, dailyLossLimitAbs - todayLossUsed);
-  const dailyLossUsedPct = Math.min(100, (todayLossUsed / dailyLossLimitAbs) * 100);
+  const dailyLossRemaining = dailyLossLimitAbs > 0 ? Math.max(0, dailyLossLimitAbs - todayLossUsed) : Infinity;
+  const dailyLossUsedPct = dailyLossLimitAbs > 0 ? Math.min(100, (todayLossUsed / dailyLossLimitAbs) * 100) : 0;
 
   // Simulation
   const simLossNum = parseFloat(simulatedLoss) || 0;
-  const simNewDailyBuffer = Math.max(0, dailyLossRemaining - simLossNum);
+  const simNewDailyBuffer = dailyLossLimitAbs > 0 ? Math.max(0, dailyLossRemaining - simLossNum) : Infinity;
   const simNewTotalBuffer = Math.max(0, currentDrawdownBuffer - simLossNum);
-  const simBreachedDaily = simLossNum > dailyLossRemaining;
+  const simBreachedDaily = dailyLossLimitAbs > 0 ? simLossNum > dailyLossRemaining : false;
   const simBreachedTotal = simLossNum > currentDrawdownBuffer;
 
   const isTargetAchieved = netGain >= targetProfitAbs && currentAccount.profitTargetPct > 0;
@@ -420,6 +780,22 @@ export default function PropFirmPage() {
               <span className="hidden sm:inline">Sync Live PnL</span>
             </button>
             <button
+              onClick={() => setIsCredentialOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
+              title="Generate Verified Institutional Credential Certificate"
+            >
+              <Award className="w-4 h-4" />
+              <span className="hidden sm:inline">Export Credential</span>
+            </button>
+            <Link
+              href="/dashboard/roadmap?track=prop_firm"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-secondary/80 hover:bg-secondary text-foreground text-sm font-semibold transition-colors shadow-sm"
+              title="Prop Firm Evolution Blueprint on Roadmap"
+            >
+              <Compass className="w-4 h-4 text-primary" />
+              <span className="hidden md:inline">Firm Roadmap</span>
+            </Link>
+            <button
               onClick={() => setIsAddModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
             >
@@ -432,7 +808,7 @@ export default function PropFirmPage() {
 
       {/* Pass Celebration Banner */}
       {isReadyToPass && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/40 flex items-center justify-between gap-4">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400">
               <CheckCircle2 className="w-6 h-6" />
@@ -446,16 +822,54 @@ export default function PropFirmPage() {
               </p>
             </div>
           </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsCredentialOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors whitespace-nowrap shadow-sm cursor-pointer flex items-center gap-1.5 border border-white/20"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Claim Credential</span>
+            </button>
+            <button
+              onClick={() => {
+                const nextPhase = currentAccount.phase === 'Phase 1' ? 'Phase 2' : 'Funded';
+                const next = accounts.map((a) => (a.id === currentAccount.id ? { ...a, phase: nextPhase as any } : a));
+                saveAccounts(next);
+                toast.success(`Promoted to ${nextPhase}!`);
+              }}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors whitespace-nowrap shadow-md cursor-pointer"
+            >
+              Advance to {currentAccount.phase === 'Phase 1' ? 'Phase 2' : 'Live Funded'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Live Funded Account Banner */}
+      {currentAccount.phase === 'Funded' && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-white flex items-center gap-2">
+                👑 Institutional Funded Trader Status Active
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/30 text-amber-300 border border-amber-500/40">
+                  VERIFIED
+                </span>
+              </h4>
+              <p className="text-xs text-amber-200/90 mt-0.5">
+                Managing {curSymbol}{currentAccount.accountSize.toLocaleString()} live capital with {currentAccount.firmName}. All drawdown guardrails are armed.
+              </p>
+            </div>
+          </div>
           <button
-            onClick={() => {
-              const nextPhase = currentAccount.phase === 'Phase 1' ? 'Phase 2' : 'Funded';
-              const next = accounts.map((a) => (a.id === currentAccount.id ? { ...a, phase: nextPhase as any } : a));
-              saveAccounts(next);
-              toast.success(`Promoted to ${nextPhase}!`);
-            }}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors whitespace-nowrap shadow-md cursor-pointer"
+            onClick={() => setIsCredentialOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-950 text-xs font-bold transition-transform hover:scale-[1.02] whitespace-nowrap shadow-md cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
           >
-            Advance to {currentAccount.phase === 'Phase 1' ? 'Phase 2' : 'Live Funded'}
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Generate Funded Certificate</span>
           </button>
         </div>
       )}
@@ -548,7 +962,17 @@ export default function PropFirmPage() {
         {/* Max Overall Drawdown Buffer */}
         <div className="glass-card rounded-2xl p-5 border border-border/60">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Max Drawdown Buffer</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {isTrailing ? 'Trailing Drawdown' : 'Max Drawdown Buffer'}
+              </span>
+              <span className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider',
+                isTrailing ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'
+              )}>
+                {isTrailing ? 'Trailing' : 'Static'}
+              </span>
+            </div>
             <div className={cn('p-1.5 rounded-lg', currentDrawdownBuffer < maxDrawdownAbs * 0.3 ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400')}>
               <Shield className="w-4 h-4" />
             </div>
@@ -557,7 +981,9 @@ export default function PropFirmPage() {
             {curSymbol}{currentDrawdownBuffer.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </div>
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-            <span>Breach level: {curSymbol}{maxLossLevel.toLocaleString()}</span>
+            <span>
+              Floor: {curSymbol}{maxLossLevel.toLocaleString()} {isTrailing ? `(HWM: ${curSymbol}${currentAccount.highWaterMark.toLocaleString()})` : ''}
+            </span>
             <span className={cn('font-semibold', drawdownUsedPct > 50 ? 'text-amber-400' : 'text-emerald-400')}>
               {drawdownUsedPct.toFixed(1)}% used
             </span>
@@ -574,15 +1000,15 @@ export default function PropFirmPage() {
         <div className="glass-card rounded-2xl p-5 border border-border/60">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Daily Loss Remaining</span>
-            <div className={cn('p-1.5 rounded-lg', dailyLossRemaining < dailyLossLimitAbs * 0.3 ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400')}>
+            <div className={cn('p-1.5 rounded-lg', dailyLossLimitAbs > 0 && dailyLossRemaining < dailyLossLimitAbs * 0.3 ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-emerald-500/10 text-emerald-400')}>
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-foreground font-mono">
-            {curSymbol}{dailyLossRemaining.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            {dailyLossLimitAbs === 0 ? 'No Daily Limit' : `${curSymbol}${dailyLossRemaining.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
           </div>
           <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-            <span>Today's Limit: {curSymbol}{dailyLossLimitAbs.toLocaleString()}</span>
+            <span>{dailyLossLimitAbs === 0 ? 'Trailing Drawdown Only' : `Today's Limit: ${curSymbol}${dailyLossLimitAbs.toLocaleString()}`}</span>
             <span className={cn('font-semibold', currentAccount.todayPnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
               Today P&L: {currentAccount.todayPnl >= 0 ? '+' : ''}{curSymbol}{currentAccount.todayPnl}
             </span>
@@ -590,7 +1016,7 @@ export default function PropFirmPage() {
           <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2.5 overflow-hidden">
             <div
               className={cn('h-full rounded-full transition-all duration-500', dailyLossUsedPct > 70 ? 'bg-red-500' : 'bg-emerald-500')}
-              style={{ width: `${Math.max(5, 100 - dailyLossUsedPct)}%` }}
+              style={{ width: `${dailyLossLimitAbs === 0 ? 100 : Math.max(5, 100 - dailyLossUsedPct)}%` }}
             />
           </div>
         </div>
@@ -637,32 +1063,44 @@ export default function PropFirmPage() {
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-foreground">Do Not Exceed {currentAccount.maxDrawdownPct}% Total Drawdown</div>
+                    <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <span>Do Not Exceed {currentAccount.maxDrawdownPct}% {isTrailing ? 'Trailing' : 'Total'} Drawdown</span>
+                      <span className={cn(
+                        'px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider',
+                        isTrailing ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      )}>
+                        {isTrailing ? `Trailing Floor: ${curSymbol}${maxLossLevel.toLocaleString()}` : `Static Floor: ${curSymbol}${maxLossLevel.toLocaleString()}`}
+                      </span>
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       Max loss: {curSymbol}{maxDrawdownAbs.toLocaleString()} · Safe Buffer Remaining: {curSymbol}{currentDrawdownBuffer.toLocaleString()}
                     </div>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400">
-                  Passing ({((currentDrawdownBuffer / maxDrawdownAbs) * 100).toFixed(0)}% Buffer Safe)
+                <span className={cn('px-2.5 py-1 rounded-full text-xs font-bold', currentDrawdownBuffer > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400')}>
+                  {currentDrawdownBuffer > 0 ? `Passing (${((currentDrawdownBuffer / maxDrawdownAbs) * 100).toFixed(0)}% Buffer Safe)` : 'Breached ⚠️'}
                 </span>
               </div>
 
               {/* Rule 3: Max Daily Loss */}
               <div className="p-4 rounded-xl bg-slate-900/60 border border-border/40 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn('p-2 rounded-lg', dailyLossRemaining > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400')}>
+                  <div className={cn('p-2 rounded-lg', dailyLossLimitAbs === 0 || dailyLossRemaining > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400')}>
                     <AlertTriangle className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-foreground">Do Not Exceed {currentAccount.dailyLossLimitPct}% Daily Loss</div>
+                    <div className="text-sm font-semibold text-foreground">
+                      {dailyLossLimitAbs === 0 ? 'No Daily Loss Limit Rule' : `Do Not Exceed ${currentAccount.dailyLossLimitPct}% Daily Loss`}
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      Daily Max: {curSymbol}{dailyLossLimitAbs.toLocaleString()} · Remaining Today: {curSymbol}{dailyLossRemaining.toLocaleString()}
+                      {dailyLossLimitAbs === 0
+                        ? `Evaluation protected purely by ${isTrailing ? 'trailing drawdown floor' : 'overall drawdown'}`
+                        : `Daily Max: ${curSymbol}${dailyLossLimitAbs.toLocaleString()} · Remaining Today: ${curSymbol}${dailyLossRemaining.toLocaleString()}`}
                     </div>
                   </div>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400">
-                  Passing
+                  {dailyLossLimitAbs === 0 ? 'N/A (Trailing Only)' : 'Passing'}
                 </span>
               </div>
 
@@ -737,11 +1175,11 @@ export default function PropFirmPage() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Remaining Daily Buffer:</span>
                   <span className={cn('font-mono font-bold', simBreachedDaily ? 'text-red-400' : 'text-foreground')}>
-                    {curSymbol}{simNewDailyBuffer.toLocaleString()}
+                    {dailyLossLimitAbs === 0 ? 'No Daily Limit (Trailing Only)' : `${curSymbol}${simNewDailyBuffer.toLocaleString()}`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Remaining Max Drawdown:</span>
+                  <span className="text-muted-foreground">Remaining {isTrailing ? 'Trailing' : 'Max'} Drawdown:</span>
                   <span className={cn('font-mono font-bold', simBreachedTotal ? 'text-red-400' : 'text-foreground')}>
                     {curSymbol}{simNewTotalBuffer.toLocaleString()}
                   </span>
@@ -752,21 +1190,21 @@ export default function PropFirmPage() {
                     <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-800/60 text-red-300 text-xs flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                       <div>
-                        <strong>VIOLATION HAZARD:</strong> This trade risk exceeds your allowed {simBreachedDaily ? 'daily loss' : 'max drawdown'} limit! Reduce position size.
+                        <strong>VIOLATION HAZARD:</strong> This trade risk exceeds your allowed {simBreachedDaily ? 'daily loss' : isTrailing ? 'trailing drawdown floor' : 'max drawdown'} limit! Reduce position size.
                       </div>
                     </div>
-                  ) : simLossNum > dailyLossRemaining * 0.5 ? (
+                  ) : (dailyLossLimitAbs > 0 && simLossNum > dailyLossRemaining * 0.5) || simLossNum > currentDrawdownBuffer * 0.35 ? (
                     <div className="p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
                       <div>
-                        <strong>CAUTION:</strong> This trade risks over 50% of your remaining daily allowance. Recommended risk is 0.5% - 1% max per trade.
+                        <strong>CAUTION:</strong> This trade risks {dailyLossLimitAbs > 0 && simLossNum > dailyLossRemaining * 0.5 ? 'over 50% of your daily allowance' : 'over 35% of your remaining drawdown buffer'}. Recommended risk is 0.5% - 1% max per trade.
                       </div>
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
                       <div>
-                        <strong>SAFE RISK SIZE:</strong> Trade fits safely within your daily and overall drawdown risk parameters.
+                        <strong>SAFE RISK SIZE:</strong> Trade fits safely within your {isTrailing ? 'trailing' : 'daily and overall'} drawdown risk parameters.
                       </div>
                     </div>
                   )}
@@ -786,155 +1224,20 @@ export default function PropFirmPage() {
       </div>
 
       {/* Add Prop Firm Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-lg rounded-2xl border border-border bg-slate-950 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-white mb-1">Add Prop Firm Challenge Account</h3>
-            <p className="text-xs text-muted-foreground mb-4">
-              Select a standard firm preset or enter custom challenge rules
-            </p>
+      {isAddModalOpen && renderAddAccountModal()}
 
-            <form onSubmit={handleCreateAccount} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Load Firm Preset
-                </label>
-                <select
-                  value={formPreset}
-                  onChange={(e) => handleApplyPreset(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="custom">Custom Prop Firm...</option>
-                  {PROP_FIRM_PRESETS.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Prop Firm Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formFirm}
-                    onChange={(e) => setFormFirm(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="FTMO, FundedNext, Apex..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Account Label</label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="My Challenge #1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Account Size</label>
-                  <input
-                    type="number"
-                    required
-                    value={formSize}
-                    onChange={(e) => {
-                      setFormSize(e.target.value);
-                      setFormBalance(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Currency</label>
-                  <select
-                    value={formCurrency}
-                    onChange={(e) => setFormCurrency(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="INR">INR (₹)</option>
-                    <option value="GBP">GBP (£)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Stage</label>
-                  <select
-                    value={formPhase}
-                    onChange={(e) => setFormPhase(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="Phase 1">Phase 1 (Challenge)</option>
-                    <option value="Phase 2">Phase 2 (Verification)</option>
-                    <option value="Funded">Funded / Live</option>
-                    <option value="Instant">Instant Funding</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Daily Loss Limit %</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formDailyLoss}
-                    onChange={(e) => setFormDailyLoss(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="5"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Max Drawdown %</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formMaxDrawdown}
-                    onChange={(e) => setFormMaxDrawdown(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Profit Target %</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formProfitTarget}
-                    onChange={(e) => setFormProfitTarget(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="10"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-border/40">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-accent text-foreground transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
-                >
-                  Create Account
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Verified Trader Credential Modal */}
+      <TraderCredentialModal
+        isOpen={isCredentialOpen}
+        onClose={() => setIsCredentialOpen(false)}
+        traderName={currentAccount.accountName}
+        rankTitle={`${currentAccount.firmName} ${currentAccount.phase === 'Funded' ? 'Funded Professional' : 'Challenge Candidate'}`}
+        rankBadge={currentAccount.phase === 'Funded' ? '👑' : '🏆'}
+        levelNumber={currentAccount.phase === 'Funded' ? 4 : 3}
+        totalXp={currentAccount.phase === 'Funded' ? 5200 : 2800}
+        completedCount={currentAccount.tradingDaysCompleted}
+        totalMilestones={Math.max(currentAccount.minTradingDays, 5)}
+      />
     </div>
   );
 }

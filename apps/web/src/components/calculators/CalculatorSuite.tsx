@@ -97,7 +97,7 @@ interface CalculatorSuiteProps {
 
 export function CalculatorSuite({
   initialCalculatorId = 'position-size',
-  defaultCurrency = 'INR',
+  defaultCurrency = 'USD',
   isPublicView = false,
 }: CalculatorSuiteProps) {
   const [activeCalcId, setActiveCalcId] = useState<CalculatorId>(initialCalculatorId);
@@ -152,32 +152,31 @@ export function CalculatorSuite({
             />
           </div>
 
-          {/* Currency Toggle */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <span className="text-xs text-muted-foreground font-medium">Currency:</span>
-            <div className="flex rounded-lg bg-secondary/80 p-1 border border-border">
-              <button
-                type="button"
-                onClick={() => setCurrency('INR')}
-                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                  currency === 'INR'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                ₹ INR
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrency('USD')}
-                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                  currency === 'USD'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                $ USD
-              </button>
+          {/* Multi-Currency Toggle */}
+          <div className="flex items-center gap-1.5 self-end sm:self-auto overflow-x-auto pb-0.5">
+            <span className="text-xs text-muted-foreground font-medium hidden md:inline">Currency:</span>
+            <div className="flex rounded-lg bg-secondary/80 p-0.5 border border-border">
+              {[
+                { code: 'USD', symbol: '$' },
+                { code: 'INR', symbol: '₹' },
+                { code: 'EUR', symbol: '€' },
+                { code: 'GBP', symbol: '£' },
+                { code: 'USDT', symbol: '₮' },
+              ].map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setCurrency(c.code as Currency)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                    currency === c.code
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={`${c.code} (${c.symbol})`}
+                >
+                  {c.symbol} {c.code}
+                </button>
+              ))}
             </div>
           </div>
         </div>

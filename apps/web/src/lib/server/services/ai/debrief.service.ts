@@ -104,7 +104,8 @@ export async function getDailyDebrief(userId: string): Promise<DailyDebriefResul
   const curSymbol =
     userRecord?.currency === 'USD' ? '$' :
     userRecord?.currency === 'EUR' ? '€' :
-    userRecord?.currency === 'GBP' ? '£' : '₹';
+    userRecord?.currency === 'GBP' ? '£' :
+    userRecord?.currency === 'USDT' ? '₮' : '₹';
 
   const trades = await db
     .select()

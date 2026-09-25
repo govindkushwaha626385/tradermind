@@ -19,7 +19,8 @@ import {
   ShieldAlert,
   ArrowRight,
 } from 'lucide-react';
-import { cn, formatCurrency, formatPercent } from '@/lib/utils';
+import { cn, formatPercent } from '@/lib/utils';
+import { useCurrency } from '@/hooks/useCurrency';
 import { api } from '@/lib/api';
 import { EMOTION_EMOJIS } from '@trademind/shared';
 import type { BehavioralInsight } from '@trademind/shared';
@@ -37,6 +38,7 @@ const SEVERITY_CONFIG = {
 };
 
 export default function InsightsPage() {
+  const { format } = useCurrency();
   const [insights, setInsights] = useState<BehavioralInsight[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,7 +106,7 @@ export default function InsightsPage() {
         {[
           {
             label: 'Emotional P&L',
-            value: (totalEmotionalPnl >= 0 ? '+' : '') + formatCurrency(totalEmotionalPnl),
+            value: (totalEmotionalPnl >= 0 ? '+' : '') + format(totalEmotionalPnl),
             icon: totalEmotionalPnl >= 0 ? TrendingUp : TrendingDown,
             gradient: totalEmotionalPnl >= 0 ? 'from-emerald-500 to-teal-500' : 'from-rose-500 to-red-600',
             textColor: totalEmotionalPnl >= 0 ? 'text-success' : 'text-destructive',
@@ -211,7 +213,7 @@ export default function InsightsPage() {
                         )}
                       >
                         {insight.totalPnlImpact >= 0 ? '+' : ''}
-                        {formatCurrency(insight.totalPnlImpact)}
+                        {format(insight.totalPnlImpact)}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
                         {insight.sampleSize} trades analyzed

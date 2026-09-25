@@ -18,7 +18,7 @@ import {
   PieChart,
 } from 'lucide-react';
 import { calculateEmi } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface EmiCalculatorProps {
   currency: Currency;
@@ -26,7 +26,7 @@ interface EmiCalculatorProps {
 }
 
 export function EmiCalculator({ currency, onCopySummary }: EmiCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const amountId = useId();
   const rateId = useId();
   const tenureId = useId();

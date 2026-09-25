@@ -111,6 +111,10 @@ export function useGlobalHotkeys({
           e.preventDefault();
           router.push('/dashboard/brokers');
           break;
+        case 'm':
+          e.preventDefault();
+          router.push('/dashboard/roadmap');
+          break;
         case 'p':
           e.preventDefault();
           onOpenPremarket ? onOpenPremarket() : window.dispatchEvent(new CustomEvent('open-premarket-routine'));

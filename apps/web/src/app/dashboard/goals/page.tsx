@@ -396,7 +396,7 @@ function GoalCard({
       {/* Actions */}
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground">
-          Created {new Date(goal.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          Created {new Date(goal.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
         </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button

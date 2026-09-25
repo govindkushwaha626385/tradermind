@@ -105,7 +105,7 @@ export function ForexPipCalculator() {
     rateToAccount,
   ]);
 
-  const currencySign = accountCurrency === 'INR' ? '₹' : accountCurrency === 'EUR' ? '€' : accountCurrency === 'GBP' ? '£' : '$';
+  const currencySign = accountCurrency === 'INR' ? '₹' : accountCurrency === 'EUR' ? '€' : accountCurrency === 'GBP' ? '£' : accountCurrency === 'USDT' ? '₮' : '$';
 
   return (
     <div className="space-y-6">

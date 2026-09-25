@@ -74,11 +74,12 @@ export async function runBehavioralShield(userId: string): Promise<BehavioralShi
     .where(eq(users.id, userId))
     .limit(1);
 
-  const currency = userRecord?.currency || 'INR';
+  const currency = userRecord?.currency || 'USD';
   const curSymbol =
     currency === 'USD' ? '$' :
     currency === 'EUR' ? '€' :
-    currency === 'GBP' ? '£' : '₹';
+    currency === 'GBP' ? '£' :
+    currency === 'USDT' ? '₮' : '₹';
 
   // Fetch recent trades ordered oldest → newest
   const trades = await db
@@ -186,7 +187,11 @@ export async function runBehavioralShield(userId: string): Promise<BehavioralShi
       .where(and(eq(propFirmAccounts.userId, userId), eq(propFirmAccounts.status, 'ACTIVE')));
 
     for (const acc of activePropAccounts) {
-      const pSymbol = acc.currency === 'USD' ? '$' : acc.currency === 'EUR' ? '€' : acc.currency === 'GBP' ? '£' : '₹';
+      const pSymbol =
+        acc.currency === 'USD' ? '$' :
+        acc.currency === 'EUR' ? '€' :
+        acc.currency === 'GBP' ? '£' :
+        acc.currency === 'USDT' ? '₮' : '₹';
       const hwm = Number(acc.highWaterMark);
       const balance = Number(acc.currentBalance);
       const accSize = Number(acc.accountSize);

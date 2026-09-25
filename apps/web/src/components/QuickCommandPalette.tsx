@@ -36,6 +36,8 @@ import {
   Award,
   Coins,
   Keyboard,
+  Compass,
+  BookMarked,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -76,6 +78,9 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-prop-firm', title: 'Prop Firm Challenges (FTMO, FundedNext, Apex)', category: 'Navigation', icon: Award, href: '/dashboard/prop-firm', badge: 'Challenges' },
       { id: 'nav-replay', title: 'Visual Trade Replay Studio & Live Chart', category: 'Navigation', icon: PlayCircle, href: '/dashboard/replay', shortcut: 'R', badge: 'TradingView' },
       { id: 'nav-analytics', title: 'Performance Analytics & MFE/MAE', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics', shortcut: 'A' },
+      { id: 'nav-roadmap', title: 'Trader Progression Roadmap & Evolution Levels', category: 'Navigation', icon: Compass, href: '/dashboard/roadmap', shortcut: 'M', badge: 'Levels 1-4' },
+      { id: 'nav-academy', title: 'Trader Evolution Academy & Public Track Blueprints', category: 'Navigation', icon: BookOpen, href: '/education', badge: 'Academy' },
+      { id: 'nav-blog', title: 'Quantitative Masterclasses & Educational Articles', category: 'Navigation', icon: BookMarked, href: '/blog', badge: 'Guides' },
       { id: 'nav-goals', title: 'Trader Goals & Targets', category: 'Navigation', icon: Target, href: '/dashboard/goals' },
       { id: 'nav-ai', title: 'AI Copilot & Chart Vision', category: 'Navigation', icon: Brain, href: '/dashboard/ai-assistant', badge: 'AI' },
       { id: 'nav-playbooks', title: 'Setup Playbooks', category: 'Navigation', icon: Flame, href: '/dashboard/playbooks' },
@@ -86,6 +91,17 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-settings', title: 'Preferences & Currency Settings', category: 'Navigation', icon: Settings, href: '/dashboard/settings' },
 
       // Quick Actions
+      {
+        id: 'act-export-credential',
+        title: 'Generate & Export Verified Trader Credential Card',
+        category: 'Actions',
+        icon: Award,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-trader-credential'));
+        },
+        badge: 'Retina Certificate',
+      },
       {
         id: 'act-shortcuts',
         title: 'Keyboard Shortcuts Cheat Sheet (Power-User Hotkeys)',

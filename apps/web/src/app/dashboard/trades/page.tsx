@@ -56,7 +56,7 @@ interface TradeExecution {
   currency?: string;
 }
 
-const SEGMENT_OPTIONS = ['ALL', 'NSE_EQ', 'NSE_FO', 'BSE_EQ', 'BSE_FO', 'MCX', 'CDS'];
+const SEGMENT_OPTIONS = ['ALL', 'NSE_EQ', 'NSE_FO', 'BSE_EQ', 'BSE_FO', 'MCX', 'CDS', 'CRYPTO', 'US_EQUITY', 'FOREX'];
 const PAGE_SIZE = 25;
 
 export default function TradesPage() {
@@ -328,6 +328,14 @@ export default function TradesPage() {
                       >
                         <ArrowLeftRight className="w-3.5 h-3.5" />
                         <span>Compare</span>
+                      </button>
+                      <button
+                        onClick={() => setSelectedShareTrade(trade)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-semibold transition-colors"
+                        title="Generate Branded Share Card"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share</span>
                       </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}

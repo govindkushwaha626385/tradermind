@@ -37,6 +37,7 @@ export interface TraderLiveContext {
   todayMaxLoss?: number;
   recentTradesSummary: string[];
   behavioralAlerts: string[];
+  currencySymbol: string;
 }
 
 /**
@@ -47,12 +48,18 @@ export async function getTraderLiveContext(userId: string): Promise<TraderLiveCo
 
   // User profile
   const [user] = await db
-    .select({ name: users.name })
+    .select({ name: users.name, preferredCurrency: users.preferredCurrency })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
 
   const traderName = user?.name ?? 'Trader';
+  const curr = user?.preferredCurrency ?? 'INR';
+  const currencySymbol =
+    curr === 'USD' ? '$' :
+    curr === 'EUR' ? '€' :
+    curr === 'GBP' ? '£' :
+    curr === 'USDT' ? '₮' : '₹';
 
   // 30-day window
   const thirtyDaysAgo = new Date();
@@ -144,7 +151,7 @@ export async function getTraderLiveContext(userId: string): Promise<TraderLiveCo
 
   const recentTradesSummary = recentTrades.slice(0, 5).map(
     (t) =>
-      `${t.direction} ${t.symbol} → ${t.netPnl && t.netPnl >= 0 ? `+₹${t.netPnl.toFixed(2)} (WIN)` : `-₹${Math.abs(t.netPnl ?? 0).toFixed(2)} (LOSS)`}`,
+      `${t.direction} ${t.symbol} → ${t.netPnl && t.netPnl >= 0 ? `+${currencySymbol}${t.netPnl.toFixed(2)} (WIN)` : `-${currencySymbol}${Math.abs(t.netPnl ?? 0).toFixed(2)} (LOSS)`}`,
   );
 
   return {
@@ -160,6 +167,7 @@ export async function getTraderLiveContext(userId: string): Promise<TraderLiveCo
     todayMaxLoss: premarket?.maxDailyLoss ?? undefined,
     recentTradesSummary,
     behavioralAlerts,
+    currencySymbol,
   };
 }
 
@@ -185,7 +193,7 @@ export async function handleAssistantChat(
 
   const contextUsed = [
     `30D Win Rate: ${context.winRate30d}%`,
-    `30D PnL: ₹${context.netPnl30d}`,
+    `30D PnL: ${context.currencySymbol}${context.netPnl30d}`,
     `Profit Factor: ${context.profitFactor}`,
     context.todayPremarketBias ? `Today's Bias: ${context.todayPremarketBias}` : 'No pre-market plan logged today',
     context.topMistakes.length > 0 ? `Recurring Leaks: ${context.topMistakes.join(', ')}` : 'Clean execution history',
@@ -197,12 +205,12 @@ You work 1-on-1 with trader ${context.traderName}.
 ### Live Trader Performance Context:
 - Past 30 Days Trades Analyzed: ${context.totalTradesRecorded}
 - Win Rate: ${context.winRate30d}%
-- Net Realized PnL: ₹${context.netPnl30d}
+- Net Realized PnL: ${context.currencySymbol}${context.netPnl30d}
 - Profit Factor: ${context.profitFactor}
 - Most Common Execution Leaks: ${context.topMistakes.join(', ') || 'None flagged'}
 - Dominant Emotional States: ${context.topEmotions.join(', ') || 'Balanced'}
 - Today's Pre-Market Plan Bias: ${context.todayPremarketBias || 'Not planned yet'}
-- Today's Max Daily Loss Limit: ${context.todayMaxLoss ? `₹${context.todayMaxLoss}` : 'Not set'}
+- Today's Max Daily Loss Limit: ${context.todayMaxLoss ? `${context.currencySymbol}${context.todayMaxLoss}` : 'Not set'}
 - Today's Key Levels: ${context.todayPremarketLevels || 'None noted'}
 - Active Behavioral Shield Warnings: ${context.behavioralAlerts.join('; ') || 'All clear'}
 - Last 5 Trades: ${context.recentTradesSummary.join(' | ') || 'No recent trades'}

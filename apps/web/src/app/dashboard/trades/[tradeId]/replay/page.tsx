@@ -13,6 +13,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useCurrency } from '@/hooks/useCurrency';
 import { TradeReplayChart } from '@/components/chart/TradeReplayChart';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
 import type { TradeReplayData } from '@trademind/shared';
@@ -20,6 +21,7 @@ import type { TradeReplayData } from '@trademind/shared';
 export default function TradeReplayPage() {
   const params = useParams();
   const router = useRouter();
+  const { currency } = useCurrency();
   const tradeId = params.tradeId as string;
 
   const [replayData, setReplayData] = useState<TradeReplayData | null>(null);
@@ -130,13 +132,14 @@ export default function TradeReplayPage() {
             Back to Trades
           </Link>
         </div>
-      ) : replayData ? (
-        chartMode === 'canvas' ? (
-          <LightweightCandleChart data={replayData} />
+      ) : replayData ? (() => {
+        const activeCurrency = (replayData as any)?.currency || (['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(replayData.exchange?.toUpperCase() ?? '') ? 'USD' : currency);
+        return chartMode === 'canvas' ? (
+          <LightweightCandleChart data={replayData} currency={activeCurrency} />
         ) : (
-          <TradeReplayChart data={replayData} />
-        )
-      ) : null}
+          <TradeReplayChart data={replayData} currency={activeCurrency} />
+        );
+      })() : null}
     </div>
   );
 }

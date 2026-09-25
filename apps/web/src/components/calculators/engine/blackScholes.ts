@@ -158,3 +158,75 @@ export function generateSpotSensitivity(inputs: BlackScholesInputs) {
     };
   });
 }
+
+export interface VolatilityScenarioCell {
+  ivShift: number;           // e.g. -10%
+  simulatedIv: number;       // e.g. 15%
+  daysPassed: number;        // e.g. 2 days passed
+  remainingDte: number;      // e.g. 5 days remaining
+  callPrice: number;
+  putPrice: number;
+  callPnl: number;           // Dollar change from base
+  putPnl: number;
+  callPnlPct: number;        // % change from base
+  putPnlPct: number;
+}
+
+/**
+ * Generate 2D Volatility & DTE Scenario Surface Matrix (IV Crush & Time Decay)
+ */
+export function generateVolatilityScenarioMatrix(inputs: BlackScholesInputs): {
+  ivShifts: number[];
+  daysPassedSteps: number[];
+  baseCallPrice: number;
+  basePutPrice: number;
+  matrix: VolatilityScenarioCell[][];
+} {
+  const baseResult = calculateBlackScholes(inputs);
+  const baseCallPrice = baseResult.call.price;
+  const basePutPrice = baseResult.put.price;
+
+  const ivShifts = [-15, -10, -5, 0, 5, 10, 15];
+  const maxDays = Math.max(1, Math.floor(inputs.timeToExpiryDays));
+  const daysPassedSteps = [0, 1, Math.min(3, maxDays), Math.min(7, maxDays), Math.max(0, maxDays - 0.1)]
+    .filter((v, idx, arr) => arr.indexOf(v) === idx)
+    .sort((a, b) => a - b);
+
+  const matrix = ivShifts.map((ivShift) => {
+    const simIv = Math.max(1, inputs.volatilityPercent + ivShift);
+    return daysPassedSteps.map((daysPassed) => {
+      const remainingDte = Math.max(0.01, inputs.timeToExpiryDays - daysPassed);
+      const res = calculateBlackScholes({
+        ...inputs,
+        volatilityPercent: simIv,
+        timeToExpiryDays: remainingDte,
+      });
+
+      const callPnl = res.call.price - baseCallPrice;
+      const putPnl = res.put.price - basePutPrice;
+      const callPnlPct = baseCallPrice > 0 ? (callPnl / baseCallPrice) * 100 : 0;
+      const putPnlPct = basePutPrice > 0 ? (putPnl / basePutPrice) * 100 : 0;
+
+      return {
+        ivShift,
+        simulatedIv: simIv,
+        daysPassed,
+        remainingDte,
+        callPrice: res.call.price,
+        putPrice: res.put.price,
+        callPnl,
+        putPnl,
+        callPnlPct,
+        putPnlPct,
+      };
+    });
+  });
+
+  return {
+    ivShifts,
+    daysPassedSteps,
+    baseCallPrice,
+    basePutPrice,
+    matrix,
+  };
+}

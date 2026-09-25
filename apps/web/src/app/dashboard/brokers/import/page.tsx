@@ -37,14 +37,25 @@ import { toast } from '@/components/Toast';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 
 const BROKER_TEMPLATES = [
-  { id: 'zerodha', name: 'Zerodha Kite', hint: 'Kite Web -> Reports -> Tradebook -> CSV export' },
-  { id: 'upstox', name: 'Upstox Pro', hint: 'Upstox -> Reports -> Trade History CSV' },
-  { id: 'angelone', name: 'Angel One', hint: 'Angel One App/Web -> Order History -> Export CSV' },
-  { id: 'groww', name: 'Groww', hint: 'Groww -> Profile -> Reports -> Stock/F&O Trade Book' },
-  { id: 'fyers', name: 'Fyers', hint: 'Fyers Web -> My Account -> Trade Log CSV' },
-  { id: 'dhan', name: 'Dhan HQ', hint: 'Dhan -> Statements -> Trade Book' },
-  { id: 'sahi', name: 'Sahi', hint: 'Sahi -> Account Statements -> Trades CSV' },
-  { id: 'lemonn', name: 'Lemonn', hint: 'Lemonn -> Reports -> Trade Log Export' },
+  // Indian Equities & F&O
+  { id: 'zerodha', name: 'Zerodha Kite', market: '🇮🇳 India', hint: 'Kite Web -> Reports -> Tradebook -> CSV export' },
+  { id: 'upstox', name: 'Upstox Pro', market: '🇮🇳 India', hint: 'Upstox -> Reports -> Trade History CSV' },
+  { id: 'angelone', name: 'Angel One', market: '🇮🇳 India', hint: 'Angel One App/Web -> Order History -> Export CSV' },
+  { id: 'groww', name: 'Groww', market: '🇮🇳 India', hint: 'Groww -> Profile -> Reports -> Stock/F&O Trade Book' },
+  { id: 'fyers', name: 'Fyers', market: '🇮🇳 India', hint: 'Fyers Web -> My Account -> Trade Log CSV' },
+  { id: 'dhan', name: 'Dhan HQ', market: '🇮🇳 India', hint: 'Dhan -> Statements -> Trade Book' },
+  { id: 'sahi', name: 'Sahi', market: '🇮🇳 India', hint: 'Sahi -> Account Statements -> Trades CSV' },
+  { id: 'lemonn', name: 'Lemonn', market: '🇮🇳 India', hint: 'Lemonn -> Reports -> Trade Log Export' },
+
+  // Crypto Perpetuals & Spot
+  { id: 'binance', name: 'Binance Futures & Spot', market: '🪙 Crypto', hint: 'Orders -> Futures/Spot -> Trade History -> Export CSV' },
+  { id: 'bybit', name: 'Bybit Derivatives', market: '🪙 Crypto', hint: 'Orders -> Derivatives -> Trade History -> Export CSV' },
+  { id: 'delta_exchange', name: 'Delta Exchange', market: '🪙 Crypto', hint: 'Delta -> Orders -> Trades -> Export History CSV' },
+
+  // Global Equities, Futures & Forex
+  { id: 'ibkr', name: 'Interactive Brokers (IBKR)', market: '🇺🇸 Global', hint: 'Client Portal -> Reports -> Activity -> Trade Confirms CSV' },
+  { id: 'metatrader', name: 'MetaTrader 4 / 5', market: '💱 Forex', hint: 'Terminal -> Account History -> Right-click -> Save as Report (CSV)' },
+  { id: 'universal', name: 'Universal Trade CSV', market: '🌐 Custom', hint: 'Standard CSV with Symbol, Quantity, Price, Date, and Side (Buy/Sell)' },
 ];
 
 interface ParsedPreviewRow {
@@ -309,7 +320,7 @@ export default function CsvImportWizardPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Multi-Broker CSV Import</h1>
           <p className="text-sm text-muted-foreground">
-            Import historical trades from any Indian broker or exchange in 4 simple steps.
+            Import historical trades from any Indian, Global, Forex, or Crypto exchange in 4 simple steps.
           </p>
         </div>
 
@@ -378,26 +389,32 @@ export default function CsvImportWizardPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {BROKER_TEMPLATES.map((b) => (
               <button
                 key={b.id}
                 type="button"
                 onClick={() => setSelectedBrokerId(b.id)}
                 className={cn(
-                  'p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between h-28',
+                  'p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between h-32',
                   selectedBrokerId === b.id
-                    ? 'border-primary bg-primary/5 shadow-md shadow-primary/10'
+                    ? 'border-primary bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/40'
                     : 'border-border/60 hover:border-border hover:bg-muted/30'
                 )}
               >
                 <div>
-                  <div className="text-sm font-bold text-foreground">{b.name}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{b.hint}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-foreground truncate">{b.name}</span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-muted border border-border/60 shrink-0">
+                      {b.market}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{b.hint}</p>
                 </div>
                 {selectedBrokerId === b.id && (
-                  <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center text-white">
+                  <div className="w-fit flex items-center gap-1 text-[11px] font-bold text-primary">
                     <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Selected</span>
                   </div>
                 )}
               </button>

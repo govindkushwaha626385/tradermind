@@ -15,7 +15,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { calculateSip } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface SipCalculatorProps {
   currency: Currency;
@@ -23,7 +23,7 @@ interface SipCalculatorProps {
 }
 
 export function SipCalculator({ currency, onCopySummary }: SipCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const monthlyId = useId();
   const stepUpId = useId();
   const cagrId = useId();

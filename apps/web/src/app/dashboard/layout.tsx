@@ -51,6 +51,7 @@ import {
   Award,
   Keyboard,
   HelpCircle,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -70,6 +71,7 @@ import { PlatformTourModal } from '@/components/education/PlatformTourModal';
 import { KeyboardShortcutsModal } from '@/components/education/KeyboardShortcutsModal';
 import { EodReviewModal } from '@/components/discipline/EodReviewModal';
 import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
+import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
@@ -97,6 +99,7 @@ const SIDEBAR_GROUPS = [
     label: 'Analysis',
     items: [
       { label: 'Analytics',   href: '/dashboard/analytics',   icon: BarChart3 },
+      { label: 'Roadmap',     href: '/dashboard/roadmap',     icon: Compass },
       { label: 'Discipline',  href: '/dashboard/discipline',  icon: ClipboardCheck },
       { label: 'Insights',    href: '/dashboard/insights',    icon: Brain },
       { label: 'Goals',       href: '/dashboard/goals',       icon: Flag },
@@ -392,6 +395,14 @@ export default function DashboardLayout({
     const handleOpenPositionCalc = () => setPositionCalcOpen(true);
     window.addEventListener('open-position-calculator', handleOpenPositionCalc);
     return () => window.removeEventListener('open-position-calculator', handleOpenPositionCalc);
+  }, []);
+
+  const [credentialModalOpen, setCredentialModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenCredential = () => setCredentialModalOpen(true);
+    window.addEventListener('open-trader-credential', handleOpenCredential);
+    return () => window.removeEventListener('open-trader-credential', handleOpenCredential);
   }, []);
 
   useEffect(() => {
@@ -783,6 +794,19 @@ export default function DashboardLayout({
       <PositionSizeCalculatorModal
         isOpen={positionCalcOpen}
         onClose={() => setPositionCalcOpen(false)}
+      />
+
+      {/* ── Verified Trader Credential Certificate Modal ── */}
+      <TraderCredentialModal
+        isOpen={credentialModalOpen}
+        onClose={() => setCredentialModalOpen(false)}
+        traderName={userName ?? 'TradeMind Operator'}
+        rankTitle="Professional Market Operator"
+        rankBadge="🎖️"
+        levelNumber={2}
+        totalXp={1450}
+        completedCount={8}
+        totalMilestones={20}
       />
     </div>
   );

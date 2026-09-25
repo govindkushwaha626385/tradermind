@@ -15,7 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import { calculateAllPivots, type PivotSystemResult } from './engine/pivotMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface PivotPointsCalculatorProps {
   currency: Currency;
@@ -23,7 +23,7 @@ interface PivotPointsCalculatorProps {
 }
 
 export function PivotPointsCalculator({ currency, onCopySummary }: PivotPointsCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const highId = useId();
   const lowId = useId();
   const closeId = useId();

@@ -17,6 +17,7 @@ import {
   ExternalLink,
   ClipboardCheck,
   Share2,
+  Compass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +37,7 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'brokers',
-    badge: 'Step 1 of 8 · Automated Imports',
+    badge: 'Step 1 of 9 · Automated Imports',
     title: 'Multi-Broker Real-Time Sync',
     subtitle: 'Connect Zerodha, Dhan, Upstox, Angel One, Interactive Brokers, Binance & MetaTrader',
     description:
@@ -54,7 +55,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'journal-ai',
-    badge: 'Step 2 of 8 · AI Intelligence',
+    badge: 'Step 2 of 9 · AI Intelligence',
     title: 'Automated Journaling & AI Autopsy',
     subtitle: 'Turn raw trades into high-conviction learning loops',
     description:
@@ -72,7 +73,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'replay',
-    badge: 'Step 3 of 8 · Charting Engine',
+    badge: 'Step 3 of 9 · Charting Engine',
     title: 'TradingView Live Terminal & Replay',
     subtitle: 'Dual-engine live streaming chart & historical replay scrubber',
     description:
@@ -90,7 +91,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'checklists',
-    badge: 'Step 4 of 8 · Discipline Engine',
+    badge: 'Step 4 of 9 · Discipline Engine',
     title: 'Checklist & Rulebook Studio',
     subtitle: 'Live pre-trade checklist runner & institutional rulebooks',
     description:
@@ -108,7 +109,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'share-cards',
-    badge: 'Step 5 of 8 · Social & Community',
+    badge: 'Step 5 of 9 · Social & Community',
     title: 'Verified Branded Share Cards',
     subtitle: 'Ultra-HD graphics for Twitter, Discord, and Mentors',
     description:
@@ -126,7 +127,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'discipline',
-    badge: 'Step 6 of 8 · Risk Defense',
+    badge: 'Step 6 of 9 · Risk Defense',
     title: 'Behavioral Shield & Tilt Lockout',
     subtitle: 'Protect your capital before emotional mistakes happen',
     description:
@@ -144,7 +145,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'calculators',
-    badge: 'Step 7 of 8 · Mathematical Edge',
+    badge: 'Step 7 of 9 · Mathematical Edge',
     title: '18 Pro Financial Calculators',
     subtitle: 'Risk sizing, Forex & Crypto pips, and Black-Scholes Greeks',
     description:
@@ -162,7 +163,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'analytics',
-    badge: 'Step 8 of 8 · Quantitative Insights',
+    badge: 'Step 8 of 9 · Quantitative Insights',
     title: 'Global Analytics & Monte Carlo Simulation',
     subtitle: 'Comprehensive performance distributions and tax reports',
     description:
@@ -177,6 +178,24 @@ export const TOUR_STEPS: TourStep[] = [
     ctaHref: '/dashboard/analytics',
     icon: Globe,
     gradient: 'from-indigo-600 to-pink-600',
+  },
+  {
+    id: 'roadmap',
+    badge: 'Step 9 of 9 · Evolution & Mastery',
+    title: 'Trader Progression Roadmap & Credentials',
+    subtitle: 'Institutional competency milestones, scenario dilemmas & verified credentials',
+    description:
+      'Level up from foundational execution to funded institutional trader. Follow 20 milestones across 6 market tracks, solve real-world dilemma scenario simulations, and generate cryptographically watermarked Trader Credential Certificates.',
+    keyFeatures: [
+      '4 progression stages: Foundation, Edge Mastery, Risk Control, Institutional',
+      'Interactive Market Dilemma scenario quizzes with instant rationale',
+      'Retina-ready 1200x750 verified credential certificates for prop firms & Twitter',
+      'Multi-market track blueprints: Scalping, Options, Crypto, Swing & Prop Firm',
+    ],
+    ctaText: 'Explore Roadmap Hub',
+    ctaHref: '/dashboard/roadmap',
+    icon: Compass,
+    gradient: 'from-amber-600 to-yellow-600',
   },
 ];
 

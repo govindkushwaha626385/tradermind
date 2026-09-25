@@ -19,7 +19,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { calculateAtrStopLoss } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface AtrStopLossCalculatorProps {
   currency: Currency;
@@ -27,7 +27,7 @@ interface AtrStopLossCalculatorProps {
 }
 
 export function AtrStopLossCalculator({ currency, onCopySummary }: AtrStopLossCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const entryId = useId();
   const atrId = useId();
   const riskId = useId();

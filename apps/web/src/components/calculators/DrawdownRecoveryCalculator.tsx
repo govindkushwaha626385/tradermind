@@ -16,7 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { calculateDrawdownRecovery, calculateConsecutiveLossProbability } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface DrawdownRecoveryCalculatorProps {
   currency: Currency;
@@ -24,7 +24,7 @@ interface DrawdownRecoveryCalculatorProps {
 }
 
 export function DrawdownRecoveryCalculator({ currency, onCopySummary }: DrawdownRecoveryCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const drawdownId = useId();
   const winRateId = useId();
 

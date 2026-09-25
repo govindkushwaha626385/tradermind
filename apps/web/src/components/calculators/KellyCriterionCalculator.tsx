@@ -18,7 +18,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { calculateKelly } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface KellyCriterionCalculatorProps {
   currency: Currency;
@@ -26,7 +26,7 @@ interface KellyCriterionCalculatorProps {
 }
 
 export function KellyCriterionCalculator({ currency, onCopySummary }: KellyCriterionCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const winRateId = useId();
   const winLossId = useId();
   const balanceId = useId();

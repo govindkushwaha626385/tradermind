@@ -525,7 +525,7 @@ function TradeReplayChartInner({ data, currency: propCurrency }: TradeReplayChar
                 fontSize="10"
                 fontWeight="bold"
               >
-                Exit: ₹{data.exitPrice.toFixed(1)}
+                Exit: {formatCurrency(data.exitPrice, currency)}
               </text>
             </g>
           )}

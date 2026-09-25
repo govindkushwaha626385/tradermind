@@ -17,7 +17,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { calculateMargin } from './engine/financialMath';
-import { INSTRUMENT_PRESETS, type Currency } from './types';
+import { INSTRUMENT_PRESETS, getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface MarginCalculatorProps {
   currency: Currency;
@@ -25,7 +25,7 @@ interface MarginCalculatorProps {
 }
 
 export function MarginCalculator({ currency, onCopySummary }: MarginCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const presetId = useId();
   const cmpId = useId();
   const lotsId = useId();

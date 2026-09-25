@@ -59,6 +59,7 @@ interface TradeOption {
   rMultiple: number | null;
   holdingPeriodMinutes: number | null;
   exchange: string;
+  currency?: string;
 }
 
 interface Candle {
@@ -86,11 +87,13 @@ function normalizeTrade(t: any): TradeOption {
   const symbol = t.tradingsymbol || t.symbol || 'TRADE';
   const exchange = t.exchange || 'NSE';
   const netPnl = Number(t.netPnl ?? ((Number(t.grossPnl ?? 0)) - Number(t.totalCharges ?? 0)));
+  const currency = t.currency || (['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(exchange.toUpperCase()) ? 'USD' : undefined);
 
   return {
     id: t.id,
     tradingsymbol: symbol,
     exchange,
+    currency,
     direction,
     openedAt: openTime,
     closedAt: closeTime,
@@ -405,15 +408,29 @@ export default function TradeReplayPage() {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     // Sync live terminal symbol if switching
-    if (trade.exchange === 'NSE') {
-      setLiveSymbol(`NSE:${trade.tradingsymbol}`);
-    } else if (trade.exchange === 'BSE') {
-      setLiveSymbol(`BSE:${trade.tradingsymbol}`);
-    } else if (trade.exchange === 'BINANCE' || trade.exchange === 'DELTA') {
-      const sym = trade.tradingsymbol.toUpperCase().includes('USDT')
-        ? trade.tradingsymbol.toUpperCase()
-        : `${trade.tradingsymbol.toUpperCase()}USDT`;
+    const rawSym = (trade.tradingsymbol || '').toUpperCase().trim();
+    const ex = (trade.exchange || '').toUpperCase();
+    if (rawSym.includes(':')) {
+      setLiveSymbol(rawSym);
+    } else if (ex === 'NSE') {
+      setLiveSymbol(`NSE:${rawSym}`);
+    } else if (ex === 'BSE') {
+      setLiveSymbol(`BSE:${rawSym}`);
+    } else if (ex === 'MCX') {
+      setLiveSymbol(`MCX:${rawSym}`);
+    } else if (ex === 'NASDAQ') {
+      setLiveSymbol(`NASDAQ:${rawSym}`);
+    } else if (ex === 'NYSE') {
+      setLiveSymbol(`NYSE:${rawSym}`);
+    } else if (['FOREX', 'FX', 'OANDA'].includes(ex)) {
+      setLiveSymbol(`FX:${rawSym}`);
+    } else if (['BINANCE', 'DELTA', 'BYBIT', 'CRYPTO'].includes(ex)) {
+      const sym = rawSym.includes('USDT') || rawSym.includes('USD')
+        ? rawSym
+        : `${rawSym}USDT`;
       setLiveSymbol(`BINANCE:${sym}`);
+    } else {
+      setLiveSymbol(rawSym);
     }
   }, []);
 
@@ -676,7 +693,7 @@ export default function TradeReplayPage() {
               <div className="rounded-xl overflow-hidden border border-border/40">
                 <LightweightCandleChart
                   data={replayData}
-                  currency={selectedTrade?.exchange === 'DELTA' ? 'USD' : currency}
+                  currency={selectedTrade?.currency || (['NASDAQ', 'NYSE', 'DELTA', 'BINANCE', 'BYBIT', 'CRYPTO'].includes(selectedTrade?.exchange?.toUpperCase() ?? '') ? 'USD' : currency)}
                   className="h-[460px]"
                 />
               </div>

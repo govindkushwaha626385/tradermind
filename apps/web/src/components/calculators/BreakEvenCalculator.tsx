@@ -17,7 +17,7 @@ import {
   Info,
 } from 'lucide-react';
 import { calculateBreakEven } from './engine/financialMath';
-import type { Currency } from './types';
+import { getCalculatorCurrencySymbol, type Currency } from './types';
 
 interface BreakEvenCalculatorProps {
   currency: Currency;
@@ -25,7 +25,7 @@ interface BreakEvenCalculatorProps {
 }
 
 export function BreakEvenCalculator({ currency, onCopySummary }: BreakEvenCalculatorProps) {
-  const sym = currency === 'INR' ? '₹' : '$';
+  const sym = getCalculatorCurrencySymbol(currency);
   const entryPriceId = useId();
   const quantityId = useId();
   const flatBrokerageId = useId();

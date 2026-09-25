@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useCurrency } from '@/hooks/useCurrency';
 
 type ShieldLevel = 'none' | 'caution' | 'warning' | 'danger';
 
@@ -102,6 +103,7 @@ interface BehavioralShieldProps {
 }
 
 export function BehavioralShield({ className, refreshInterval = 5 * 60 * 1000 }: BehavioralShieldProps) {
+  const { format } = useCurrency();
   const [data, setData] = useState<ShieldData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -214,7 +216,7 @@ export function BehavioralShield({ className, refreshInterval = 5 * 60 * 1000 }:
         <span>
           P&L:{' '}
           <span className={cn('font-semibold', data.dailyPnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-            {data.dailyPnl >= 0 ? '+' : ''}₹{Math.abs(data.dailyPnl).toFixed(0)}
+            {data.dailyPnl > 0 ? '+' : ''}{format(data.dailyPnl)}
           </span>
         </span>
         <span className="w-px h-3 bg-border/50" />

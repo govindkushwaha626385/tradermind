@@ -82,7 +82,11 @@ export function BrandedShareCardModal({
   const isBuy = trade.direction.toUpperCase().includes('BUY') || trade.direction.toUpperCase().includes('LONG');
   const pnl = trade.netPnl ?? 0;
   const isWin = pnl >= 0;
-  const currSign = trade.currency === 'INR' ? '₹' : trade.currency === 'EUR' ? '€' : trade.currency === 'GBP' ? '£' : '$';
+  const currSign =
+    trade.currency === 'INR' ? '₹' :
+    trade.currency === 'EUR' ? '€' :
+    trade.currency === 'GBP' ? '£' :
+    trade.currency === 'USDT' ? '₮' : '$';
 
   // Calculate ROI percentage if not provided
   let roiPct = trade.pnlPercent;

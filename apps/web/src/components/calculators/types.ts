@@ -4,6 +4,18 @@
 
 export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'USDT' | 'BTC' | string;
 
+export function getCalculatorCurrencySymbol(c?: Currency): string {
+  switch (c) {
+    case 'INR': return '₹';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'USDT': return '₮';
+    case 'BTC': return '₿';
+    case 'USD':
+    default: return '$';
+  }
+}
+
 export type CalculatorCategory =
   | 'ALL'
   | 'RISK_SIZING'
