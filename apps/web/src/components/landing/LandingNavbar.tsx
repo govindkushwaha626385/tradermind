@@ -16,6 +16,7 @@ import { Menu, X, ArrowRight, TrendingUp } from 'lucide-react';
 import { APP_NAME } from '@trademind/shared';
 
 const NAV_ITEMS = [
+  { label: 'Live Sandbox', href: '/demo', badge: 'Instant' },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Brokers', href: '#brokers' },

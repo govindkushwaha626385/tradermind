@@ -177,7 +177,7 @@ export function HeroSection() {
             </p>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-10">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 mb-10 flex-wrap">
               <Link
                 href="/register"
                 id="hero-cta-primary"
@@ -198,9 +198,24 @@ export function HeroSection() {
                 Start Free — No Card Needed
                 <ArrowRight className="w-4 h-4" />
               </Link>
+
+              <Link
+                href="/demo"
+                id="hero-cta-sandbox"
+                className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-base font-semibold text-white transition-all hover:-translate-y-0.5"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(167,139,250,0.35)',
+                  boxShadow: '0 4px 18px rgba(124,58,237,0.18)',
+                }}
+              >
+                <Zap className="w-4 h-4 text-amber-400" />
+                <span>Try Live Sandbox</span>
+              </Link>
+
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-base font-medium transition-all"
+                className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-base font-medium transition-all"
                 style={{
                   border: '1px solid rgba(255,255,255,0.12)',
                   color: 'rgba(255,255,255,0.7)',

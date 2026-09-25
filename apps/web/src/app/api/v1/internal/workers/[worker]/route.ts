@@ -22,6 +22,10 @@ import { clusterExecutions } from '@/lib/server/services/clustering.service';
 import { calculateFees } from '@/lib/server/services/tax.service';
 import { refreshExpiringTokens } from '@/lib/server/services/token-refresh.service';
 import { sendDailySummary, sendWeeklyReport } from '@/lib/server/services/notification/email.service';
+import {
+  sendEodDebriefNotification,
+  sendRiskBreachNotification,
+} from '@/lib/server/services/notification/webhook-dispatcher.service';
 import { purgeExpiredCache } from '@/lib/server/cache';
 import type { BrokerId, TradeExecution } from '@trademind/shared';
 import type { BrokerConnectorConfig } from '@/lib/server/connectors/base';
@@ -103,6 +107,36 @@ async function enforceKillSwitches(): Promise<{ activated: number; alerted75: nu
         await db.update(riskProfiles).set({ killSwitchActive: true, killSwitchTriggeredAt: new Date(), killSwitchReason: reason, updatedAt: new Date() }).where(eq(riskProfiles.userId, userId));
         await db.insert(notifications).values({ userId, type: 'KILL_SWITCH_ACTIVATED', channel: 'in_app', subject: '🛑 Trading Blocked — Kill Switch Activated', body: reason, isEnabled: profile.notifyOnKillSwitch, isDelivered: false }).onConflictDoNothing();
         activated++;
+
+        // Dispatch instant alert to Discord & Telegram if configured
+        try {
+          const [u] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
+          const [webhookRow] = await db
+            .select()
+            .from(notifications)
+            .where(and(eq(notifications.userId, userId), eq(notifications.type, 'webhook_config')))
+            .limit(1);
+          const prefs = (webhookRow?.metadata as Record<string, any>) ?? {};
+          if (prefs.discordWebhookUrl || (prefs.telegramBotToken && prefs.telegramChatId)) {
+            await sendRiskBreachNotification({
+              discordWebhookUrl: prefs.discordWebhookUrl,
+              telegramBotToken: prefs.telegramBotToken,
+              telegramChatId: prefs.telegramChatId,
+              data: {
+                traderName: u?.name ?? 'Trader',
+                timestampStr: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+                breachType: dailyLimitAbs > 0 && todayNetPnl <= -dailyLimitAbs ? 'DAILY_LOSS_LIMIT' : 'OVERSIZING',
+                severity: 'CRITICAL',
+                currentNetPnl: todayNetPnl,
+                limitThreshold: dailyLimitAbs,
+                currency: '₹',
+                actionTaken: 'Trading Locked & Emergency Circuit Breaker Engaged',
+              },
+            });
+          }
+        } catch (webhookErr) {
+          console.error(`[KillSwitch Webhook Error] user=${userId}:`, webhookErr);
+        }
       } else if (profile.notifyAt75Pct && dailyLimitAbs > 0 && todayNetPnl < 0 && Math.abs(todayNetPnl) >= dailyLimitAbs * 0.75) {
         const existing = await db.select({ id: notifications.id }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.type, 'KILL_SWITCH_WARNING_75PCT'), gte(notifications.createdAt, dayStart))).limit(1);
         if (existing.length === 0) {
@@ -299,7 +333,45 @@ export async function POST(
         try {
           if (type === 'daily') {
             const stats = await computeDailyStats(u.id);
-            if (stats.totalTrades > 0) { await sendDailySummary(u.id, u.email, stats); sent++; }
+            if (stats.totalTrades > 0) {
+              await sendDailySummary(u.id, u.email, stats);
+              sent++;
+
+              // Also dispatch EOD debrief to Discord & Telegram if configured
+              try {
+                const [userRow] = await db.select({ name: users.name }).from(users).where(eq(users.id, u.id)).limit(1);
+                const [webhookRow] = await db
+                  .select()
+                  .from(notifications)
+                  .where(and(eq(notifications.userId, u.id), eq(notifications.type, 'webhook_config')))
+                  .limit(1);
+                const prefs = (webhookRow?.metadata as Record<string, any>) ?? {};
+                if (prefs.discordWebhookUrl || (prefs.telegramBotToken && prefs.telegramChatId)) {
+                  await sendEodDebriefNotification({
+                    discordWebhookUrl: prefs.discordWebhookUrl,
+                    telegramBotToken: prefs.telegramBotToken,
+                    telegramChatId: prefs.telegramChatId,
+                    data: {
+                      traderName: userRow?.name ?? 'Trader',
+                      dateStr: new Date().toISOString().split('T')[0],
+                      totalTrades: stats.totalTrades,
+                      winCount: Math.round(stats.totalTrades * stats.winRate),
+                      lossCount: stats.totalTrades - Math.round(stats.totalTrades * stats.winRate),
+                      winRate: Math.round(stats.winRate * 100),
+                      netPnl: stats.netPnl,
+                      currency: '₹',
+                      profitFactor: stats.bestTrade > 0 && Math.abs(stats.worstTrade) > 0 ? Number((stats.bestTrade / Math.abs(stats.worstTrade)).toFixed(2)) : 1.5,
+                      topWinner: stats.bestTrade > 0 ? { symbol: 'Best Trade', pnl: stats.bestTrade } : undefined,
+                      worstLoser: stats.worstTrade < 0 ? { symbol: 'Worst Trade', pnl: stats.worstTrade } : undefined,
+                      behavioralLeak: stats.netPnl < 0 ? 'Exceeded loss boundary or held through drawdown' : undefined,
+                      aiAdvice: stats.netPnl >= 0 ? 'High discipline day. Lock in profits and maintain current position sizing.' : 'Protect capital tomorrow. Cut size in half for the first 3 trades.',
+                    },
+                  });
+                }
+              } catch (dispatchErr) {
+                console.error(`[EOD Webhook Error] user=${u.id}:`, dispatchErr);
+              }
+            }
           } else {
             const stats = await computeWeeklyStats(u.id);
             if (stats.totalTrades > 0) { await sendWeeklyReport(u.id, u.email, stats); sent++; }

@@ -38,6 +38,7 @@ import {
   Keyboard,
   Compass,
   BookMarked,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -88,6 +89,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-calculators', title: '18 Pro Calculators (FX/Crypto Pip, Greeks)', category: 'Navigation', icon: Calculator, href: '/dashboard/calculators', shortcut: 'C' },
       { id: 'nav-leaderboard', title: 'Trader Leaderboard', category: 'Navigation', icon: Trophy, href: '/dashboard/leaderboard' },
       { id: 'nav-brokers', title: 'Broker Connections (Zerodha, Dhan, etc.)', category: 'Navigation', icon: Plug, href: '/dashboard/brokers', shortcut: 'B' },
+      { id: 'nav-demo', title: 'Interactive Public Sandbox Demo (Try Without Signup)', category: 'Navigation', icon: Zap, href: '/demo', badge: 'Live Demo' },
       { id: 'nav-settings', title: 'Preferences & Currency Settings', category: 'Navigation', icon: Settings, href: '/dashboard/settings' },
 
       // Quick Actions
@@ -203,6 +205,30 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         },
         badge: 'Shield',
       },
+      {
+        id: 'act-export-journal',
+        title: 'Export Closed Journal Positions to CSV',
+        category: 'Actions',
+        icon: FileSpreadsheet,
+        action: () => {
+          onClose();
+          window.open('/api/v1/journal/export/csv', '_blank');
+          toast.success('Downloading Journal Positions CSV...');
+        },
+        badge: 'CSV',
+      },
+      {
+        id: 'act-export-executions',
+        title: 'Export Raw Broker Executions to CSV (Itemized Taxes)',
+        category: 'Actions',
+        icon: FileSpreadsheet,
+        action: () => {
+          onClose();
+          window.open('/api/v1/trades/export/csv', '_blank');
+          toast.success('Downloading Broker Executions CSV...');
+        },
+        badge: 'Tax Fills',
+      },
 
       // Tools & Currency
       {
@@ -257,18 +283,52 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
     ];
 
     if (userRole === 'ADMIN') {
-      list.push({
-        id: 'nav-admin',
-        title: 'Admin Governance Console',
-        category: 'Navigation',
-        icon: Shield,
-        href: '/admin',
-        badge: 'Admin',
-      });
+      list.push(
+        {
+          id: 'nav-admin',
+          title: 'Admin Governance & Revenue Console',
+          category: 'Navigation',
+          icon: Shield,
+          href: '/admin',
+          badge: 'Admin',
+        },
+        {
+          id: 'nav-admin-users',
+          title: 'Admin User Management & Role Permissions',
+          category: 'Navigation',
+          icon: Shield,
+          href: '/admin/users',
+          badge: 'Admin',
+        },
+        {
+          id: 'nav-admin-sync',
+          title: 'Admin Real-Time Broker Sync Stream Monitor',
+          category: 'Navigation',
+          icon: RefreshCw,
+          href: '/admin/sync-logs',
+          badge: 'Admin',
+        },
+        {
+          id: 'nav-admin-audit',
+          title: 'Admin Security & Audit Trail Logs',
+          category: 'Navigation',
+          icon: Shield,
+          href: '/admin/audit-logs',
+          badge: 'Admin',
+        },
+        {
+          id: 'nav-admin-billing',
+          title: 'Admin Subscriptions & MRR Analytics',
+          category: 'Navigation',
+          icon: Shield,
+          href: '/admin/subscriptions',
+          badge: 'Admin',
+        },
+      );
     }
 
     return list;
-  }, [userRole]);
+  }, [userRole, currency, setCurrency, onTriggerTilt, router, onClose]);
 
   // Filtered list
   const filtered = useMemo(() => {

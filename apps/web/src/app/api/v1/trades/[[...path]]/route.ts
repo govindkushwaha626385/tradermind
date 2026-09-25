@@ -238,63 +238,136 @@ async function handleDetail(userId: string, id: string) {
 
 async function handleExportCsv(req: NextRequest, userId: string) {
   const url = new URL(req.url);
+  const mode = url.searchParams.get('mode') || 'executions';
   const startDate = url.searchParams.get('startDate');
   const endDate = url.searchParams.get('endDate');
 
   const db = getDatabase();
-  const conditions = [eq(journalTrades.userId, userId)];
-  if (startDate) conditions.push(gte(journalTrades.openedAt, new Date(startDate)));
-  if (endDate) conditions.push(lte(journalTrades.openedAt, new Date(endDate)));
 
-  const trades = await db.select().from(journalTrades)
+  if (mode === 'journal') {
+    const conditions = [eq(journalTrades.userId, userId)];
+    if (startDate) conditions.push(gte(journalTrades.openedAt, new Date(startDate)));
+    if (endDate) conditions.push(lte(journalTrades.openedAt, new Date(endDate)));
+
+    const trades = await db
+      .select()
+      .from(journalTrades)
+      .where(and(...conditions))
+      .orderBy(desc(journalTrades.openedAt));
+
+    const headers = [
+      'Trade ID',
+      'Open Date',
+      'Close Date',
+      'Symbol',
+      'Exchange',
+      'Asset Class',
+      'Direction',
+      'Status',
+      'Quantity',
+      'Entry Price',
+      'Exit Price',
+      'Gross PnL',
+      'Fees & Taxes',
+      'Net PnL',
+      'Currency',
+      'R-Multiple',
+      'MFE',
+      'MAE',
+      'Holding Period (Mins)',
+      'Emotions',
+      'Mistakes',
+      'Notes',
+    ];
+
+    const rows = trades.map((t) => [
+      t.id,
+      t.openedAt?.toISOString() ?? '',
+      t.closedAt?.toISOString() ?? '',
+      t.tradingsymbol,
+      t.exchange,
+      t.assetClass,
+      t.direction,
+      t.status,
+      t.totalQuantity,
+      Number(t.avgEntryPrice ?? 0).toFixed(2),
+      t.avgExitPrice ? Number(t.avgExitPrice).toFixed(2) : '',
+      Number(t.grossPnl ?? 0).toFixed(2),
+      Number(t.totalFeesAndTaxes ?? 0).toFixed(2),
+      Number(t.netPnl ?? 0).toFixed(2),
+      t.currency ?? 'INR',
+      t.rMultiple != null ? Number(t.rMultiple).toFixed(2) : '',
+      t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion).toFixed(2) : '',
+      t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion).toFixed(2) : '',
+      t.holdingPeriodMinutes ?? '',
+      (t.emotions ?? []).join('; '),
+      (t.mistakeTags ?? []).join('; '),
+      (t.traderNotes ?? '').replace(/[\r\n]+/g, ' '),
+    ]);
+
+    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+
+    return new NextResponse(csv, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="trademind-completed-trades-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
+  }
+
+  // Raw executions export (default)
+  const conditions = [eq(tradeExecutions.userId, userId)];
+  if (startDate) conditions.push(gte(tradeExecutions.executionTimestamp, new Date(startDate)));
+  if (endDate) conditions.push(lte(tradeExecutions.executionTimestamp, new Date(endDate)));
+
+  const executions = await db
+    .select()
+    .from(tradeExecutions)
     .where(and(...conditions))
-    .orderBy(desc(journalTrades.openedAt));
+    .orderBy(desc(tradeExecutions.executionTimestamp));
 
   const headers = [
-    'Trade ID',
-    'Open Date',
-    'Close Date',
+    'Execution ID',
+    'Execution Timestamp',
+    'Broker Order ID',
+    'Exchange Order ID',
     'Symbol',
     'Exchange',
-    'Asset Class',
-    'Direction',
-    'Status',
+    'Segment',
+    'Side',
+    'Order Type',
     'Quantity',
-    'Entry Price',
-    'Exit Price',
-    'Gross PnL',
-    'Fees & Taxes',
-    'Net PnL',
-    'R-Multiple',
-    'MFE',
-    'MAE',
-    'Holding Period (Mins)',
-    'Emotions',
-    'Mistakes',
-    'Notes',
+    'Execution Price',
+    'Brokerage Fee',
+    'STT Tax',
+    'Exchange Turnover Fee',
+    'GST Fee',
+    'SEBI Charges',
+    'Stamp Duty',
+    'Total Charges',
+    'Currency',
   ];
-  const rows = trades.map((t) => [
-    t.id,
-    t.openedAt?.toISOString() ?? '',
-    t.closedAt?.toISOString() ?? '',
-    t.tradingsymbol,
-    t.exchange,
-    t.assetClass,
-    t.direction,
-    t.status,
-    t.totalQuantity,
-    Number(t.avgEntryPrice ?? 0).toFixed(2),
-    t.avgExitPrice ? Number(t.avgExitPrice).toFixed(2) : '',
-    Number(t.grossPnl ?? 0).toFixed(2),
-    Number(t.totalFeesAndTaxes ?? 0).toFixed(2),
-    Number(t.netPnl ?? 0).toFixed(2),
-    t.rMultiple != null ? Number(t.rMultiple).toFixed(2) : '',
-    t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion).toFixed(2) : '',
-    t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion).toFixed(2) : '',
-    t.holdingPeriodMinutes ?? '',
-    (t.emotions ?? []).join('; '),
-    (t.mistakeTags ?? []).join('; '),
-    t.traderNotes ?? '',
+
+  const rows = executions.map((e) => [
+    e.id,
+    e.executionTimestamp.toISOString(),
+    e.brokerOrderId,
+    e.exchangeOrderId ?? '',
+    e.tradingsymbol,
+    e.exchange,
+    e.segment,
+    e.transactionType,
+    e.orderType,
+    e.quantity,
+    Number(e.executionPrice).toFixed(2),
+    Number(e.brokerageFee).toFixed(2),
+    Number(e.sttTax).toFixed(2),
+    Number(e.exchangeTurnoverFee).toFixed(2),
+    Number(e.gstFee).toFixed(2),
+    Number(e.sebiCharges).toFixed(2),
+    Number(e.stampDuty).toFixed(2),
+    Number(e.totalCharges).toFixed(2),
+    e.currency ?? 'INR',
   ]);
 
   const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -302,7 +375,7 @@ async function handleExportCsv(req: NextRequest, userId: string) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="trademind-trades-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'Content-Disposition': `attachment; filename="trademind-raw-executions-${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }

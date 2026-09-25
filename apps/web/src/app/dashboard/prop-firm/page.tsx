@@ -64,20 +64,45 @@ interface PropFirmAccount {
 }
 
 const PROP_FIRM_PRESETS = [
+  // ── FTMO ──────────────────────────────────────────
   {
-    name: 'FTMO $100K (2-Step)',
+    name: 'FTMO $200K (2-Step Normal)',
     firm: 'FTMO',
-    size: 100000,
+    size: 200000,
     currency: 'USD',
     phase: 'Phase 1' as const,
-    dailyLoss: 5,
-    maxDrawdown: 10,
-    profitTarget: 10,
+    dailyLoss: 5, // $10,000
+    maxDrawdown: 10, // $20,000
+    profitTarget: 10, // $20,000
     minDays: 4,
     drawdownType: 'STATIC' as const,
   },
   {
-    name: 'FTMO $50K (2-Step)',
+    name: 'FTMO $100K (2-Step Normal)',
+    firm: 'FTMO',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 5, // $5,000
+    maxDrawdown: 10, // $10,000
+    profitTarget: 10, // $10,000
+    minDays: 4,
+    drawdownType: 'STATIC' as const,
+  },
+  {
+    name: 'FTMO $100K (Aggressive)',
+    firm: 'FTMO',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 10, // $10,000
+    maxDrawdown: 20, // $20,000
+    profitTarget: 20, // $20,000
+    minDays: 4,
+    drawdownType: 'STATIC' as const,
+  },
+  {
+    name: 'FTMO $50K (2-Step Normal)',
     firm: 'FTMO',
     size: 50000,
     currency: 'USD',
@@ -88,8 +113,110 @@ const PROP_FIRM_PRESETS = [
     minDays: 4,
     drawdownType: 'STATIC' as const,
   },
+
+  // ── Topstep (Futures) ─────────────────────────────
   {
-    name: 'FundedNext $50K (Stellar)',
+    name: 'Topstep $50K Trading Combine',
+    firm: 'Topstep',
+    size: 50000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 2, // $1,000
+    maxDrawdown: 4, // $2,000 trailing
+    profitTarget: 6, // $3,000
+    minDays: 2,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'Topstep $100K Trading Combine',
+    firm: 'Topstep',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 2, // $2,000
+    maxDrawdown: 3, // $3,000 trailing
+    profitTarget: 6, // $6,000
+    minDays: 2,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'Topstep $150K Trading Combine',
+    firm: 'Topstep',
+    size: 150000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 2, // $3,000
+    maxDrawdown: 3, // $4,500 trailing
+    profitTarget: 6, // $9,000
+    minDays: 2,
+    drawdownType: 'TRAILING' as const,
+  },
+
+  // ── Apex Trader Funding (Futures) ─────────────────
+  {
+    name: 'Apex Trader Funding $50K',
+    firm: 'Apex',
+    size: 50000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 0,
+    maxDrawdown: 5, // $2,500 trailing threshold
+    profitTarget: 6, // $3,000
+    minDays: 1,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'Apex Trader Funding $100K',
+    firm: 'Apex',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 0,
+    maxDrawdown: 3, // $3,000 trailing threshold
+    profitTarget: 6, // $6,000
+    minDays: 1,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'Apex Trader Funding $150K',
+    firm: 'Apex',
+    size: 150000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 0,
+    maxDrawdown: 3.33, // $5,000 trailing threshold
+    profitTarget: 6, // $9,000
+    minDays: 1,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'Apex Trader Funding $300K',
+    firm: 'Apex',
+    size: 300000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 0,
+    maxDrawdown: 2.5, // $7,500 trailing threshold
+    profitTarget: 6.67, // $20,000
+    minDays: 1,
+    drawdownType: 'TRAILING' as const,
+  },
+
+  // ── FundedNext ────────────────────────────────────
+  {
+    name: 'FundedNext $100K (Stellar 2-Step)',
+    firm: 'FundedNext',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 5, // $5,000
+    maxDrawdown: 10, // $10,000
+    profitTarget: 8, // $8,000
+    minDays: 5,
+    drawdownType: 'STATIC' as const,
+  },
+  {
+    name: 'FundedNext $50K (Stellar 2-Step)',
     firm: 'FundedNext',
     size: 50000,
     currency: 'USD',
@@ -101,29 +228,45 @@ const PROP_FIRM_PRESETS = [
     drawdownType: 'STATIC' as const,
   },
   {
-    name: 'Apex Trader Funding $50K',
-    firm: 'Apex',
-    size: 50000,
+    name: 'FundedNext $100K (Stellar 1-Step)',
+    firm: 'FundedNext',
+    size: 100000,
     currency: 'USD',
     phase: 'Phase 1' as const,
-    dailyLoss: 0, // Trailing threshold based
-    maxDrawdown: 5, // $2,500 trailing
-    profitTarget: 6, // $3,000
-    minDays: 1,
+    dailyLoss: 3, // $3,000
+    maxDrawdown: 6, // $6,000 trailing
+    profitTarget: 10, // $10,000
+    minDays: 3,
     drawdownType: 'TRAILING' as const,
+  },
+
+  // ── Funding Pips ──────────────────────────────────
+  {
+    name: 'Funding Pips $100K (2-Step)',
+    firm: 'Funding Pips',
+    size: 100000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 5, // $5,000
+    maxDrawdown: 10, // $10,000
+    profitTarget: 8, // $8,000
+    minDays: 0,
+    drawdownType: 'STATIC' as const,
   },
   {
-    name: 'Topstep $50K Trading Combine',
-    firm: 'Topstep',
-    size: 50000,
+    name: 'Funding Pips $25K (2-Step)',
+    firm: 'Funding Pips',
+    size: 25000,
     currency: 'USD',
     phase: 'Phase 1' as const,
-    dailyLoss: 2, // $1,000
-    maxDrawdown: 4, // $2,000
-    profitTarget: 6, // $3,000
-    minDays: 2,
-    drawdownType: 'TRAILING' as const,
+    dailyLoss: 5,
+    maxDrawdown: 10,
+    profitTarget: 8,
+    minDays: 0,
+    drawdownType: 'STATIC' as const,
   },
+
+  // ── The5ers ───────────────────────────────────────
   {
     name: 'The5ers $100K High Stakes',
     firm: 'The5ers',
@@ -135,6 +278,44 @@ const PROP_FIRM_PRESETS = [
     profitTarget: 8,
     minDays: 3,
     drawdownType: 'STATIC' as const,
+  },
+  {
+    name: 'The5ers $250K Bootcamp',
+    firm: 'The5ers',
+    size: 250000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 0,
+    maxDrawdown: 5, // $12,500
+    profitTarget: 6, // $15,000
+    minDays: 0,
+    drawdownType: 'STATIC' as const,
+  },
+
+  // ── TradeDay (CME Futures) ────────────────────────
+  {
+    name: 'TradeDay $50K Day Trader',
+    firm: 'TradeDay',
+    size: 50000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 2, // $1,000
+    maxDrawdown: 4, // $2,000 trailing
+    profitTarget: 6, // $3,000
+    minDays: 7,
+    drawdownType: 'TRAILING' as const,
+  },
+  {
+    name: 'TradeDay $150K Day Trader',
+    firm: 'TradeDay',
+    size: 150000,
+    currency: 'USD',
+    phase: 'Phase 1' as const,
+    dailyLoss: 2, // $3,000
+    maxDrawdown: 3.33, // $5,000 trailing
+    profitTarget: 6.67, // $10,000
+    minDays: 7,
+    drawdownType: 'TRAILING' as const,
   },
 ];
 

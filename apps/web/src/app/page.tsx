@@ -14,6 +14,7 @@ import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
+import { CompetitorComparisonSection } from '@/components/landing/CompetitorComparisonSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { BrokersSection } from '@/components/landing/BrokersSection';
 import { PricingSection } from '@/components/landing/PricingSection';
@@ -76,8 +77,8 @@ const FAQS = [
     a: 'Yes. Broker tokens and API keys are encrypted using AES-256-GCM. All connections use TLS 1.3. Row-Level Security ensures every user can only access their own data. We never share your trading data with third parties.',
   },
   {
-    q: 'Which brokers do you support?',
-    a: 'We support Zerodha, Dhan, Angel One, Upstox, Groww, Delta Exchange, Sahi, and Lemonn. Most connect via official APIs. CSV-based brokers let you import trade files directly.',
+    q: 'Which brokers and exchanges do you support?',
+    a: 'We support Zerodha, Dhan, Angel One, Upstox, Groww, and Delta Exchange via official direct APIs. We also support Binance, Bybit, Interactive Brokers (IBKR), MetaTrader 4 & 5, Sahi, Lemonn, and 50+ international brokers through our smart universal CSV auto-importer.',
   },
   {
     q: 'Can I cancel my subscription?',
@@ -169,6 +170,9 @@ export default function HomePage() {
       {/* ── Features Section ──────────────── */}
       <FeaturesSection />
 
+      {/* ── Competitor Head-to-Head Comparison ── */}
+      <CompetitorComparisonSection />
+
       {/* ── How It Works ──────────────────── */}
       <HowItWorksSection />
 
@@ -230,7 +234,7 @@ export default function HomePage() {
             </span>
           </h2>
           <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-            Join thousands of Indian traders who use TradeMind to understand their patterns and improve every month.
+            Join thousands of active traders and prop firm candidates worldwide who use TradeMind to master their edge, eliminate emotional tilt, and compound consistently across Stocks, F&amp;O, Crypto, and Forex.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link

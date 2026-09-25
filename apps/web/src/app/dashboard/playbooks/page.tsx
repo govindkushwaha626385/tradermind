@@ -34,6 +34,7 @@ import {
   ChevronUp,
   BarChart3,
   Copy,
+  Share2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -45,6 +46,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge } from '@/components/ui/Badge';
+import { BrandedShareCardModal, ShareableTradeData } from '@/components/social/BrandedShareCardModal';
 
 export interface PlaybookMetrics {
   totalTrades: number;
@@ -133,6 +135,7 @@ export default function PlaybooksPage() {
   const [showPresets, setShowPresets] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sharePlaybookTrade, setSharePlaybookTrade] = useState<ShareableTradeData | null>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -629,6 +632,28 @@ export default function PlaybooksPage() {
                     Review Trades
                   </Link>
                   <button
+                    onClick={() =>
+                      setSharePlaybookTrade({
+                        id: playbook.id,
+                        symbol: playbook.name,
+                        direction: 'PLAYBOOK',
+                        entryPrice: 100,
+                        exitPrice: 100 + (m?.winRate ?? 50),
+                        netPnl: m?.netPnl ?? 0,
+                        pnlPercent: m?.winRate ?? 50,
+                        rMultiple: m?.avgRMultiple ?? 2.0,
+                        strategyName: rules.marketCondition ? `${rules.marketCondition} Setup` : 'Playbook Edge',
+                        quote: playbook.entryCriteria ? `Trigger: ${playbook.entryCriteria.slice(0, 80)}...` : 'Institutional Setup Rules Verified.',
+                        currency: currency,
+                      })
+                    }
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-accent transition-colors"
+                    title={`Share ${playbook.name} Verified Badge`}
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-primary" />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                  <button
                     onClick={() => handleEdit(playbook)}
                     className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-accent transition-colors"
                     aria-label={`Edit ${playbook.name}`}
@@ -837,6 +862,15 @@ export default function PlaybooksPage() {
           setConfirmId(null);
         }}
       />
+
+      {/* Verified Playbook Social Share Card Modal */}
+      {sharePlaybookTrade && (
+        <BrandedShareCardModal
+          isOpen={!!sharePlaybookTrade}
+          onClose={() => setSharePlaybookTrade(null)}
+          trade={sharePlaybookTrade}
+        />
+      )}
     </div>
   );
 }

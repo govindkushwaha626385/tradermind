@@ -206,7 +206,7 @@ export default function LoginPage() {
                 ))}
               </div>
               <span className="text-xs text-muted-foreground">
-                Trusted by <span className="font-semibold text-foreground">2,500+</span> Indian traders
+                Trusted by <span className="font-semibold text-foreground">2,500+</span> active traders worldwide
               </span>
             </div>
           </div>

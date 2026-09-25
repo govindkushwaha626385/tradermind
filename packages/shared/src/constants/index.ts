@@ -5,7 +5,7 @@
 export const APP_NAME = 'TradeMind';
 export const APP_TAGLINE = 'Know Your Trades. Know Yourself.';
 export const APP_DESCRIPTION =
-  'Automated trading journal with behavioral analytics for retail traders.';
+  'Automated multi-asset trading journal with real-time broker sync, candlestick replay, behavioral AI autopsies, and institutional risk analytics for active traders worldwide.';
 
 export const API_VERSION = 'v1';
 export const API_PREFIX = `/api/${API_VERSION}`;

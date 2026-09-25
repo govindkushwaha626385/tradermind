@@ -8,25 +8,29 @@ import { APP_NAME } from '@trademind/shared';
 
 const FOOTER_LINKS = {
   Product: [
+    { label: 'Live Demo Sandbox', href: '/demo' },
     { label: 'Features', href: '/#features' },
-    { label: 'How It Works', href: '/#how-it-works' },
-    { label: 'Broker Integrations', href: '/#brokers' },
-    { label: 'Pricing', href: '/#pricing' },
-    { label: 'Store', href: '/store' },
+    { label: '18 Free Calculators', href: '/calculators' },
+    { label: 'Trader Academy', href: '/education' },
+    { label: 'Product Changelog', href: '/changelog' },
+    { label: 'Pricing Plans', href: '/#pricing' },
+    { label: 'Store & Playbooks', href: '/store' },
   ],
   Company: [
-    { label: 'Contact', href: '/contact' },
-    { label: 'Partners', href: '/partners' },
-    { label: 'Leaderboard', href: '/leaderboard' },
+    { label: 'Research Blog', href: '/blog' },
+    { label: 'Trader Leaderboard', href: '/leaderboard' },
+    { label: 'Partners & Affiliates', href: '/partners' },
+    { label: 'Contact Support', href: '/contact' },
     { label: 'Privacy Policy', href: '/privacy' },
     { label: 'Terms of Service', href: '/terms' },
   ],
-  Brokers: [
-    { label: 'Zerodha', href: '/#brokers' },
-    { label: 'Dhan', href: '/#brokers' },
-    { label: 'Angel One', href: '/#brokers' },
-    { label: 'Upstox', href: '/#brokers' },
-    { label: 'Delta Exchange', href: '/#brokers' },
+  'Brokers & Exchanges': [
+    { label: 'Zerodha Kite', href: '/#brokers' },
+    { label: 'Dhan HQ', href: '/#brokers' },
+    { label: 'Interactive Brokers (IBKR)', href: '/#brokers' },
+    { label: 'Binance & Bybit', href: '/#brokers' },
+    { label: 'Upstox & Angel One', href: '/#brokers' },
+    { label: 'Delta Exchange & Groww', href: '/#brokers' },
   ],
 };
 
@@ -46,7 +50,7 @@ export function Footer() {
             </Link>
 
             <p className="text-slate-400 text-sm leading-relaxed max-w-xs mb-6">
-              The most intelligent trading journal for Indian markets. Auto-sync trades, understand your behavior, and trade better every day.
+              The premier automated trading journal for active multi-asset traders worldwide. Auto-sync trades, eliminate psychological leaks, and build an institutional edge.
             </p>
 
             {/* Social links */}
@@ -118,7 +122,7 @@ export function Footer() {
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               All systems operational
             </span>
-            <span className="text-slate-500 text-xs">Made with ❤️ for Indian Traders</span>
+            <span className="text-slate-500 text-xs">Made with ❤️ for Active Traders Worldwide</span>
           </div>
         </div>
       </div>

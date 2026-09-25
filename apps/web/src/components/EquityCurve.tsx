@@ -284,7 +284,7 @@ export const EquityCurve = memo(function EquityCurve({
       </div>
 
       {/* Chart Canvas */}
-      <div style={{ width: '100%', height }}>
+      <div style={{ width: '100%', height, minHeight: height }} className="min-w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={enrichedData} margin={{ top: 12, right: 10, bottom: 0, left: 10 }}>
             <defs>
@@ -293,34 +293,35 @@ export const EquityCurve = memo(function EquityCurve({
                 <stop
                   offset="5%"
                   stopColor={isOverallPositive ? '#10b981' : '#ef4444'}
-                  stopOpacity={0.35}
+                  stopOpacity={isOverallPositive ? 0.35 : 0.15}
                 />
                 <stop
                   offset="95%"
                   stopColor={isOverallPositive ? '#10b981' : '#ef4444'}
-                  stopOpacity={0.0}
+                  stopOpacity={isOverallPositive ? 0.02 : 0.45}
                 />
               </linearGradient>
 
               {/* Drawdown Underwater Gradient */}
               <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.05} />
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.4} />
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.08} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.45} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.4} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(140, 140, 160, 0.15)" vertical={false} />
 
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 11, fill: '#94a3b8' }}
               tickLine={false}
               axisLine={false}
               minTickGap={32}
             />
 
             <YAxis
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}
+              domain={['auto', 'auto']}
+              tick={{ fontSize: 11, fill: '#94a3b8', fontFamily: 'monospace' }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) => {
@@ -335,8 +336,7 @@ export const EquityCurve = memo(function EquityCurve({
             {/* Zero Baseline Breakeven Line */}
             <ReferenceLine
               y={0}
-              stroke="hsl(var(--muted-foreground))"
-              strokeOpacity={0.4}
+              stroke="rgba(148, 163, 184, 0.45)"
               strokeDasharray="4 4"
               strokeWidth={1.5}
             />
@@ -362,8 +362,9 @@ export const EquityCurve = memo(function EquityCurve({
                   dataKey="cumulativePnl"
                   stroke={isOverallPositive ? '#10b981' : '#ef4444'}
                   strokeWidth={2.5}
+                  baseValue={isOverallPositive ? 0 : 'dataMin'}
                   fill="url(#equityGradient)"
-                  dot={{ r: 3.5, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: 'hsl(var(--background))', strokeWidth: 1.5 }}
+                  dot={{ r: 3.5, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: '#1e293b', strokeWidth: 1.5 }}
                   activeDot={{ r: 6, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
                 />
               </>
@@ -375,7 +376,7 @@ export const EquityCurve = memo(function EquityCurve({
                 stroke="#ef4444"
                 strokeWidth={2}
                 fill="url(#drawdownGradient)"
-                dot={{ r: 3.5, fill: '#ef4444', stroke: 'hsl(var(--background))', strokeWidth: 1.5 }}
+                dot={{ r: 3.5, fill: '#ef4444', stroke: '#1e293b', strokeWidth: 1.5 }}
                 activeDot={{ r: 6, fill: '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
               />
             )}

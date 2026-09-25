@@ -41,6 +41,7 @@ import {
 import { api } from '@/lib/api';
 import { useCurrency } from '@/hooks/useCurrency';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
+import { TradeScreenshotGallery } from '@/components/chart/TradeScreenshotGallery';
 import { TradeAutopsy } from '@/components/ai/TradeAutopsy';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -150,6 +151,29 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
       ? ((replayData.exitPrice - replayData.entryPrice) / replayData.entryPrice) * (isLong ? 100 : -100)
       : null;
 
+  // Institutional Risk-Reward & R-Multiple
+  let calculatedR: number | null = null;
+  if (tradeData?.rMultiple != null && !isNaN(Number(tradeData.rMultiple))) {
+    calculatedR = Number(tradeData.rMultiple);
+  } else if (replayData.planStop && replayData.entryPrice && replayData.exitPrice) {
+    const risk = Math.abs(replayData.entryPrice - replayData.planStop);
+    const reward = isLong ? replayData.exitPrice - replayData.entryPrice : replayData.entryPrice - replayData.exitPrice;
+    if (risk > 0) {
+      calculatedR = Number((reward / risk).toFixed(2));
+    }
+  }
+
+  // MFE Efficiency (% of peak gain captured)
+  let mfeEfficiency: number | null = null;
+  if (replayData.mfe && replayData.mfe > 0 && pnl > 0) {
+    mfeEfficiency = Math.min(100, Math.round((pnl / replayData.mfe) * 100));
+  }
+
+  // Total Fees & Tax Drag
+  const totalFeesAndTaxes = Number(tradeData?.totalFeesAndTaxes ?? tradeData?.fees ?? 0);
+  const grossPnl = Number(tradeData?.grossPnl ?? pnl + totalFeesAndTaxes);
+  const feeDragPct = grossPnl > 0 && totalFeesAndTaxes > 0 ? Number(((totalFeesAndTaxes / grossPnl) * 100).toFixed(1)) : null;
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
       {/* Top Breadcrumb & Actions Bar */}
@@ -193,6 +217,20 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
               >
                 {isWin ? 'WIN' : isBreakeven ? 'BE' : 'LOSS'}
               </span>
+              {calculatedR !== null && (
+                <span
+                  className={cn(
+                    'text-xs font-bold font-mono px-2 py-0.5 rounded-md border',
+                    calculatedR >= 2
+                      ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                      : calculatedR > 0
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                      : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                  )}
+                >
+                  {calculatedR > 0 ? `+${calculatedR}` : calculatedR}R
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {formatDate(replayData.entryTime)} • Qty: {replayData.quantity.toLocaleString()}
@@ -262,7 +300,7 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
       </div>
 
       {/* Performance KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <div className="p-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm space-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Net P&L</p>
           <p
@@ -274,24 +312,29 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
             {pnl >= 0 ? '+' : ''}
             {format(pnl, tradeData?.currency)}
           </p>
-          <span className="text-[10px] text-muted-foreground">After brokerage & taxes</span>
+          <span className="text-[10px] text-muted-foreground">
+            {returnPct !== null ? `${returnPct >= 0 ? '+' : ''}${returnPct.toFixed(2)}% return` : 'After charges'}
+          </span>
         </div>
 
         <div className="p-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entry Price</p>
-          <p className="text-lg sm:text-xl font-bold font-mono text-foreground">
-            {format(replayData.entryPrice, tradeData?.currency)}
-          </p>
-          <span className="text-[10px] text-muted-foreground">Fill avg price</span>
-        </div>
-
-        <div className="p-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Exit Price</p>
-          <p className="text-lg sm:text-xl font-bold font-mono text-foreground">
-            {replayData.exitPrice ? format(replayData.exitPrice, tradeData?.currency) : 'Open'}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">R-Multiple</p>
+          <p
+            className={cn(
+              'text-lg sm:text-xl font-bold font-mono',
+              calculatedR !== null
+                ? calculatedR >= 2
+                  ? 'text-purple-400'
+                  : calculatedR > 0
+                  ? 'text-emerald-400'
+                  : 'text-rose-400'
+                : 'text-muted-foreground'
+            )}
+          >
+            {calculatedR !== null ? `${calculatedR > 0 ? '+' : ''}${calculatedR}R` : '—'}
           </p>
           <span className="text-[10px] text-muted-foreground">
-            {replayData.exitTime ? formatDate(replayData.exitTime) : 'Position Open'}
+            {replayData.planStop ? 'Calculated vs Stop' : 'No planned stop'}
           </span>
         </div>
 
@@ -309,7 +352,9 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
           <p className="text-lg sm:text-xl font-bold font-mono text-blue-400">
             {replayData.mfe != null ? `+${format(replayData.mfe, tradeData?.currency)}` : '—'}
           </p>
-          <span className="text-[10px] text-muted-foreground">Peak unrealized profit</span>
+          <span className="text-[10px] text-muted-foreground">
+            {mfeEfficiency !== null ? `${mfeEfficiency}% capture rate` : 'Peak unrealized'}
+          </span>
         </div>
 
         <div className="p-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm space-y-1">
@@ -318,6 +363,16 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
             {replayData.mae != null ? `-${format(replayData.mae, tradeData?.currency)}` : '—'}
           </p>
           <span className="text-[10px] text-muted-foreground">Maximum adverse drawdown</span>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Fees & Taxes</p>
+          <p className="text-lg sm:text-xl font-bold font-mono text-foreground">
+            {totalFeesAndTaxes > 0 ? format(totalFeesAndTaxes, tradeData?.currency) : '₹0.00'}
+          </p>
+          <span className="text-[10px] text-muted-foreground">
+            {feeDragPct !== null ? `${feeDragPct}% of gross profit` : 'Brokerage & statutory'}
+          </span>
         </div>
       </div>
 
@@ -440,6 +495,22 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
             'No journal reflection logged for this trade yet. Head over to the Journal tab to add entry notes, market context, and lessons.'}
         </div>
       </div>
+
+      {/* Multi-Timeframe Chart Screenshots & AI Vision */}
+      <TradeScreenshotGallery
+        tradeId={tradeId}
+        symbol={replayData.symbol}
+        initialScreenshots={
+          Array.isArray(tradeData?.screenshotUrls)
+            ? tradeData.screenshotUrls.map((url: string, idx: number) => ({
+                id: `existing-${idx}`,
+                url,
+                tag: idx === 0 ? 'HTF_CONTEXT' : 'LTF_ENTRY',
+                uploadedAt: new Date().toISOString(),
+              }))
+            : []
+        }
+      />
 
       {/* AI Trade Autopsy Section */}
       <div id="ai-autopsy-section" className="p-5 rounded-2xl border border-violet-500/30 bg-card space-y-4 shadow-sm">

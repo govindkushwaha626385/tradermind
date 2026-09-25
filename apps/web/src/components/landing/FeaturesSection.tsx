@@ -28,9 +28,9 @@ const FEATURES = [
     icon: RefreshCw,
     color: 'from-blue-500 to-cyan-500',
     glow: 'group-hover:shadow-blue-500/20',
-    title: 'Auto-Sync from 9 Brokers',
-    desc: 'Zerodha, Dhan, Angel One, Upstox, Delta Exchange, Groww, Sahi & Lemonn sync automatically — no CSV uploads needed.',
-    badge: '9 Brokers',
+    title: 'Auto-Sync & Universal Import',
+    desc: 'Direct real-time API sync for Zerodha, Dhan, Upstox, Groww, Delta Exchange, plus universal import for Binance, Bybit, MT4/5, and IBKR.',
+    badge: '12+ Brokers',
   },
   {
     icon: Brain,
@@ -52,9 +52,9 @@ const FEATURES = [
     icon: Receipt,
     color: 'from-amber-500 to-orange-500',
     glow: 'group-hover:shadow-amber-500/20',
-    title: 'Accurate Indian Tax Calc',
-    desc: 'STT, GST, SEBI charges, stamp duty — all calculated per segment (EQ, F&O, MCX, CDS) with export for CA.',
-    badge: 'India-First',
+    title: 'Statutory Tax & Multi-Currency Engine',
+    desc: 'STT, GST, SEBI charges, exchange fees, funding rates, and spreads calculated with mathematical precision across INR, USD, EUR, and USDT.',
+    badge: 'Multi-Currency',
   },
   {
     icon: ShieldCheck,
@@ -157,11 +157,11 @@ export function FeaturesSection() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-5 font-display">
             Built for{' '}
             <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              Serious Indian Traders
+              Serious Multi-Asset Traders
             </span>
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Every feature designed around how NSE/BSE markets actually work — not a copy-paste from US trading tools.
+            Engineered for high-frequency equity, F&amp;O derivatives, crypto, and forex traders worldwide — with native support for both global exchanges and domestic statutory taxes.
           </p>
         </div>
 
