@@ -287,18 +287,88 @@ export async function GET(
 
   // GET /admin/sync-logs
   if (section === 'sync-logs') {
+    const syncTypeFilter = url.searchParams.get('syncType')?.trim();
+    const statusFilter = url.searchParams.get('status')?.trim();
+    const search = url.searchParams.get('search')?.trim();
+
     if (sub === 'live') {
       const limit = Math.min(100, Number(url.searchParams.get('limit') ?? 30));
-      const logsList = await db.select({ id: syncLogs.id, brokerConnectionId: syncLogs.brokerConnectionId, userId: syncLogs.userId, syncType: syncLogs.syncType, status: syncLogs.status, executionsImported: syncLogs.executionsImported, tradesCreated: syncLogs.tradesCreated, tradesUpdated: syncLogs.tradesUpdated, errorMessage: syncLogs.errorMessage, startedAt: syncLogs.startedAt, completedAt: syncLogs.completedAt }).from(syncLogs).orderBy(desc(syncLogs.startedAt)).limit(limit);
+      const logsList = await db
+        .select({
+          id: syncLogs.id,
+          brokerConnectionId: syncLogs.brokerConnectionId,
+          userId: syncLogs.userId,
+          userEmail: users.email,
+          userName: users.name,
+          brokerId: brokerConnections.brokerId,
+          brokerLabel: brokerConnections.label,
+          brokerClientId: brokerConnections.brokerClientId,
+          syncType: syncLogs.syncType,
+          status: syncLogs.status,
+          executionsImported: syncLogs.executionsImported,
+          tradesCreated: syncLogs.tradesCreated,
+          tradesUpdated: syncLogs.tradesUpdated,
+          errorMessage: syncLogs.errorMessage,
+          startedAt: syncLogs.startedAt,
+          completedAt: syncLogs.completedAt,
+        })
+        .from(syncLogs)
+        .leftJoin(users, eq(syncLogs.userId, users.id))
+        .leftJoin(brokerConnections, eq(syncLogs.brokerConnectionId, brokerConnections.id))
+        .orderBy(desc(syncLogs.startedAt))
+        .limit(limit);
       return ok(logsList);
     }
+
     const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
     const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') ?? 20)));
     const offset = (page - 1) * limit;
+
+    const conditions: any[] = [];
+    if (syncTypeFilter) conditions.push(eq(syncLogs.syncType, syncTypeFilter));
+    if (statusFilter) conditions.push(eq(syncLogs.status, statusFilter));
+    if (search) {
+      conditions.push(
+        sql`(${users.email} ILIKE ${`%${search}%`} OR ${users.name} ILIKE ${`%${search}%`} OR ${brokerConnections.label} ILIKE ${`%${search}%`} OR ${brokerConnections.brokerClientId} ILIKE ${`%${search}%`} OR ${syncLogs.errorMessage} ILIKE ${`%${search}%`})`
+      );
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
     const [logsList, totalResult] = await Promise.all([
-      db.select().from(syncLogs).orderBy(desc(syncLogs.startedAt)).limit(limit).offset(offset),
-      db.select({ count: sql<number>`COUNT(*)` }).from(syncLogs),
+      db
+        .select({
+          id: syncLogs.id,
+          brokerConnectionId: syncLogs.brokerConnectionId,
+          userId: syncLogs.userId,
+          userEmail: users.email,
+          userName: users.name,
+          brokerId: brokerConnections.brokerId,
+          brokerLabel: brokerConnections.label,
+          brokerClientId: brokerConnections.brokerClientId,
+          syncType: syncLogs.syncType,
+          status: syncLogs.status,
+          executionsImported: syncLogs.executionsImported,
+          tradesCreated: syncLogs.tradesCreated,
+          tradesUpdated: syncLogs.tradesUpdated,
+          errorMessage: syncLogs.errorMessage,
+          startedAt: syncLogs.startedAt,
+          completedAt: syncLogs.completedAt,
+        })
+        .from(syncLogs)
+        .leftJoin(users, eq(syncLogs.userId, users.id))
+        .leftJoin(brokerConnections, eq(syncLogs.brokerConnectionId, brokerConnections.id))
+        .where(whereClause)
+        .orderBy(desc(syncLogs.startedAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(syncLogs)
+        .leftJoin(users, eq(syncLogs.userId, users.id))
+        .leftJoin(brokerConnections, eq(syncLogs.brokerConnectionId, brokerConnections.id))
+        .where(whereClause),
     ]);
+
     const total = Number(totalResult[0]?.count ?? 0);
     return ok({ logs: logsList, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   }

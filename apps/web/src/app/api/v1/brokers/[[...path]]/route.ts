@@ -40,23 +40,53 @@ const connectSchema = z.object({
 
 const CSV_BROKERS = new Set(['sahi', 'lemonn']);
 
+import { processBrokerWebhook } from '@/lib/server/services/webhook-ingestion.service';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
   try {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
-  const rl = await checkRateLimit(req, user.id);
-  if (rl) return rl;
+    const { path } = await params;
+    const [seg1, seg2] = path ?? [];
 
-  const { path } = await params;
-  const [seg1, seg2] = path ?? [];
+    if (seg1 === 'webhook') {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tradermind-web.vercel.app';
+      return ok({
+        service: 'TradeMind Institutional Broker Ingestion',
+        endpoints: {
+          zerodha: `${appUrl}/api/v1/webhooks/zerodha`,
+          dhan: `${appUrl}/api/v1/webhooks/dhan`,
+          angelone: `${appUrl}/api/v1/webhooks/angelone`,
+          upstox: `${appUrl}/api/v1/webhooks/upstox`,
+          delta: `${appUrl}/api/v1/webhooks/delta`,
+          binance: `${appUrl}/api/v1/webhooks/binance`,
+          ibkr: `${appUrl}/api/v1/webhooks/ibkr`,
+          generic: `${appUrl}/api/v1/webhooks/generic`,
+        },
+        alternateEndpoints: {
+          zerodha: `${appUrl}/api/v1/brokers/webhook/zerodha`,
+          dhan: `${appUrl}/api/v1/brokers/webhook/dhan`,
+          angelone: `${appUrl}/api/v1/brokers/webhook/angelone`,
+          upstox: `${appUrl}/api/v1/brokers/webhook/upstox`,
+          delta: `${appUrl}/api/v1/brokers/webhook/delta`,
+          binance: `${appUrl}/api/v1/brokers/webhook/binance`,
+          ibkr: `${appUrl}/api/v1/brokers/webhook/ibkr`,
+          generic: `${appUrl}/api/v1/brokers/webhook/generic`,
+        },
+        documentation: 'Configure these webhook URLs in your broker developer console to receive real-time execution postbacks with SHA-256 deduplication.',
+      });
+    }
 
-  if (!seg1) return handleList(user.id);
-  if (seg1 === 'funds') return handleFunds(user.id);
-  if (seg2 === 'status') return handleStatus(user.id, seg1);
-  return apiError('Route not found', 404);
+    const { user, error } = await authenticate(req);
+    if (error) return error;
+    const rl = await checkRateLimit(req, user.id);
+    if (rl) return rl;
+
+    if (!seg1) return handleList(user.id);
+    if (seg1 === 'funds') return handleFunds(user.id);
+    if (seg2 === 'status') return handleStatus(user.id, seg1);
+    return apiError('Route not found', 404);
   } catch (err: unknown) {
     console.error('[Brokers GET] Unhandled error:', err);
     const message = err instanceof Error ? err.message : 'Internal server error';
@@ -69,19 +99,45 @@ export async function POST(
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
   try {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
-  const rl = await checkRateLimit(req, user.id);
-  if (rl) return rl;
+    const { path } = await params;
+    const [seg1, seg2, seg3] = path ?? [];
 
-  const { path } = await params;
-  const [seg1, seg2, seg3] = path ?? [];
+    // Webhook receiver (unauthenticated / signature-verified machine-to-machine)
+    if (seg1 === 'webhook') {
+      const brokerId = seg2 ?? 'generic';
+      const rawBody = await req.text();
+      const url = new URL(req.url);
 
-  if (seg1 === 'connect') return handleConnect(req, user.id);
-  if (seg2 === 'sync') return handleSync(user.id, seg1);
-  if (seg1 === 'import' && seg2 === 'csv' && seg3 === 'preview') return handleCsvPreview(req);
-  if (seg1 === 'import' && seg2 === 'csv') return handleCsvImport(req, user.id);
-  return apiError('Route not found', 404);
+      const result = await processBrokerWebhook({
+        brokerId,
+        rawPayload: rawBody,
+        headers: req.headers,
+        query: url.searchParams,
+      });
+
+      if (!result.success && result.error?.includes('signature')) {
+        return apiError(result.error, 403);
+      }
+      if (!result.success && result.error?.includes('No active broker connection found')) {
+        return apiError(result.error, 404);
+      }
+      if (!result.success) {
+        return apiError(result.error ?? 'Webhook processing failed', 400);
+      }
+
+      return ok(result);
+    }
+
+    const { user, error } = await authenticate(req);
+    if (error) return error;
+    const rl = await checkRateLimit(req, user.id);
+    if (rl) return rl;
+
+    if (seg1 === 'connect') return handleConnect(req, user.id);
+    if (seg2 === 'sync') return handleSync(user.id, seg1);
+    if (seg1 === 'import' && seg2 === 'csv' && seg3 === 'preview') return handleCsvPreview(req);
+    if (seg1 === 'import' && seg2 === 'csv') return handleCsvImport(req, user.id);
+    return apiError('Route not found', 404);
   } catch (err: unknown) {
     console.error('[Brokers POST] Unhandled error:', err);
     const message = err instanceof Error ? err.message : 'Internal server error';

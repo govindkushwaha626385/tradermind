@@ -37,6 +37,9 @@ import {
   Minus,
   ChevronRight,
   Flame,
+  Layers,
+  ChevronDown,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -99,6 +102,16 @@ function formatDate(): string {
 export default function DashboardPage() {
   const { currency, currencySymbol, format } = useCurrency();
   const [timeframe, setTimeframe] = useState<Timeframe>('1M');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+  const [connections, setConnections] = useState<Array<{ id: string; brokerId: string; label: string; brokerClientId: string }>>([]);
+  const [blendedPortfolio, setBlendedPortfolio] = useState<{
+    totalCash: number;
+    totalMarginUsed: number;
+    totalCollateral: number;
+    totalEquity: number;
+    dailyVaR95: number;
+    accountsCount: number;
+  } | null>(null);
   const [stats, setStats]   = useState<DashboardStats | null>(null);
   const [insights, setInsights] = useState<BehavioralInsight[]>([]);
   const [recentTrades, setRecentTrades] = useState<TradeSummary[]>([]);
@@ -138,7 +151,7 @@ export default function DashboardPage() {
     }).catch(() => {});
   }, []);
 
-  async function fetchDashboard(showToast = false, tf: Timeframe = timeframe) {
+  async function fetchDashboard(showToast = false, tf: Timeframe = timeframe, accountId = selectedAccountId) {
     if (showToast) setRefreshing(true);
     else setLoading(true);
 
@@ -155,10 +168,20 @@ export default function DashboardPage() {
         case 'ALL': startDate = undefined; break;
       }
 
+      const params: Record<string, string> = {};
+      if (startDate) params.startDate = startDate;
+      if (accountId && accountId !== 'all') params.connectionId = accountId;
+
       const [statsRes, insightsRes, recentRes] = await Promise.allSettled([
-        api.getDashboard(startDate ? { startDate } : {}),
+        api.getDashboard(params),
         api.getBehavioralInsights(startDate ? { startDate } : {}),
-        api.getJournalTrades({ limit: 8, sortBy: 'openedAt', sortOrder: 'desc', ...(startDate ? { startDate } : {}) }),
+        api.getJournalTrades({
+          limit: 8,
+          sortBy: 'openedAt',
+          sortOrder: 'desc',
+          ...(startDate ? { startDate } : {}),
+          ...(accountId && accountId !== 'all' ? { brokerConnectionId: accountId } : {}),
+        }),
       ]);
 
       if (statsRes.status === 'fulfilled' && statsRes.value?.success) {
@@ -166,6 +189,8 @@ export default function DashboardPage() {
         setStats(d?.stats ?? d as DashboardStats);
         const rawEquity = d?.equityCurve ?? d?.equity ?? [];
         setEquityData(Array.isArray(rawEquity) ? rawEquity : []);
+        if (Array.isArray(d?.connections)) setConnections(d.connections);
+        if (d?.blendedPortfolio) setBlendedPortfolio(d.blendedPortfolio);
       } else {
         setStats({
           totalTrades: 0,
@@ -251,6 +276,30 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Account / Portfolio Switcher */}
+          <div className="relative">
+            <select
+              value={selectedAccountId}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                setSelectedAccountId(nextId);
+                fetchDashboard(false, timeframe, nextId);
+              }}
+              className="appearance-none pl-8 pr-8 py-1.5 rounded-xl bg-card hover:bg-accent border border-border text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm cursor-pointer transition-colors"
+            >
+              <option value="all">
+                ⚡ All Accounts Blended ({connections.length > 0 ? connections.length : 'All'})
+              </option>
+              {connections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label || c.brokerId.toUpperCase()} ({c.brokerClientId})
+                </option>
+              ))}
+            </select>
+            <Layers className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
           {/* Pre-market / debrief shortcuts */}
           <button
             onClick={() => setPremarketOpen(true)}
@@ -284,6 +333,46 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Multi-Account Blended Portfolio Aggregator ── */}
+      {blendedPortfolio && connections.length > 1 && (
+        <div className="p-3.5 rounded-2xl glass-card border border-border/60 flex items-center justify-between gap-4 flex-wrap text-xs shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-semibold text-foreground flex items-center gap-2">
+                <span>Multi-Account Blended Portfolio</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/15 text-success border border-success/30">
+                  {connections.length} Accounts Synchronized
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                <span>Combined Buying Power: <strong className="text-foreground">{format(blendedPortfolio.totalEquity || blendedPortfolio.totalCash || 0)}</strong></span>
+                <span>·</span>
+                <span>Margin Used: <strong className="text-foreground">{format(blendedPortfolio.totalMarginUsed || 0)}</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs">
+            <div className="text-right">
+              <span className="text-[10px] text-muted-foreground block">Daily VaR (95%)</span>
+              <span className="font-mono font-bold text-foreground">
+                {blendedPortfolio.dailyVaR95 > 0 ? `-${format(blendedPortfolio.dailyVaR95)}` : 'Safe'}
+              </span>
+            </div>
+            <Link
+              href="/dashboard/brokers"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-accent hover:bg-accent/80 border border-border text-xs font-semibold text-foreground transition-all"
+            >
+              <span>Manage Accounts</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── Zero-Data 3-Step Quick Start Onboarding ── */}
       {!hasData && !loading && (

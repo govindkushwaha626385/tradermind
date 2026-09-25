@@ -603,7 +603,7 @@ export const api = {
         status: string; paidAt: string | null; createdAt: string;
       }>;
     }>('/admin/billing/summary'),
-  getAdminSyncLogs: (params?: { page?: number; limit?: number }) =>
+  getAdminSyncLogs: (params?: { page?: number; limit?: number; search?: string; status?: string; syncType?: string }) =>
     request<{ logs: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       '/admin/sync-logs',
       { params: params as Record<string, string | number | undefined> },

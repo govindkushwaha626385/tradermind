@@ -65,8 +65,19 @@ export async function GET(
   if (!section || section === 'dashboard') {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
-    const cacheKey = `analytics:dashboard:${user.id}:${startDate ?? 'all'}:${endDate ?? 'all'}`;
-    const stats = await cacheGetOrSet(cacheKey, () => generateDashboardStats(user.id, startDate ? new Date(startDate) : undefined, endDate ? new Date(endDate) : undefined), 180);
+    const connectionId = url.searchParams.get('connectionId');
+    const cacheKey = `analytics:dashboard:${user.id}:${connectionId ?? 'all'}:${startDate ?? 'all'}:${endDate ?? 'all'}`;
+    const stats = await cacheGetOrSet(
+      cacheKey,
+      () =>
+        generateDashboardStats(
+          user.id,
+          startDate ? new Date(startDate) : undefined,
+          endDate ? new Date(endDate) : undefined,
+          connectionId ?? undefined,
+        ),
+      120,
+    );
     return ok(stats);
   }
 

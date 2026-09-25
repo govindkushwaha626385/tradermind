@@ -4,7 +4,7 @@
 // to produce dollar-impact insights
 // ──────────────────────────────────────────────
 
-import { getDatabase, journalTrades } from '@trademind/database';
+import { getDatabase, journalTrades, brokerConnections, accountBalances } from '@trademind/database';
 import { and, eq, gte, lte, sql, asc } from 'drizzle-orm';
 import type { Emotion, BehavioralInsight } from '@trademind/shared';
 
@@ -101,12 +101,16 @@ export async function generateDashboardStats(
   userId: string,
   startDate?: Date,
   endDate?: Date,
+  connectionId?: string,
 ): Promise<any> {
   const db = getDatabase();
 
   const conditions = [eq(journalTrades.userId, userId)];
   if (startDate) conditions.push(gte(journalTrades.openedAt, startDate));
   if (endDate) conditions.push(lte(journalTrades.openedAt, endDate));
+  if (connectionId && connectionId !== 'all') {
+    conditions.push(eq(journalTrades.brokerConnectionId, connectionId));
+  }
 
   // Aggregate stats via SQL — fast, no client-side processing
   const [aggregate] = await db
@@ -211,6 +215,39 @@ export async function generateDashboardStats(
     });
   }
 
+  // Multi-account broker connections & balances
+  const userConnections = await db
+    .select({
+      id: brokerConnections.id,
+      brokerId: brokerConnections.brokerId,
+      label: brokerConnections.label,
+      brokerClientId: brokerConnections.brokerClientId,
+      status: brokerConnections.status,
+      isActive: brokerConnections.isActive,
+      lastSyncedAt: brokerConnections.lastSyncedAt,
+    })
+    .from(brokerConnections)
+    .where(and(eq(brokerConnections.userId, userId), eq(brokerConnections.isActive, true)));
+
+  const balances = await db
+    .select()
+    .from(accountBalances)
+    .where(eq(accountBalances.userId, userId));
+
+  const totalCash = balances.reduce((sum, b) => sum + Number(b.availableCash ?? 0), 0);
+  const totalMarginUsed = balances.reduce((sum, b) => sum + Number(b.usedMargin ?? 0), 0);
+  const totalCollateral = balances.reduce((sum, b) => sum + Number(b.totalCollateral ?? 0), 0);
+
+  // Daily VaR 95% estimation
+  const dailyPnLs = pnlByDay.map((d) => Number(d.pnl)).sort((a, b) => a - b);
+  let dailyVaR95 = 0;
+  if (dailyPnLs.length >= 5) {
+    const varIdx = Math.floor(dailyPnLs.length * 0.05);
+    dailyVaR95 = Math.abs(Math.min(0, dailyPnLs[varIdx] ?? 0));
+  } else if (dailyPnLs.length > 0) {
+    dailyVaR95 = Math.abs(Math.min(0, ...dailyPnLs));
+  }
+
   return {
     totalTrades: Number(aggregate?.totalTrades ?? 0),
     closedTrades: closedCount,
@@ -230,6 +267,16 @@ export async function generateDashboardStats(
     emotionsBreakdown,
     pnlByDay: pnlByDay.map((d) => ({ date: d.date, pnl: Number(d.pnl) })),
     equityCurve,
+    activeConnectionId: connectionId ?? 'all',
+    connections: userConnections,
+    blendedPortfolio: {
+      totalCash,
+      totalMarginUsed,
+      totalCollateral,
+      totalEquity: totalCash + totalMarginUsed,
+      dailyVaR95,
+      accountsCount: userConnections.length,
+    },
   };
 }
 
