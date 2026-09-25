@@ -146,15 +146,15 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'calculators',
     badge: 'Step 7 of 9 · Mathematical Edge',
-    title: '18 Pro Financial Calculators',
-    subtitle: 'Risk sizing, Forex & Crypto pips, and Black-Scholes Greeks',
+    title: '19 Pro Financial Calculators',
+    subtitle: 'Prop firm buffers, risk sizing, Forex pips, and Black-Scholes Greeks',
     description:
-      'Calculate precise share sizes, Forex/Crypto pip values, Black-Scholes theoretical options values, ATR trailing stop losses, and multi-asset position averaging before placing any market order.',
+      'Calculate precise share sizes, FTMO/Topstep/Apex drawdown cushions, Forex/Crypto pip values, Black-Scholes options Greeks, and ATR volatility stop losses before placing any order.',
     keyFeatures: [
+      'Prop Firm Buffer & Sizer (FTMO, Topstep, Apex Trailing Thresholds)',
       'Forex & Crypto Pip Sizer with multi-currency conversion',
       'Position Size & Risk Calculator with contract lot multipliers',
       'Black-Scholes Options Pricing, Delta, Theta, Gamma, Vega',
-      'Break-even, Margin, CAGR, and Drawdown Recovery calculators',
     ],
     ctaText: 'Open Calculators',
     ctaHref: '/dashboard/calculators',

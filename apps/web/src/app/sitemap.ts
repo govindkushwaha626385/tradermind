@@ -102,6 +102,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.85,
     },
+    {
+      url: `${APP_URL}/share/trade/demo-sample`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
     ...blogUrls,
 
     // ── Auth pages ──────────────────────────────

@@ -46,23 +46,28 @@ export async function GET(
   { params }: { params: Promise<{ path?: string[] }> },
 ) {
   try {
-  const { user, error } = await authenticate(req);
-  if (error) return error;
+    const { path } = await params;
+    const [id, sub] = path ?? [];
 
-  const rl = await checkRateLimit(req, user.id);
-  if (rl) return rl;
+    // Public read-only trade share (unauthenticated, zero sensitive fields)
+    if (id === 'share' && sub) {
+      return handlePublicShare(sub);
+    }
 
-  const { path } = await params;
-  const [id, sub] = path ?? [];
+    const { user, error } = await authenticate(req);
+    if (error) return error;
 
-  // GET /trades  (no id)
-  if (!id) return handleList(req, user.id);
-  // GET /trades/export/csv
-  if (id === 'export' && sub === 'csv') return handleExportCsv(req, user.id);
-  // GET /trades/:id/replay
-  if (sub === 'replay') return handleReplay(req, user.id, id);
-  // GET /trades/:id
-  return handleDetail(user.id, id);
+    const rl = await checkRateLimit(req, user.id);
+    if (rl) return rl;
+
+    // GET /trades  (no id)
+    if (!id) return handleList(req, user.id);
+    // GET /trades/export/csv
+    if (id === 'export' && sub === 'csv') return handleExportCsv(req, user.id);
+    // GET /trades/:id/replay
+    if (sub === 'replay') return handleReplay(req, user.id, id);
+    // GET /trades/:id
+    return handleDetail(user.id, id);
   } catch (err: unknown) {
     console.error('[Trades GET] Unhandled error:', err);
     const message = err instanceof Error ? err.message : 'Internal server error';
@@ -502,3 +507,136 @@ async function handleReplay(req: NextRequest, userId: string, tradeId: string) {
 
   return ok(replayData);
 }
+
+// ── Public Trade Share (Unauthenticated & Sanitized) ────────
+async function handlePublicShare(tradeId: string) {
+  if (tradeId === 'demo-sample') {
+    return ok({
+      tradeId: 'demo-sample',
+      symbol: 'NVDA',
+      exchange: 'NASDAQ',
+      direction: 'LONG',
+      segment: 'EQUITY',
+      entryPrice: 124.50,
+      exitPrice: 132.80,
+      quantity: 150,
+      entryTime: new Date(Date.now() - 3600000 * 4).toISOString(),
+      exitTime: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+      mfe: 133.40,
+      mae: 123.80,
+      realizedPnl: 1245.00,
+      currency: 'USD',
+      rMultiple: 2.85,
+      holdingPeriodMinutes: 150,
+      status: 'CLOSED',
+      strategyName: 'Opening Range Breakout + High Volume Surge',
+      journalReflection: 'Disciplined patience on the initial 15-minute pullback. Entered on the confirmed VWAP reclaim with tight risk. Scaled out 50% at 2R target and trailed the stop to prior swing low.',
+      journalEmotions: ['CONFIDENT', 'DISCIPLINED'],
+      journalMistakes: [],
+      screenshotUrls: [],
+      journalRatings: {
+        execution: 5,
+        plan: 5,
+        psychology: 4,
+      },
+      planTarget: 133.00,
+      planStop: 121.60,
+      markers: [
+        {
+          label: 'ENTRY (LONG) @ 124.50',
+          price: 124.50,
+          timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
+          type: 'ENTRY',
+          color: '#3b82f6',
+        },
+        {
+          label: 'EXIT @ 132.80 (+2.85R)',
+          price: 132.80,
+          timestamp: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+          type: 'EXIT',
+          color: '#10b981',
+        },
+      ],
+    });
+  }
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tradeId);
+  if (!isUuid) return notFound('Trade not found or is private.');
+
+  const db = getDatabase();
+
+  const [trade] = await db
+    .select()
+    .from(journalTrades)
+    .where(eq(journalTrades.id, tradeId))
+    .limit(1);
+
+  if (!trade) return notFound('Trade not found or is private.');
+
+  const [planRows, ratingRows] = await Promise.all([
+    db.select().from(tradePlans).where(eq(tradePlans.journalTradeId, tradeId)).limit(1),
+    db.select().from(tradeRatings).where(eq(tradeRatings.journalTradeId, tradeId)).limit(1),
+  ]);
+
+  const plan = planRows[0];
+  const rating = ratingRows[0];
+
+  const markers: TradeReplayMarker[] = [
+    {
+      label: `ENTRY (${trade.direction}) @ ${Number(trade.avgEntryPrice).toFixed(2)}`,
+      price: Number(trade.avgEntryPrice),
+      timestamp: trade.openedAt.toISOString(),
+      type: 'ENTRY',
+      color: '#3b82f6',
+    },
+  ];
+
+  if (trade.avgExitPrice && trade.closedAt) {
+    const isProfitable = Number(trade.netPnl ?? 0) >= 0;
+    markers.push({
+      label: `EXIT @ ${Number(trade.avgExitPrice).toFixed(2)}`,
+      price: Number(trade.avgExitPrice),
+      timestamp: trade.closedAt.toISOString(),
+      type: 'EXIT',
+      color: isProfitable ? '#10b981' : '#ef4444',
+    });
+  }
+
+  const publicData = {
+    tradeId: trade.id,
+    symbol: trade.tradingsymbol,
+    exchange: trade.exchange,
+    direction: trade.direction,
+    segment: trade.assetClass,
+    entryPrice: Number(trade.avgEntryPrice),
+    exitPrice: trade.avgExitPrice ? Number(trade.avgExitPrice) : undefined,
+    quantity: trade.totalQuantity,
+    entryTime: trade.openedAt.toISOString(),
+    exitTime: trade.closedAt?.toISOString(),
+    mfe: trade.maxFavorableExcursion ? Number(trade.maxFavorableExcursion) : undefined,
+    mae: trade.maxAdverseExcursion ? Number(trade.maxAdverseExcursion) : undefined,
+    realizedPnl: trade.netPnl ? Number(trade.netPnl) : undefined,
+    currency: trade.currency ?? 'INR',
+    rMultiple: trade.rMultiple ? Number(trade.rMultiple) : undefined,
+    holdingPeriodMinutes: trade.holdingPeriodMinutes,
+    status: trade.status,
+    strategyName: trade.strategyId ? 'Verified Playbook Setup' : undefined,
+    journalReflection: trade.traderNotes ?? undefined,
+    journalEmotions: (trade.emotions as string[] | null) ?? undefined,
+    journalMistakes: (trade.mistakeTags as string[] | null) ?? undefined,
+    screenshotUrls: (trade.screenshotUrls as string[] | null) ?? [],
+    journalRatings: rating
+      ? {
+          execution: rating.executionRating ?? 0,
+          plan: rating.planRating ?? 0,
+          psychology: rating.psychologyRating ?? 0,
+        }
+      : undefined,
+    planTarget: plan?.plannedTakeProfit ? Number(plan.plannedTakeProfit) : undefined,
+    planStop: plan?.plannedStopLoss ? Number(plan.plannedStopLoss) : undefined,
+    markers,
+  };
+
+  return ok(publicData);
+}
+

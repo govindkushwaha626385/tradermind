@@ -33,6 +33,9 @@ import {
   Target,
   Shield,
   Award,
+  Play,
+  Compass,
+  Flag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -46,9 +49,12 @@ const PRIMARY_TABS = [
 
 const MORE_ITEMS = [
   { label: 'AI Copilot',  href: '/dashboard/ai-assistant', icon: Sparkles },
+  { label: 'Roadmap',     href: '/dashboard/roadmap',     icon: Compass },
+  { label: 'Replay',      href: '/dashboard/replay',      icon: Play },
   { label: 'Prop Firm',   href: '/dashboard/prop-firm',    icon: Award },
   { label: 'Strategies',  href: '/dashboard/strategies',   icon: Target },
   { label: 'Discipline',  href: '/dashboard/discipline',   icon: ClipboardCheck },
+  { label: 'Goals',       href: '/dashboard/goals',        icon: Flag },
   { label: 'Leaderboard', href: '/dashboard/leaderboard',  icon: Trophy },
   { label: 'Calculators', href: '/dashboard/calculators',  icon: Calculator },
   { label: 'Insights',    href: '/dashboard/insights',     icon: Brain },

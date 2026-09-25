@@ -20,10 +20,14 @@ import { CalculatorSuite } from '@/components/calculators/CalculatorSuite';
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trademind.app';
 
 export const metadata: Metadata = {
-  title: '17 Free Trading & Investing Calculators — Position Size, Margin, Kelly, CAGR & Options',
+  title: '19 Free Trading & Investing Calculators — Prop Firm Buffer, Position Size, Margin & Options',
   description:
-    '17 free high-precision financial calculators for active traders and investors. Calculate position sizing, F&O margin requirements, Kelly Criterion, CAGR growth, ATR volatility stop loss, Black-Scholes options Greeks, break-even price, and Indian tax brokerage.',
+    '19 free high-precision financial calculators for active traders and investors. Calculate prop firm drawdown buffers (FTMO, Topstep, Apex), position sizing, F&O margin requirements, Kelly Criterion, CAGR growth, ATR stop loss, Black-Scholes Greeks, and multi-asset brokerage.',
   keywords: [
+    'prop firm calculator',
+    'ftmo risk calculator',
+    'topstep drawdown calculator',
+    'apex trailing drawdown calculator',
     'trading calculator',
     'position size calculator',
     'cagr calculator',
@@ -48,9 +52,9 @@ export const metadata: Metadata = {
     canonical: `${APP_URL}/calculators`,
   },
   openGraph: {
-    title: `17 Free Trading & Investing Calculators — ${APP_NAME}`,
+    title: `19 Free Trading & Investing Calculators — ${APP_NAME}`,
     description:
-      'Professional-grade calculators for position sizing, F&O margins, Kelly Criterion, ATR stop loss, CAGR growth, Black-Scholes Greeks, options strategy payoffs, and Indian tax brokerage.',
+      'Professional-grade calculators for prop firm drawdown buffers, position sizing, F&O margins, Kelly Criterion, ATR stop loss, CAGR growth, Black-Scholes Greeks, options strategy payoffs, and brokerage fees.',
     url: `${APP_URL}/calculators`,
     type: 'website',
   },

@@ -43,7 +43,8 @@ export type CalculatorId =
   | 'kelly-criterion'
   | 'atr-stop-loss'
   | 'forex-pip'
-  | 'emi-loan';
+  | 'emi-loan'
+  | 'prop-firm-risk';
 
 export interface CalculatorMeta {
   id: CalculatorId;
@@ -207,6 +208,15 @@ export const CALCULATORS_CATALOG: CalculatorMeta[] = [
     category: 'INVESTING_GROWTH',
     badge: 'Loan Planning',
     iconName: 'Landmark',
+  },
+  {
+    id: 'prop-firm-risk',
+    name: 'Prop Firm Buffer & Sizer',
+    shortDesc: 'Calculate contract/lot sizing to never violate FTMO, Topstep, or Apex daily and trailing drawdown limits.',
+    category: 'RISK_SIZING',
+    badge: 'Prop Firm Ready',
+    iconName: 'Award',
+    popular: true,
   },
 ];
 

@@ -29,6 +29,7 @@ import {
   Gauge,
   Landmark,
   Globe2,
+  Award,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
@@ -57,6 +58,7 @@ import { KellyCriterionCalculator } from './KellyCriterionCalculator';
 import { AtrStopLossCalculator } from './AtrStopLossCalculator';
 import { ForexPipCalculator } from './ForexPipCalculator';
 import { EmiCalculator } from './EmiCalculator';
+import { PropFirmRiskCalculator } from './PropFirmRiskCalculator';
 
 const ICON_MAP: Record<string, any> = {
   Scale,
@@ -78,6 +80,7 @@ const ICON_MAP: Record<string, any> = {
   Gauge,
   Landmark,
   Globe2,
+  Award,
 };
 
 const CATEGORIES: Array<{ id: CalculatorCategory; label: string }> = [
@@ -318,6 +321,9 @@ export function CalculatorSuite({
           )}
           {activeCalcId === 'emi-loan' && (
             <EmiCalculator currency={currency} onCopySummary={handleCopySummary} />
+          )}
+          {activeCalcId === 'prop-firm-risk' && (
+            <PropFirmRiskCalculator currency={currency} onCopySummary={handleCopySummary} />
           )}
         </ErrorBoundary>
       </div>

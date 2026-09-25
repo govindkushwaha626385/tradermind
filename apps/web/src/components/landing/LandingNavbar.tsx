@@ -15,16 +15,29 @@ import Link from 'next/link';
 import { Menu, X, ArrowRight, TrendingUp } from 'lucide-react';
 import { APP_NAME } from '@trademind/shared';
 
-const NAV_ITEMS = [
-  { label: 'Live Sandbox', href: '/demo', badge: 'Instant' },
+const DESKTOP_NAV_ITEMS = [
+  { label: 'Live Demo', href: '/demo', isSpecial: true },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Brokers', href: '#brokers' },
+  { label: 'Academy', href: '/education' },
   { label: 'Calculators', href: '/calculators' },
-  { label: 'Leaderboard', href: '/leaderboard' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Reviews', href: '#testimonials' },
-  { label: 'Store', href: '/store' },
+];
+
+const ALL_NAV_ITEMS = [
+  { label: 'Live Sandbox Demo', href: '/demo', badge: 'Instant' },
+  { label: 'Features & Edge', href: '#features' },
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Supported Brokers', href: '#brokers' },
+  { label: 'Trader Academy & Roadmap', href: '/education' },
+  { label: '19 Pro Calculators', href: '/calculators' },
+  { label: 'Research Blog', href: '/blog' },
+  { label: 'Trader Leaderboard', href: '/leaderboard' },
+  { label: 'Pricing Plans', href: '#pricing' },
+  { label: 'Trader Reviews', href: '#testimonials' },
+  { label: 'Strategy Store', href: '/store' },
+  { label: 'Product Changelog', href: '/changelog' },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -42,7 +55,7 @@ export function LandingNavbar() {
 
   // Track active section with IntersectionObserver
   useEffect(() => {
-    const sectionIds = NAV_ITEMS.map((n) => n.href.replace('#', '')).filter((h) => !h.startsWith('/'));
+    const sectionIds = DESKTOP_NAV_ITEMS.map((n) => n.href.replace('#', '')).filter((h) => !h.startsWith('/'));
     const observers: IntersectionObserver[] = [];
 
     sectionIds.forEach((id) => {
@@ -91,27 +104,29 @@ export function LandingNavbar() {
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-1">
-          {NAV_ITEMS.map((item) => {
+        <div className="hidden lg:flex items-center gap-1">
+          {DESKTOP_NAV_ITEMS.map((item) => {
+            const isInternal = item.href.startsWith('/');
             const sectionId = item.href.replace('#', '');
             const isActive = activeSection === sectionId;
+            const linkClass = `relative px-3 py-1.5 text-sm transition-colors rounded-lg ${
+              item.isSpecial
+                ? 'text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 mr-1'
+                : isActive
+                ? 'text-white'
+                : 'text-white/60 hover:text-white'
+            }`;
+
+            if (isInternal) {
+              return (
+                <Link key={item.href} href={item.href} className={linkClass}>
+                  {item.label}
+                </Link>
+              );
+            }
+
             return (
-              <a
-                key={item.href}
-                href={item.href}
-                className="relative px-3 py-1.5 text-sm transition-colors rounded-lg"
-                style={{
-                  color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = '#fff')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = isActive
-                    ? '#fff'
-                    : 'rgba(255,255,255,0.55)')
-                }
-              >
+              <a key={item.href} href={item.href} className={linkClass}>
                 {item.label}
                 {isActive && (
                   <span
@@ -173,9 +188,9 @@ export function LandingNavbar() {
 
       {/* Mobile dropdown */}
       <div
-        className="md:hidden overflow-hidden transition-all duration-300"
+        className="md:hidden overflow-y-auto transition-all duration-300"
         style={{
-          maxHeight: mobileMenuOpen ? '600px' : '0',
+          maxHeight: mobileMenuOpen ? '850px' : '0',
           opacity: mobileMenuOpen ? 1 : 0,
           borderTop: mobileMenuOpen
             ? '1px solid rgba(255,255,255,0.06)'
@@ -183,17 +198,32 @@ export function LandingNavbar() {
         }}
       >
         <div className="px-4 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="block text-sm py-2.5 px-3 rounded-lg transition-colors"
-              style={{ color: 'rgba(255,255,255,0.65)' }}
-              onClick={closeMobile}
-            >
-              {item.label}
-            </a>
-          ))}
+          {ALL_NAV_ITEMS.map((item) => {
+            const isInternal = item.href.startsWith('/');
+            const linkClass = "block text-sm py-2.5 px-3 rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.04]";
+            if (isInternal) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={linkClass}
+                  onClick={closeMobile}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+            return (
+              <a
+                key={item.href}
+                href={item.href}
+                className={linkClass}
+                onClick={closeMobile}
+              >
+                {item.label}
+              </a>
+            );
+          })}
           <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.06] mt-3">
             <Link
               href="/login"

@@ -40,6 +40,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
 import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
 import { TradingWatchlistSidebar } from '@/components/chart/TradingWatchlistSidebar';
+import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { TradeReplayData } from '@trademind/shared';
 
@@ -408,30 +409,8 @@ export default function TradeReplayPage() {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     // Sync live terminal symbol if switching
-    const rawSym = (trade.tradingsymbol || '').toUpperCase().trim();
-    const ex = (trade.exchange || '').toUpperCase();
-    if (rawSym.includes(':')) {
-      setLiveSymbol(rawSym);
-    } else if (ex === 'NSE') {
-      setLiveSymbol(`NSE:${rawSym}`);
-    } else if (ex === 'BSE') {
-      setLiveSymbol(`BSE:${rawSym}`);
-    } else if (ex === 'MCX') {
-      setLiveSymbol(`MCX:${rawSym}`);
-    } else if (ex === 'NASDAQ') {
-      setLiveSymbol(`NASDAQ:${rawSym}`);
-    } else if (ex === 'NYSE') {
-      setLiveSymbol(`NYSE:${rawSym}`);
-    } else if (['FOREX', 'FX', 'OANDA'].includes(ex)) {
-      setLiveSymbol(`FX:${rawSym}`);
-    } else if (['BINANCE', 'DELTA', 'BYBIT', 'CRYPTO'].includes(ex)) {
-      const sym = rawSym.includes('USDT') || rawSym.includes('USD')
-        ? rawSym
-        : `${rawSym}USDT`;
-      setLiveSymbol(`BINANCE:${sym}`);
-    } else {
-      setLiveSymbol(rawSym);
-    }
+    const resolved = resolveTradingViewSymbol(trade.tradingsymbol, trade.exchange);
+    setLiveSymbol(resolved.cleanSymbol);
   }, []);
 
   const loadTrades = useCallback(async () => {
@@ -682,6 +661,7 @@ export default function TradeReplayPage() {
                     interval="5"
                     hideSideToolbar={false}
                     allowSymbolChange={true}
+                    onFallbackToCanvas={() => setChartView('canvas')}
                   />
                 </div>
                 <TradingWatchlistSidebar

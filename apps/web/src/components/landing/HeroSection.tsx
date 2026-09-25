@@ -37,25 +37,25 @@ const TRUST_SIGNALS = [
 
 const FLOATERS = [
   {
-    label: 'Today\'s P&L',
-    value: '+₹4,832',
-    sub: '↑ 2.4% vs yesterday',
+    label: 'Today\'s Realized P&L',
+    value: '+$3,480.00',
+    sub: '↑ 2.4% · Multi-Asset Sync',
     color: '#10b981',
     delay: '0.3s',
     position: { top: '12%', right: '-4%' },
   },
   {
-    label: 'Win Rate',
+    label: 'Execution Win Rate',
     value: '68.4%',
-    sub: '↑ 3.1% this month',
+    sub: '↑ +2.85R Profit Factor',
     color: '#7c3aed',
     delay: '0.5s',
     position: { bottom: '28%', right: '-6%' },
   },
   {
     label: 'Discipline Score',
-    value: '92 / 100',
-    sub: '🔥 14-day streak',
+    value: '94 / 100',
+    sub: '🔥 14-day rule streak',
     color: '#f59e0b',
     delay: '0.7s',
     position: { bottom: '10%', left: '-4%' },
@@ -296,9 +296,9 @@ export function HeroSection() {
               {/* Metric row */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Net P&L', value: '+₹18.2K', color: '#10b981' },
+                  { label: 'Net Realized P&L', value: '+$18.2K', color: '#10b981' },
                   { label: 'Win Rate', value: '68.4%', color: '#7c3aed' },
-                  { label: 'Trades', value: '142', color: '#60a5fa' },
+                  { label: 'Verified Trades', value: '142', color: '#60a5fa' },
                 ].map((m) => (
                   <div
                     key={m.label}

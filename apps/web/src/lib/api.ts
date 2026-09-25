@@ -294,6 +294,7 @@ export const api = {
   getTrades: (params?: Record<string, string | number | undefined>) =>
     request<unknown[]>('/trades', { params }),
   getTrade: (id: string) => request<unknown>(`/trades/${id}`),
+  getPublicSharedTrade: (id: string) => request<unknown>(`/trades/share/${id}`),
   exportTradesCsv: async (params?: Record<string, string | number | undefined>) => {
     const token = getAccessToken();
     let url = `${API_URL}${API_PREFIX}/trades/export/csv`;

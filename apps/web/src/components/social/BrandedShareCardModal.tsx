@@ -23,6 +23,7 @@ import {
   Twitter,
   Layers,
   Palette,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -66,8 +67,20 @@ export function BrandedShareCardModal({
   const [customQuote, setCustomQuote] = useState('');
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyLink = () => {
+    if (typeof window !== 'undefined' && trade) {
+      const id = (trade as any).tradeId || trade.id;
+      const url = `${window.location.origin}/share/trade/${id}`;
+      navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      toast.success('Public trade link copied!');
+      setTimeout(() => setLinkCopied(false), 2500);
+    }
+  };
 
   useEffect(() => {
     if (trade?.strategyName) {
@@ -556,6 +569,16 @@ export function BrandedShareCardModal({
             >
               <Download className="w-4 h-4" />
               <span>Download PNG</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border/80 bg-background hover:bg-accent text-foreground text-xs font-semibold transition-colors"
+              title="Copy read-only public trade link"
+            >
+              {linkCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
+              <span>{linkCopied ? 'Link Copied!' : 'Copy Link'}</span>
             </button>
           </div>
 

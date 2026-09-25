@@ -1399,6 +1399,15 @@ export default function PropFirmPage() {
                   Never risk more than <strong>{curSymbol}{(currentAccount.accountSize * 0.0075).toLocaleString()}</strong> (0.75%) on a single setup to stay mathematically immune to tilt.
                 </p>
               </div>
+
+              <Link
+                href="/dashboard/calculators?calc=prop-firm-risk"
+                className="w-full py-2.5 px-3 rounded-xl bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold flex items-center justify-center gap-2 transition-colors group"
+              >
+                <Calculator className="w-3.5 h-3.5 text-primary" />
+                <span>Open Contracts & Lots Sizing Calculator</span>
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+              </Link>
             </div>
           </div>
         </div>
