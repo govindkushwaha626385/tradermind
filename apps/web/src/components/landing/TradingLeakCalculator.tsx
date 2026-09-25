@@ -69,7 +69,7 @@ export function TradingLeakCalculator() {
   }, [tradesPerMonth, avgRiskPerTrade, winRate]);
 
   return (
-    <section className="relative py-20 lg:py-28 overflow-hidden bg-slate-950/80 border-y border-white/[0.06]">
+    <section id="leak-calculator" className="relative py-20 lg:py-28 overflow-hidden bg-slate-950/80 border-y border-white/[0.06]">
       {/* Background ambient lighting */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(124,58,237,0.08),transparent_60%)]" />
 
