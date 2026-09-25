@@ -27,6 +27,7 @@ import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useCurrency } from '@/hooks/useCurrency';
+import { WebhookSettingsCard } from '@/components/settings/WebhookSettingsCard';
 
 const SETTINGS_SECTIONS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -515,6 +516,10 @@ export default function SettingsPage() {
                 </div>
               ))}
               </div>
+
+              <div className="pt-6 border-t border-border/60">
+                <WebhookSettingsCard />
+              </div>
             </div>
           )}
 
@@ -641,20 +646,31 @@ export default function SettingsPage() {
           )}
 
           {activeSection === 'integrations' && (
-            <div className="space-y-5 max-w-lg">
-              <h2 className="text-lg font-semibold">Integrations</h2>
+            <div className="space-y-6 max-w-xl">
+              <div>
+                <h2 className="text-lg font-semibold">Integrations & Data Feeds</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Manage broker connections and real-time automated alerting webhooks
+                </p>
+              </div>
+
               <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Broker Connections</h3>
                 {brokerConnections.map((broker) => (
-                  <div key={broker.name} className="flex items-center justify-between p-3 rounded-xl bg-accent/50">
+                  <div key={broker.name} className="flex items-center justify-between p-3 rounded-xl bg-accent/50 border border-border/40">
                     <span className="text-sm font-medium">{broker.name}</span>
                     <span className={cn(
-                      'text-xs px-2 py-0.5 rounded font-medium',
-                      broker.connected ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground',
+                      'text-xs px-2.5 py-0.5 rounded-full font-medium',
+                      broker.connected ? 'bg-success/10 text-success border border-success/20' : 'bg-muted text-muted-foreground',
                     )}>
                       {broker.connected ? 'Connected' : 'Not Connected'}
                     </span>
                   </div>
                 ))}
+              </div>
+
+              <div className="pt-6 border-t border-border/60">
+                <WebhookSettingsCard />
               </div>
             </div>
           )}

@@ -802,6 +802,39 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+  getWebhookConfig: () =>
+    request<{
+      discordWebhookUrl: string;
+      telegramBotToken: string;
+      telegramChatId: string;
+      eodDebriefEnabled: boolean;
+      riskAlertsEnabled: boolean;
+    }>('/notifications/webhooks'),
+  saveWebhookConfig: (data: {
+    discordWebhookUrl?: string;
+    telegramBotToken?: string;
+    telegramChatId?: string;
+    eodDebriefEnabled?: boolean;
+    riskAlertsEnabled?: boolean;
+  }) =>
+    request<{ message: string; config: any }>('/notifications/webhooks/save', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  testWebhook: (data: {
+    platform: 'discord' | 'telegram';
+    discordWebhookUrl?: string;
+    telegramBotToken?: string;
+    telegramChatId?: string;
+  }) =>
+    request<{ message: string }>('/notifications/webhooks/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  dispatchEodDebrief: () =>
+    request<{ message: string; results: any }>('/notifications/webhooks/dispatch-debrief', {
+      method: 'POST',
+    }),
 
   // ── AI Services ───────────────────────────
   analyzeTradeAutopsy: (tradeId: string) =>

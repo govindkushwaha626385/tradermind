@@ -48,6 +48,7 @@ import { toast } from '@/components/Toast';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
+import { TradeAutopsyModal } from '@/components/ai/TradeAutopsyModal';
 import type { DashboardStats } from '@trademind/shared';
 
 interface TradeExecution {
@@ -114,10 +115,11 @@ export default function TradesPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Modals
-  const [selectedChartTrade, setSelectedChartTrade] = useState<any | null>(null);
-  const [compareTradeA, setCompareTradeA]           = useState<any | null>(null);
-  const [compareOpen, setCompareOpen]               = useState(false);
-  const [selectedShareTrade, setSelectedShareTrade] = useState<any | null>(null);
+  const [selectedChartTrade, setSelectedChartTrade]     = useState<any | null>(null);
+  const [selectedAutopsyTrade, setSelectedAutopsyTrade] = useState<any | null>(null);
+  const [compareTradeA, setCompareTradeA]               = useState<any | null>(null);
+  const [compareOpen, setCompareOpen]                   = useState(false);
+  const [selectedShareTrade, setSelectedShareTrade]     = useState<any | null>(null);
 
   useEffect(() => {
     document.title = viewMode === 'closed'
@@ -610,6 +612,15 @@ export default function TradesPage() {
                       {formatDate(trade.openedAt)}
                     </span>
                     <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAutopsyTrade(trade)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 text-xs font-semibold transition-colors"
+                        title="1-Click AI Trade Autopsy"
+                      >
+                        <Sparkles className="w-3 h-3 text-pink-400" />
+                        Autopsy
+                      </button>
                       <Link
                         href={`/dashboard/trades/${trade.id}/replay`}
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-xs font-semibold transition-colors"
@@ -787,6 +798,14 @@ export default function TradesPage() {
 
                         <td className="px-4 py-3.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="inline-flex items-center gap-1.5">
+                            <button
+                              onClick={() => setSelectedAutopsyTrade(trade)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/20 text-xs font-semibold transition-colors"
+                              title="1-Click AI Trade Autopsy & Execution Leak Diagnosis"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                              Autopsy
+                            </button>
                             <button
                               onClick={() => setSelectedChartTrade(trade)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-colors"
@@ -1096,6 +1115,16 @@ export default function TradesPage() {
           onPageChange={setPage}
         />
       )}
+
+      {/* ── AI Trade Autopsy Modal ────────────────────────────── */}
+      <TradeAutopsyModal
+        isOpen={!!selectedAutopsyTrade}
+        onClose={() => setSelectedAutopsyTrade(null)}
+        trade={selectedAutopsyTrade}
+        onOpenChart={() => {
+          setSelectedChartTrade(selectedAutopsyTrade);
+        }}
+      />
 
       {/* ── Quick Candlestick Chart Inspection Modal ─────────── */}
       <TradeCandleModal
