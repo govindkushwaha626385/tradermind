@@ -82,12 +82,26 @@ export async function GET(
   if (section === 'calendar' && sub && sub.match(/^\d{4}-\d{2}-\d{2}$/)) {
     const dateParam = sub;
     const db = getDatabase();
-    const startOfDay = new Date(`${dateParam}T00:00:00.000Z`);
-    const endOfDay = new Date(`${dateParam}T23:59:59.999Z`);
-    const [trades, premarket] = await Promise.all([
-      db.select().from(journalTrades).where(and(eq(journalTrades.userId, user.id), gte(journalTrades.openedAt, startOfDay), lte(journalTrades.openedAt, endOfDay))).orderBy(asc(journalTrades.openedAt)),
+    const baseMs = new Date(`${dateParam}T00:00:00.000Z`).getTime();
+    const queryStart = new Date(baseMs - 14 * 3600 * 1000);
+    const queryEnd = new Date(baseMs + 38 * 3600 * 1000);
+    const [rawTrades, premarket] = await Promise.all([
+      db.select().from(journalTrades).where(
+        and(
+          eq(journalTrades.userId, user.id),
+          gte(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`, queryStart),
+          lte(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`, queryEnd),
+        )
+      ).orderBy(asc(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`)),
       db.select().from(dailyPremarketPlans).where(and(eq(dailyPremarketPlans.userId, user.id), eq(dailyPremarketPlans.date, dateParam))).limit(1),
     ]);
+
+    const trades = rawTrades.filter((t) => {
+      const d = new Date(t.closedAt ?? t.openedAt);
+      const utcDate = d.toISOString().split('T')[0];
+      const istDate = new Date(d.getTime() + 5.5 * 3600 * 1000).toISOString().split('T')[0];
+      return utcDate === dateParam || istDate === dateParam;
+    });
     let grossPnl = 0, netPnl = 0, charges = 0, wins = 0, losses = 0;
     const tradeList = trades.map((t) => {
       grossPnl += t.grossPnl ?? 0; netPnl += t.netPnl ?? 0; charges += t.totalFeesAndTaxes ?? 0;
@@ -265,10 +279,30 @@ export async function GET(
       const conditions: any[] = [eq(journalTrades.userId, user.id), sql`${journalTrades.status} = 'CLOSED'`, sql`${journalTrades.closedAt} IS NOT NULL`];
       if (startDateParam) conditions.push(gte(journalTrades.closedAt, new Date(startDateParam)));
       if (endDateParam) conditions.push(lte(journalTrades.closedAt, new Date(endDateParam)));
-      const trades = await db.select({ id: journalTrades.id, closedAt: journalTrades.closedAt, netPnl: journalTrades.netPnl, tradingsymbol: journalTrades.tradingsymbol }).from(journalTrades).where(and(...conditions)).orderBy(asc(journalTrades.closedAt)).limit(limit);
+      const trades = await db.select({ id: journalTrades.id, closedAt: journalTrades.closedAt, openedAt: journalTrades.openedAt, netPnl: journalTrades.netPnl, tradingsymbol: journalTrades.tradingsymbol }).from(journalTrades).where(and(...conditions)).orderBy(asc(journalTrades.closedAt)).limit(limit);
       let cumulative = 0;
-      return trades.map((t) => { const pnl = Number(t.netPnl ?? 0); cumulative += pnl; return { date: t.closedAt ? t.closedAt.toISOString() : new Date().toISOString(), pnl, cumulativePnl: Math.round(cumulative * 100) / 100, symbol: t.tradingsymbol ?? undefined }; });
-    }, 180);
+      const points: any[] = [];
+      if (trades.length > 0) {
+        const firstD = new Date(trades[0]?.closedAt ?? trades[0]?.openedAt ?? Date.now());
+        const startLabel = firstD.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        points.push({ date: `${startLabel} (Open)`, pnl: 0, cumulativePnl: 0, trades: 0 });
+      }
+      trades.forEach((t, idx) => {
+        const pnl = Number(t.netPnl ?? 0);
+        cumulative += pnl;
+        const d = new Date(t.closedAt ?? t.openedAt ?? Date.now());
+        const dateLabel = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        const timeLabel = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+        points.push({
+          date: `${dateLabel} ${timeLabel}`,
+          pnl: Math.round(pnl * 100) / 100,
+          cumulativePnl: Math.round(cumulative * 100) / 100,
+          trades: idx + 1,
+          symbol: t.tradingsymbol ?? undefined,
+        });
+      });
+      return points;
+    }, 60);
     return ok(curve);
   }
 

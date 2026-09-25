@@ -191,7 +191,16 @@ async function handleDetail(userId: string, id: string) {
     .where(and(eq(journalTrades.id, id), eq(journalTrades.userId, userId)))
     .limit(1);
 
-  if (!trade) return notFound('Trade not found');
+  const constituentExecutions = await db
+    .select({
+      execution: tradeExecutions,
+      allocatedQuantity: tradeExecutionLinks.allocatedQuantity,
+      allocatedFees: tradeExecutionLinks.allocatedFees,
+    })
+    .from(tradeExecutionLinks)
+    .innerJoin(tradeExecutions, eq(tradeExecutions.id, tradeExecutionLinks.executionId))
+    .where(eq(tradeExecutionLinks.journalTradeId, trade.id))
+    .orderBy(tradeExecutions.executionTimestamp);
 
   return ok({
     id: trade.id,
@@ -207,15 +216,21 @@ async function handleDetail(userId: string, id: string) {
     totalCharges: trade.totalFeesAndTaxes,
     grossPnl: trade.grossPnl,
     netPnl: trade.netPnl,
-    currency: trade.currency,
+    currency: trade.currency ?? 'INR',
     status: trade.status,
     avgExitPrice: trade.avgExitPrice,
     closedAt: trade.closedAt,
     rMultiple: trade.rMultiple,
+    holdingPeriodMinutes: trade.holdingPeriodMinutes,
     notes: trade.traderNotes,
     emotions: trade.emotions,
     mistakes: trade.mistakeTags,
     journalLinks: [],
+    executions: constituentExecutions.map((e) => ({
+      ...e.execution,
+      allocatedQuantity: e.allocatedQuantity,
+      allocatedFees: e.allocatedFees,
+    })),
   });
 }
 

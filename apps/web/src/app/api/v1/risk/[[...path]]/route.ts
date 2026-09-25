@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase, riskProfiles, journalTrades } from '@trademind/database';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { authenticate } from '@/lib/server/auth';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { ok, notFound, apiError } from '@/lib/server/response';
@@ -64,14 +64,15 @@ export async function GET(
       const { start, end } = getISTDayBounds();
       const [profile] = await db.select().from(riskProfiles).where(eq(riskProfiles.userId, user.id)).limit(1);
       const todayTrades = await db
-        .select({ pnl: journalTrades.netPnl })
+        .select({ pnl: journalTrades.netPnl, closedAt: journalTrades.closedAt })
         .from(journalTrades)
         .where(and(
           eq(journalTrades.userId, user.id),
           eq(journalTrades.status, 'CLOSED'),
           gte(journalTrades.closedAt, start),
           lte(journalTrades.closedAt, end),
-        ));
+        ))
+        .orderBy(desc(journalTrades.closedAt));
       const todayPnl = todayTrades.reduce((s, t) => s + Number(t.pnl ?? 0), 0);
       const todayTradeCount = todayTrades.length;
       const recentTrades = await db
@@ -90,7 +91,27 @@ export async function GET(
       let killSwitchActive = profile?.killSwitchActive ?? false;
       let killSwitchReason = profile?.killSwitchReason ?? '';
 
-      if (killSwitchEnabled && !killSwitchActive) {
+      if (killSwitchActive && profile) {
+        const { shouldActivate } = evaluateKillSwitch(
+          profile as Record<string, unknown> | null,
+          todayPnl,
+          todayTradeCount,
+          consecutiveLosses,
+        );
+        if (!shouldActivate) {
+          killSwitchActive = false;
+          killSwitchReason = '';
+          await db.update(riskProfiles)
+            .set({ killSwitchActive: false, killSwitchReason: null, killSwitchTriggeredAt: null, updatedAt: new Date() })
+            .where(eq(riskProfiles.userId, user.id));
+        }
+      }
+
+      // If kill switch was reset/unlocked after the last trade of the day, do not automatically re-lock on past trades
+      const latestTradeTime = todayTrades[0]?.closedAt ? new Date(todayTrades[0].closedAt).getTime() : 0;
+      const isResetAfterTrades = !killSwitchActive && profile?.updatedAt && (new Date(profile.updatedAt).getTime() > latestTradeTime);
+
+      if (killSwitchEnabled && !killSwitchActive && !isResetAfterTrades) {
         const { shouldActivate, reason } = evaluateKillSwitch(
           profile as Record<string, unknown> | null,
           todayPnl,
@@ -99,7 +120,7 @@ export async function GET(
         );
         if (shouldActivate && profile) {
           await db.update(riskProfiles)
-            .set({ killSwitchActive: true, killSwitchTriggeredAt: new Date(), killSwitchReason: reason })
+            .set({ killSwitchActive: true, killSwitchTriggeredAt: new Date(), killSwitchReason: reason, updatedAt: new Date() })
             .where(eq(riskProfiles.userId, user.id));
           killSwitchActive = true;
           killSwitchReason = reason;

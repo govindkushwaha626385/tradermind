@@ -9,8 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getDatabase, journalTrades, tradingStrategies } from '@trademind/database';
-import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
+import { getDatabase, journalTrades, tradingStrategies, tradeExecutions, tradeExecutionLinks } from '@trademind/database';
+import { eq, and, desc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { authenticate } from '@/lib/server/auth';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { ok, notFound, parseBody, parseQuery } from '@/lib/server/response';
@@ -155,6 +155,42 @@ async function handleList(req: NextRequest, userId: string) {
   const slicedRows = hasMore ? rawRows.slice(0, limit) : rawRows;
   const data = slicedRows.map((r) => ({ ...r.trade, strategyName: r.strategyName ?? undefined }));
   const total = Number(totalResult[0]?.count ?? 0);
+
+  // Attach linked executions to each trade for transparent Buy -> Sell fill drilldown
+  const tradeIds = data.map((t) => t.id);
+  if (tradeIds.length > 0) {
+    try {
+      const links = await db
+        .select({
+          journalTradeId: tradeExecutionLinks.journalTradeId,
+          execution: tradeExecutions,
+          allocatedQuantity: tradeExecutionLinks.allocatedQuantity,
+          allocatedFees: tradeExecutionLinks.allocatedFees,
+        })
+        .from(tradeExecutionLinks)
+        .innerJoin(tradeExecutions, eq(tradeExecutions.id, tradeExecutionLinks.executionId))
+        .where(inArray(tradeExecutionLinks.journalTradeId, tradeIds))
+        .orderBy(tradeExecutions.executionTimestamp);
+
+      const execsByTradeId = new Map<string, any[]>();
+      for (const l of links) {
+        const list = execsByTradeId.get(l.journalTradeId) ?? [];
+        list.push({
+          ...l.execution,
+          allocatedQuantity: l.allocatedQuantity,
+          allocatedFees: l.allocatedFees,
+        });
+        execsByTradeId.set(l.journalTradeId, list);
+      }
+
+      for (const t of data) {
+        (t as any).executions = execsByTradeId.get(t.id) ?? [];
+      }
+    } catch {
+      // execution links optional fallback
+    }
+  }
+
   const lastItem = data[data.length - 1];
   const nextCursor = hasMore && lastItem?.openedAt
     ? Buffer.from(`${new Date(lastItem.openedAt).getTime()}::${lastItem.id}`).toString('base64')
@@ -215,5 +251,28 @@ async function handleDetail(userId: string, id: string) {
   const [trade] = await db.select().from(journalTrades)
     .where(and(eq(journalTrades.id, id), eq(journalTrades.userId, userId))).limit(1);
   if (!trade) return notFound('Journal trade not found');
-  return ok(trade);
+
+  let executions: any[] = [];
+  try {
+    const links = await db
+      .select({
+        execution: tradeExecutions,
+        allocatedQuantity: tradeExecutionLinks.allocatedQuantity,
+        allocatedFees: tradeExecutionLinks.allocatedFees,
+      })
+      .from(tradeExecutionLinks)
+      .innerJoin(tradeExecutions, eq(tradeExecutions.id, tradeExecutionLinks.executionId))
+      .where(eq(tradeExecutionLinks.journalTradeId, trade.id))
+      .orderBy(tradeExecutions.executionTimestamp);
+
+    executions = links.map((l) => ({
+      ...l.execution,
+      allocatedQuantity: l.allocatedQuantity,
+      allocatedFees: l.allocatedFees,
+    }));
+  } catch {
+    executions = [];
+  }
+
+  return ok({ ...trade, executions });
 }

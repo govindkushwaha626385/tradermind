@@ -5,7 +5,7 @@
 // ──────────────────────────────────────────────
 
 import { getDatabase, journalTrades } from '@trademind/database';
-import { and, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, lte, sql, asc } from 'drizzle-orm';
 import type { Emotion, BehavioralInsight } from '@trademind/shared';
 
 const EMOTIONS: Emotion[] = [
@@ -159,16 +159,57 @@ export async function generateDashboardStats(
   const grossWins = Number(aggregate?.grossWins ?? 0);
   const grossLosses = Number(aggregate?.grossLosses ?? 0);
 
+  // Chronological trade-by-trade equity curve for high-resolution intraday & swing analysis
+  const closedTradesList = await db
+    .select({
+      id: journalTrades.id,
+      tradingsymbol: journalTrades.tradingsymbol,
+      netPnl: journalTrades.netPnl,
+      closedAt: journalTrades.closedAt,
+      openedAt: journalTrades.openedAt,
+    })
+    .from(journalTrades)
+    .where(and(...conditions, eq(journalTrades.status, 'CLOSED')))
+    .orderBy(asc(sql`COALESCE(${journalTrades.closedAt}, ${journalTrades.openedAt})`));
+
   let cumPnl = 0;
-  const equityCurve = pnlByDay.map((d) => {
-    const pnl = Number(d.pnl);
-    cumPnl += pnl;
-    return {
-      date: d.date,
-      pnl,
-      cumulativePnl: Math.round(cumPnl * 100) / 100,
-    };
-  });
+  const equityCurve: Array<{ date: string; pnl: number; cumulativePnl: number; trades: number }> = [];
+
+  if (closedTradesList.length > 0) {
+    const firstDate = new Date(closedTradesList[0]?.closedAt ?? closedTradesList[0]?.openedAt ?? Date.now());
+    const startDateLabel = firstDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    equityCurve.push({
+      date: `${startDateLabel} (Open)`,
+      pnl: 0,
+      cumulativePnl: 0,
+      trades: 0,
+    });
+
+    closedTradesList.forEach((t, idx) => {
+      const pnl = Number(t.netPnl ?? 0);
+      cumPnl += pnl;
+      const d = new Date(t.closedAt ?? t.openedAt ?? Date.now());
+      const dateLabel = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+      const timeLabel = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      equityCurve.push({
+        date: `${dateLabel} ${timeLabel}`,
+        pnl: Math.round(pnl * 100) / 100,
+        cumulativePnl: Math.round(cumPnl * 100) / 100,
+        trades: idx + 1,
+      });
+    });
+  } else if (pnlByDay.length > 0) {
+    pnlByDay.forEach((d, idx) => {
+      const pnl = Number(d.pnl);
+      cumPnl += pnl;
+      equityCurve.push({
+        date: d.date,
+        pnl: Math.round(pnl * 100) / 100,
+        cumulativePnl: Math.round(cumPnl * 100) / 100,
+        trades: idx + 1,
+      });
+    });
+  }
 
   return {
     totalTrades: Number(aggregate?.totalTrades ?? 0),

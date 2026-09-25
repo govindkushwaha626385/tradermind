@@ -98,6 +98,11 @@ export interface EquityPoint {
 
 export interface DashboardStats {
   totalTrades: number;
+  closedTrades?: number;
+  openTrades?: number;
+  totalWins?: number;
+  totalLosses?: number;
+  totalGrossPnl?: number;
   winRate: number;
   profitFactor: number;
   totalNetPnl: number;

@@ -30,6 +30,7 @@ interface OpenTradeState {
   totalSellValue: number;
   accumulatedGrossPnl: number;
   accumulatedFees: number;
+  lastExecutionTimestamp: Date;
   executions: Array<{
     executionId: string;
     quantity: number;
@@ -204,6 +205,7 @@ function createNewTrade(fill: TradeExecution): OpenTradeState {
     totalSellValue: direction === 'SHORT' ? fill.quantity * fill.executionPrice : 0,
     accumulatedGrossPnl: 0,
     accumulatedFees: fill.totalCharges,
+    lastExecutionTimestamp: fill.executionTimestamp,
     executions: [{ executionId: fill.id, quantity: fill.quantity, fees: fill.totalCharges }],
   };
 
@@ -238,6 +240,7 @@ function scaleInTrade(state: OpenTradeState, fill: TradeExecution): void {
   }
 
   state.accumulatedFees += fill.totalCharges;
+  state.lastExecutionTimestamp = fill.executionTimestamp;
   state.executions.push({ executionId: fill.id, quantity: fill.quantity, fees: fill.totalCharges });
 }
 
@@ -263,6 +266,7 @@ function closeTrade(state: OpenTradeState, fill: TradeExecution): void {
 
   state.accumulatedGrossPnl += realizedPnl;
   state.accumulatedFees += fill.totalCharges;
+  state.lastExecutionTimestamp = fill.executionTimestamp;
   state.remainingQuantity = isLong
     ? state.remainingQuantity - closeQty
     : state.remainingQuantity + closeQty;
@@ -298,6 +302,16 @@ function buildTradeFromState(state: OpenTradeState, status: 'OPEN' | 'CLOSED' | 
   const grossPnl = state.accumulatedGrossPnl;
   const totalFees = state.accumulatedFees;
 
+  const isClosed = status === 'CLOSED' || status === 'PARTIALLY_CLOSED';
+  const closedAt = isClosed ? (state.lastExecutionTimestamp ?? new Date()) : undefined;
+
+  let holdingPeriodMinutes: number | undefined = undefined;
+  if (isClosed && state.trade.openedAt && closedAt) {
+    const startMs = new Date(state.trade.openedAt).getTime();
+    const endMs = new Date(closedAt).getTime();
+    holdingPeriodMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
+  }
+
   const trade: Partial<JournalTrade> = {
     ...state.trade,
     id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
@@ -308,16 +322,13 @@ function buildTradeFromState(state: OpenTradeState, status: 'OPEN' | 'CLOSED' | 
       ? -Math.round(totalFees * 100) / 100
       : Math.round((grossPnl - totalFees) * 100) / 100,
     openQuantity: status === 'OPEN' || status === 'PARTIALLY_CLOSED' ? Math.abs(state.remainingQuantity) : 0,
-    holdingPeriodMinutes: (status === 'CLOSED' || status === 'PARTIALLY_CLOSED') && state.trade.openedAt
-      ? Math.round((new Date().getTime() - new Date(state.trade.openedAt).getTime()) / 60000)
-      : undefined,
+    closedAt,
+    holdingPeriodMinutes,
   };
 
-  if (status === 'CLOSED' || status === 'PARTIALLY_CLOSED') {
-    trade.closedAt = new Date();
-
+  if (isClosed) {
     // Calculate avg exit price
-    const isLong = state.remainingQuantity <= 0;
+    const isLong = state.trade.direction === 'LONG';
     if (isLong && state.totalSellQty > 0) {
       trade.avgExitPrice = Math.round((state.totalSellValue / state.totalSellQty) * 100) / 100;
     } else if (!isLong && state.totalBuyQty > 0) {

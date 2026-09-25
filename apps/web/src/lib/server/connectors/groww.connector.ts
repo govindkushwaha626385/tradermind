@@ -40,6 +40,33 @@ function mapSegment(segment: string): 'EQUITY' | 'FNO' {
 }
 
 /**
+ * Safely parse Groww trade timestamps into UTC Date objects.
+ * Groww API returns exchange timestamps in Indian Standard Time (IST = UTC+05:30).
+ * If parsed naively with new Date("YYYY-MM-DD HH:mm:ss"), it is interpreted as UTC,
+ * causing executions to be pushed 5.5 hours into the future.
+ */
+export function parseGrowwTimestamp(timeInput: any): Date {
+  if (!timeInput) return new Date();
+  if (timeInput instanceof Date) return timeInput;
+  if (typeof timeInput === 'number') {
+    return new Date(timeInput > 1e11 ? timeInput : timeInput * 1000);
+  }
+  const str = String(timeInput).trim();
+  if (!str) return new Date();
+  if (/^\d+$/.test(str)) {
+    const n = Number(str);
+    return new Date(n > 1e11 ? n : n * 1000);
+  }
+  // If string already has a timezone offset (+05:30, -04:00, Z)
+  if (/[+-]\d{2}:?\d{2}$|Z$/i.test(str)) {
+    return new Date(str);
+  }
+  // Treat standard date-time string as IST (+05:30)
+  const normalized = str.replace(' ', 'T');
+  return new Date(`${normalized}+05:30`);
+}
+
+/**
  * Map Groww product types → TradeMind product types
  */
 function mapProduct(product: string): 'MIS' | 'CNC' | 'NRML' | 'MARGIN' {
@@ -244,7 +271,7 @@ export class GrowwConnector implements IBrokerConnector {
               if (quantity <= 0 || price <= 0) continue;
 
               // Apply date filter on trade timestamp
-              const tradeTime = new Date(trade.trade_date_time ?? trade.created_at ?? order.exchange_time ?? order.created_at ?? new Date());
+              const tradeTime = parseGrowwTimestamp(trade.trade_date_time ?? trade.created_at ?? order.exchange_time ?? order.created_at);
               if (startDate && tradeTime < startDate) continue;
               if (endDate && tradeTime > endDate) continue;
 
@@ -279,7 +306,7 @@ export class GrowwConnector implements IBrokerConnector {
             const quantity = order.filled_quantity ?? order.quantity ?? 0;
             const price = order.average_fill_price ?? order.price ?? 0;
             if (quantity > 0 && price > 0) {
-              const tradeTime = new Date(order.exchange_time ?? order.created_at ?? new Date());
+              const tradeTime = parseGrowwTimestamp(order.exchange_time ?? order.created_at);
               if ((!startDate || tradeTime >= startDate) && (!endDate || tradeTime <= endDate)) {
                 executions.push({
                   id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -444,7 +471,7 @@ export function parseGrowwCsv(csvContent: string, userId: string, brokerConnecti
     const [symbol, type, qtyStr, priceStr, dateStr, orderId] = cols;
     const quantity = parseInt(qtyStr ?? '0', 10);
     const executionPrice = parseFloat(priceStr ?? '0');
-    const executionTimestamp = new Date(dateStr ?? new Date());
+    const executionTimestamp = parseGrowwTimestamp(dateStr);
 
     if (!quantity || !executionPrice) continue;
 

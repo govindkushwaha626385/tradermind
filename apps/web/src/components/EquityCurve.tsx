@@ -153,7 +153,7 @@ export const EquityCurve = memo(function EquityCurve({
     return data.map((pt, idx) => {
       if (pt.cumulativePnl > peak) peak = pt.cumulativePnl;
       const drawdownAmount = pt.cumulativePnl - peak;
-      const drawdownPct = peak > 0 ? (drawdownAmount / peak) * 100 : (drawdownAmount < 0 ? -100 : 0);
+      const drawdownPct = peak > 0 ? (drawdownAmount / peak) * 100 : 0;
       const prevPnl = idx > 0 ? data[idx - 1]!.cumulativePnl : 0;
       const dailyChange = pt.cumulativePnl - prevPnl;
 
@@ -222,7 +222,11 @@ export const EquityCurve = memo(function EquityCurve({
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
             <span className="text-muted-foreground text-[11px]">Max DD:</span>
             <strong className="text-rose-400 font-mono font-bold">
-              {summaryMetrics.maxDrawdownPct.toFixed(1)}%
+              {summaryMetrics.maxDrawdownPct !== 0
+                ? `${summaryMetrics.maxDrawdownPct.toFixed(1)}%`
+                : summaryMetrics.maxDrawdownAmount < 0
+                  ? formatCurrency(summaryMetrics.maxDrawdownAmount, currency)
+                  : '0.0%'}
             </strong>
           </div>
         </div>
@@ -331,7 +335,8 @@ export const EquityCurve = memo(function EquityCurve({
             {/* Zero Baseline Breakeven Line */}
             <ReferenceLine
               y={0}
-              stroke="rgba(255, 255, 255, 0.25)"
+              stroke="hsl(var(--muted-foreground))"
+              strokeOpacity={0.4}
               strokeDasharray="4 4"
               strokeWidth={1.5}
             />
@@ -358,8 +363,8 @@ export const EquityCurve = memo(function EquityCurve({
                   stroke={isOverallPositive ? '#10b981' : '#ef4444'}
                   strokeWidth={2.5}
                   fill="url(#equityGradient)"
-                  dot={false}
-                  activeDot={{ r: 5, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
+                  dot={{ r: 3.5, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: 'hsl(var(--background))', strokeWidth: 1.5 }}
+                  activeDot={{ r: 6, fill: isOverallPositive ? '#10b981' : '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
                 />
               </>
             ) : (
@@ -370,8 +375,8 @@ export const EquityCurve = memo(function EquityCurve({
                 stroke="#ef4444"
                 strokeWidth={2}
                 fill="url(#drawdownGradient)"
-                dot={false}
-                activeDot={{ r: 5, fill: '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
+                dot={{ r: 3.5, fill: '#ef4444', stroke: 'hsl(var(--background))', strokeWidth: 1.5 }}
+                activeDot={{ r: 6, fill: '#ef4444', stroke: '#ffffff', strokeWidth: 2 }}
               />
             )}
           </AreaChart>

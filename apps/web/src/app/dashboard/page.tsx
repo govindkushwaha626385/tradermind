@@ -158,7 +158,7 @@ export default function DashboardPage() {
       const [statsRes, insightsRes, recentRes] = await Promise.allSettled([
         api.getDashboard(startDate ? { startDate } : {}),
         api.getBehavioralInsights(startDate ? { startDate } : {}),
-        api.getTrades({ limit: 8, sortBy: 'exitTime', sortDir: 'desc', startDate }),
+        api.getJournalTrades({ limit: 8, sortBy: 'openedAt', sortOrder: 'desc', ...(startDate ? { startDate } : {}) }),
       ]);
 
       if (statsRes.status === 'fulfilled' && statsRes.value?.success) {
@@ -192,8 +192,16 @@ export default function DashboardPage() {
         setInsights(Array.isArray(raw) ? raw.slice(0, 3) : []);
       }
       if (recentRes.status === 'fulfilled' && recentRes.value?.success) {
-        const raw = (recentRes.value.data as any)?.trades ?? recentRes.value.data ?? [];
-        setRecentTrades(Array.isArray(raw) ? raw.slice(0, 8) : []);
+        const raw = (recentRes.value.data as any) ?? [];
+        const items = Array.isArray(raw) ? raw : (raw as any)?.trades ?? [];
+        const mapped: TradeSummary[] = items.slice(0, 8).map((t: any) => ({
+          symbol: t.tradingsymbol || t.symbol || 'Unknown',
+          direction: t.direction || 'LONG',
+          pnl: Number(t.netPnl ?? t.grossPnl ?? 0),
+          date: t.closedAt || t.openedAt || t.executionTimestamp || new Date().toISOString(),
+          status: t.status || 'CLOSED',
+        }));
+        setRecentTrades(mapped);
       }
 
       setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
@@ -215,10 +223,14 @@ export default function DashboardPage() {
   // Build sparkline from equity curve (last 7 points)
   const sparkline7 = equityData.slice(-7).map((p) => ({ value: (p as any).cumulativePnl ?? (p as any).pnl ?? 0 }));
 
-  const netPnl       = stats?.totalNetPnl ?? 0;
-  const winRate      = stats?.winRate ?? 0;
-  const profitFactor = stats?.profitFactor ?? 0;
-  const totalTrades  = stats?.totalTrades ?? 0;
+  const netPnl         = stats?.totalNetPnl ?? 0;
+  const rawWinRate     = stats?.winRate ?? 0;
+  const winRatePercent = rawWinRate <= 1 && rawWinRate > 0 ? rawWinRate * 100 : rawWinRate;
+  const profitFactor   = stats?.profitFactor ?? 0;
+  const totalTrades    = stats?.totalTrades ?? 0;
+  const closedTrades   = stats?.closedTrades ?? totalTrades;
+  const totalWins      = stats?.totalWins ?? 0;
+  const totalLosses    = stats?.totalLosses ?? 0;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -330,15 +342,15 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Win Rate"
-            value={`${winRate.toFixed(1)}%`}
+            value={`${winRatePercent.toFixed(1)}%`}
             icon={Trophy}
             gradient="from-blue-500 to-violet-500"
-            subValue={`of ${totalTrades} trades`}
+            subValue={`${totalWins}W / ${totalLosses}L of ${closedTrades} closed`}
             sparkline={sparkline7}
           />
           <StatCard
             label="Profit Factor"
-            value={profitFactor > 0 ? profitFactor.toFixed(2) : '—'}
+            value={isFinite(profitFactor) && profitFactor > 0 ? profitFactor.toFixed(2) : profitFactor === Infinity ? '∞' : '—'}
             icon={Activity}
             gradient="from-violet-500 to-purple-500"
             subValue={profitFactor >= 1.5 ? 'Excellent' : profitFactor >= 1 ? 'Good' : 'Needs work'}
@@ -348,7 +360,7 @@ export default function DashboardPage() {
             value={totalTrades.toString()}
             icon={BarChart3}
             gradient="from-orange-500 to-amber-500"
-            subValue={`Avg R:R ${(stats?.avgRRatio ?? 0).toFixed(2)}`}
+            subValue={stats?.openTrades ? `${closedTrades} closed · ${stats.openTrades} open` : `Avg R:R ${(stats?.avgRRatio ?? 0).toFixed(2)}`}
           />
         </div>
       )}
@@ -518,14 +530,19 @@ export default function DashboardPage() {
             <div className="space-y-1">
               {recentTrades.map((trade, i) => {
                 const isProfit = trade.pnl >= 0;
+                const d = new Date(trade.date);
+                const dateLabel = isNaN(d.getTime())
+                  ? 'Recent'
+                  : `${d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
                 return (
-                  <div
+                  <Link
                     key={i}
-                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors group"
+                    href="/dashboard/trades"
+                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors group cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className={cn(
-                        'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0',
+                        'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105',
                         isProfit ? 'bg-profit-subtle' : 'bg-loss-subtle',
                       )}>
                         {isProfit
@@ -534,21 +551,30 @@ export default function DashboardPage() {
                         }
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate leading-tight">
+                        <p className="text-xs font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
                           {trade.symbol}
                         </p>
-                        <p className="text-[0.625rem] text-muted-foreground leading-tight">
-                          {trade.direction} · {new Date(trade.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                        <p className="text-[0.625rem] text-muted-foreground flex items-center gap-1.5 leading-tight mt-0.5">
+                          <span className={cn(
+                            'px-1 py-0.2 rounded text-[0.6rem] font-bold tracking-wider uppercase',
+                            trade.direction === 'LONG' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500',
+                          )}>
+                            {trade.direction}
+                          </span>
+                          <span>{dateLabel}</span>
                         </p>
                       </div>
                     </div>
-                    <span className={cn(
-                      'text-xs font-bold font-mono flex-shrink-0',
-                      isProfit ? 'text-profit' : 'text-loss',
-                    )}>
-                      {isProfit ? '+' : ''}{format(trade.pnl)}
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className={cn(
+                        'text-xs font-bold font-mono',
+                        isProfit ? 'text-profit' : 'text-loss',
+                      )}>
+                        {isProfit ? '+' : ''}{format(trade.pnl)}
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </Link>
                 );
               })}
             </div>

@@ -266,9 +266,26 @@ export async function syncBrokerConnection(
         ]),
       );
 
+      const matchedExistingIds = new Set<string>();
+
       for (const trade of clusteringResult.trades) {
+        const tradeOpenedMs = new Date(trade.openedAt ?? new Date()).getTime();
         const key = `${trade.tradingsymbol}:${trade.direction}:${new Date(trade.openedAt ?? new Date()).toISOString()}`;
-        const existing = existingByKey.get(key);
+        let existing = existingByKey.get(key);
+
+        if (!existing) {
+          // Fuzzy match within 15 seconds on same symbol & direction to prevent duplicate trades
+          existing = existingTrades.find((t) =>
+            !matchedExistingIds.has(t.id) &&
+            t.tradingsymbol === trade.tradingsymbol &&
+            t.direction === trade.direction &&
+            Math.abs(new Date(t.openedAt).getTime() - tradeOpenedMs) <= 15000,
+          );
+        }
+
+        if (existing) {
+          matchedExistingIds.add(existing.id);
+        }
         const values = {
           userId: trade.userId!,
           brokerConnectionId: connectionId,

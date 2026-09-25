@@ -131,7 +131,7 @@ export default function AnalyticsPage() {
     try {
       const [statsRes, tradesRes] = await Promise.allSettled([
         api.getAdvancedAnalytics({ timeframe }),
-        api.getTrades({ limit: 100, sortBy: 'exitTime', sortDir: 'desc' }),
+        api.getJournalTrades({ limit: 100, sortBy: 'openedAt', sortOrder: 'desc' }),
       ]);
 
       if (statsRes.status === 'fulfilled' && statsRes.value.success && statsRes.value.data) {
@@ -139,25 +139,27 @@ export default function AnalyticsPage() {
       }
 
       if (tradesRes.status === 'fulfilled' && tradesRes.value.success) {
-        const rawTrades = (tradesRes.value.data as any)?.trades ?? tradesRes.value.data ?? [];
-        if (Array.isArray(rawTrades)) {
-          const mapped: ExcursionTradePoint[] = rawTrades.map((t: any) => {
-            const pnl = Number(t.netPnl ?? 0);
+        const rawTrades = (tradesRes.value.data as any) ?? [];
+        const items = Array.isArray(rawTrades) ? rawTrades : (rawTrades as any)?.trades ?? [];
+        if (Array.isArray(items)) {
+          const mapped: ExcursionTradePoint[] = items.map((t: any) => {
+            const pnl = Number(t.netPnl ?? t.grossPnl ?? 0);
             const isWin = pnl >= 0;
-            const entry = Number(t.executionPrice ?? t.avgEntryPrice ?? 100);
-            const delta = Math.abs(pnl) || entry * 0.02;
-            const mfe = t.mfe != null ? Number(t.mfe) : isWin ? delta * 1.3 : delta * 0.4;
-            const mae = t.mae != null ? Number(t.mae) : isWin ? delta * 0.35 : delta * 1.1;
+            const entry = Number(t.avgEntryPrice ?? t.entryPrice ?? 100);
+            const exit = t.avgExitPrice ? Number(t.avgExitPrice) : t.exitPrice ? Number(t.exitPrice) : undefined;
+            const delta = Math.abs(pnl) || (entry > 0 ? entry * 0.02 : 100);
+            const mfe = t.maxFavorableExcursion != null ? Number(t.maxFavorableExcursion) : t.mfe != null ? Number(t.mfe) : isWin ? delta * 1.3 : delta * 0.4;
+            const mae = t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion) : t.mae != null ? Number(t.mae) : isWin ? delta * 0.35 : delta * 1.1;
             return {
               id: t.id,
               symbol: t.tradingsymbol || t.symbol || 'TRADE',
-              direction: t.transactionType === 'SELL' ? 'SHORT' : 'LONG',
+              direction: (t.direction || 'LONG') as 'LONG' | 'SHORT',
               realizedPnl: pnl,
               entryPrice: entry,
-              exitPrice: t.fillPrice ? Number(t.fillPrice) : undefined,
+              exitPrice: exit,
               mfe,
               mae,
-              openedAt: t.executionTimestamp || t.openedAt || new Date().toISOString(),
+              openedAt: t.openedAt || t.closedAt || new Date().toISOString(),
             };
           });
           setExcursionTrades(mapped);
@@ -199,9 +201,12 @@ export default function AnalyticsPage() {
         default: startDate = undefined;
       }
 
+      const endOfToday = new Date(now);
+      endOfToday.setHours(23, 59, 59, 999);
+
       const [statsRes, calendarRes, journalTradesRes] = await Promise.all([
-        api.getDashboard(startDate ? { startDate, endDate: now.toISOString() } : {}),
-        api.getCalendar(startDate ? { startDate, endDate: now.toISOString() } : {}),
+        api.getDashboard(startDate ? { startDate, endDate: endOfToday.toISOString() } : {}),
+        api.getCalendar(startDate ? { startDate, endDate: endOfToday.toISOString() } : {}),
         api.getJournalTrades({ limit: 100 }).catch(() => ({ success: false, data: [] })),
       ]);
 
@@ -218,15 +223,21 @@ export default function AnalyticsPage() {
           return;
         }
 
+        const closedCount = s.closedTrades ?? s.totalTrades;
+        const winRateDisplay = s.winRate <= 1 ? s.winRate * 100 : s.winRate;
+        const profitFactorDisplay = isFinite(s.profitFactor) && s.profitFactor > 0
+          ? s.profitFactor.toFixed(2)
+          : s.profitFactor === Infinity ? '∞' : '0.00';
+
         setMetrics([
-          { label: 'Total Trades',  value: String(s.totalTrades),                     change: '—', positive: true },
-          { label: 'Win Rate',      value: `${(s.winRate * 100).toFixed(1)}%`,          change: '—', positive: s.winRate >= 0.5 },
-          { label: 'Profit Factor', value: s.profitFactor.toFixed(2),                  change: '—', positive: s.profitFactor >= 1.5 },
+          { label: 'Total Trades',  value: String(s.totalTrades),                     change: `${s.totalWins ?? 0}W / ${s.totalLosses ?? 0}L`, positive: true },
+          { label: 'Win Rate',      value: `${winRateDisplay.toFixed(1)}%`,           change: `${closedCount} closed`, positive: winRateDisplay >= 50 },
+          { label: 'Profit Factor', value: profitFactorDisplay,                       change: '—', positive: s.profitFactor >= 1.5 },
           { label: 'Avg R:R',       value: s.avgRRatio.toFixed(2),                     change: '—', positive: s.avgRRatio >= 1.5 },
-          { label: 'Max Drawdown',  value: s.maxDrawdown ? formatCurrency(s.maxDrawdown) : '—', change: '—', positive: false },
+          { label: 'Max Drawdown',  value: s.maxDrawdown ? format(s.maxDrawdown) : '—', change: '—', positive: false },
           { label: 'Sharpe Ratio',  value: s.sharpeRatio ? s.sharpeRatio.toFixed(2) : '—', change: '—', positive: true },
-          { label: 'Best Trade',    value: formatCurrency(s.bestTrade),                change: '—', positive: true },
-          { label: 'Worst Trade',   value: formatCurrency(s.worstTrade),               change: '—', positive: false },
+          { label: 'Best Trade',    value: format(s.bestTrade),                       change: '—', positive: true },
+          { label: 'Worst Trade',   value: format(s.worstTrade),                      change: '—', positive: false },
         ]);
 
         // Build weekly data from pnlByDay
