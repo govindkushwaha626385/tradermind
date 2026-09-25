@@ -256,6 +256,7 @@ export const api = {
 
   // Brokers
   getBrokers: () => request<unknown[]>('/brokers'),
+  getBrokerHealthCheck: () => request<any>('/brokers/health-check'),
   connectBroker: (data: Record<string, unknown>) =>
     request<unknown>('/brokers/connect', {
       method: 'POST',
@@ -786,6 +787,8 @@ export const api = {
     request<{ message: string }>(`/admin/executions/${id}`, { method: 'DELETE' }),
 
   // ── Admin: Broker Connections & Super-Controls ──────────
+  getAdminBrokerHealthMonitor: () =>
+    request<any>('/admin/broker-health-monitor'),
   getAdminBrokers: (params?: Record<string, string | number | undefined>) =>
     request<{ data: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       '/admin/brokers',

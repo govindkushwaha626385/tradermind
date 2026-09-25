@@ -41,6 +41,7 @@ const connectSchema = z.object({
 const CSV_BROKERS = new Set(['sahi', 'lemonn']);
 
 import { processBrokerWebhook } from '@/lib/server/services/webhook-ingestion.service';
+import { checkUserBrokerTokenHealth } from '@/lib/server/services/premarket-broker-health.service';
 
 export async function GET(
   req: NextRequest,
@@ -85,6 +86,7 @@ export async function GET(
 
     if (!seg1) return handleList(user.id);
     if (seg1 === 'funds') return handleFunds(user.id);
+    if (seg1 === 'health-check') return handleHealthCheck(user.id);
     if (seg2 === 'status') return handleStatus(user.id, seg1);
     return apiError('Route not found', 404);
   } catch (err: unknown) {
@@ -481,3 +483,14 @@ async function handleCsvImport(req: NextRequest, userId: string) {
     return apiError(err.message ?? 'CSV import failed', 500);
   }
 }
+
+async function handleHealthCheck(userId: string) {
+  try {
+    const report = await checkUserBrokerTokenHealth(userId);
+    return ok(report);
+  } catch (err: any) {
+    console.error('[Broker Health Check Error]', err);
+    return apiError('Failed to audit broker token health', 500);
+  }
+}
+

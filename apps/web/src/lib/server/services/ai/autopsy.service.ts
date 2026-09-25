@@ -9,6 +9,11 @@
 import { getDatabase, journalTrades, tradeExecutions, tradeRatings, tradePlans, aiCache } from '@trademind/database';
 import { eq, and } from 'drizzle-orm';
 import { aiGenerate, isAiConfigured } from './ai.client';
+import {
+  detectAlgorithmicExecutionTags,
+  type AlgorithmicExecutionTag,
+  type AlgorithmicExecutionAnalysis,
+} from '../algorithmic-tags.service';
 
 export interface TradeAutopsyResult {
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -23,6 +28,8 @@ export interface TradeAutopsyResult {
   overallScore: number;         // 0–100
   provider: string;
   cached: boolean;
+  algorithmicTags?: AlgorithmicExecutionTag[];
+  algorithmicMetrics?: AlgorithmicExecutionAnalysis['metrics'];
 }
 
 const GRADE_MAP: Record<string, { label: string; color: string }> = {
@@ -138,6 +145,11 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
 
   if (cached && new Date(cached.expiresAt) > now) {
     const result = cached.result as TradeAutopsyResult;
+    if (!result.algorithmicTags) {
+      const algoAnalysis = await detectAlgorithmicExecutionTags(tradeId, userId);
+      result.algorithmicTags = algoAnalysis.tags;
+      result.algorithmicMetrics = algoAnalysis.metrics;
+    }
     return { ...result, cached: true };
   }
 
@@ -179,7 +191,7 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
 
   if (!trade) return null;
 
-  // ── 3. Enrich with ratings & plan ─────────────
+  // ── 3. Enrich with ratings, plan & Algorithmic Execution Audit ────
   const [rating] = await db
     .select()
     .from(tradeRatings)
@@ -192,10 +204,13 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
     .where(eq(tradePlans.journalTradeId, tradeId))
     .limit(1);
 
+  // Algorithmic execution tag detection from tick/execution data
+  const algoAnalysis = await detectAlgorithmicExecutionTags(tradeId, userId);
+
   // ── 4. Check AI availability ────────────────────
   if (!isAiConfigured()) {
     // Build a deterministic rule-based fallback (no LLM needed)
-    return buildRuleBasedAutopsy(trade, rating, plan);
+    return buildRuleBasedAutopsy(trade, rating, plan, algoAnalysis);
   }
 
   const currency = trade.currency || 'USD';
@@ -211,12 +226,12 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
 
   if (!aiResult) {
     // AI failed — fall back to rule-based
-    return buildRuleBasedAutopsy(trade, rating, plan);
+    return buildRuleBasedAutopsy(trade, rating, plan, algoAnalysis);
   }
 
   const parsed = parseAutopsyResponse(aiResult.text);
   if (!parsed || parsed.overallScore === undefined) {
-    return buildRuleBasedAutopsy(trade, rating, plan);
+    return buildRuleBasedAutopsy(trade, rating, plan, algoAnalysis);
   }
 
   const grade = scoreToGrade(parsed.overallScore);
@@ -235,6 +250,8 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
     overallScore: parsed.overallScore,
     provider: aiResult.provider,
     cached: false,
+    algorithmicTags: algoAnalysis.tags,
+    algorithmicMetrics: algoAnalysis.metrics,
   };
 
   // ── 6. Persist to cache (24h TTL) ────────────
@@ -265,7 +282,12 @@ export async function runTradeAutopsy(userId: string, tradeId: string): Promise<
 
 // ── Rule-based fallback (no LLM cost) ────────────
 
-function buildRuleBasedAutopsy(trade: any, rating: any, plan: any): TradeAutopsyResult {
+function buildRuleBasedAutopsy(
+  trade: any,
+  rating: any,
+  plan: any,
+  algoAnalysis?: AlgorithmicExecutionAnalysis,
+): TradeAutopsyResult {
   let score = 50;
   const advice: string[] = [];
   const strengths: string[] = [];
@@ -275,6 +297,24 @@ function buildRuleBasedAutopsy(trade: any, rating: any, plan: any): TradeAutopsy
   const rMultiple = trade.rMultiple ? Number(trade.rMultiple) : null;
   const emotions = (trade.emotions ?? []) as string[];
   const mistakes = (trade.mistakeTags ?? []) as string[];
+
+  // Algorithmic execution tags impact
+  if (algoAnalysis?.tags) {
+    for (const tag of algoAnalysis.tags) {
+      if (tag.severity === 'CRITICAL') {
+        score -= 15;
+        issues.push(`${tag.title}: ${tag.description}`);
+        advice.push(tag.recommendation);
+      } else if (tag.severity === 'WARNING') {
+        score -= 8;
+        issues.push(`${tag.title}: ${tag.description}`);
+        advice.push(tag.recommendation);
+      } else if (tag.severity === 'POSITIVE') {
+        score += 15;
+        strengths.push(tag.description);
+      }
+    }
+  }
 
   // P&L impact
   if (pnl > 0) { score += 10; strengths.push('Profitable trade — capital preserved and grown.'); }
@@ -350,5 +390,7 @@ function buildRuleBasedAutopsy(trade: any, rating: any, plan: any): TradeAutopsy
     overallScore: finalScore,
     provider: 'rule-based',
     cached: false,
+    algorithmicTags: algoAnalysis?.tags ?? [],
+    algorithmicMetrics: algoAnalysis?.metrics,
   };
 }

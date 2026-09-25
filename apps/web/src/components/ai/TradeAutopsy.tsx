@@ -24,6 +24,17 @@ import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 
+export interface AlgorithmicExecutionTag {
+  id: 'CHASING_ENTRY' | 'HESITATION_LATE_EXIT' | 'REVENGE_SIZING' | 'OPTIMAL_TRAILING_EXIT' | 'PREMATURE_CUT';
+  title: string;
+  category: 'ENTRY_ERROR' | 'EXIT_ERROR' | 'SIZING_ERROR' | 'EXCELLENT_EXECUTION';
+  severity: 'CRITICAL' | 'WARNING' | 'POSITIVE';
+  description: string;
+  metric: string;
+  recommendation: string;
+  badgeColor: string;
+}
+
 interface TradeAutopsyResult {
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
   gradeLabel: string;
@@ -37,6 +48,15 @@ interface TradeAutopsyResult {
   overallScore: number;
   provider: string;
   cached: boolean;
+  algorithmicTags?: AlgorithmicExecutionTag[];
+  algorithmicMetrics?: {
+    mfeCapturedPercent: number | null;
+    baselineSizeRatio: number | null;
+    isPrecededByLoss: boolean;
+    entryExtensionRatio: number | null;
+    rMultiple: number | null;
+    holdingPeriodMinutes: number | null;
+  };
 }
 
 interface TradeAutopsyProps {
@@ -232,6 +252,53 @@ export function TradeAutopsy({ tradeId, symbol, className }: TradeAutopsyProps) 
         </div>
         <p className="text-sm text-foreground leading-relaxed">{result.executionLeak}</p>
       </div>
+
+      {/* Algorithmic Execution Tags (Tick-Audited) */}
+      {result.algorithmicTags && result.algorithmicTags.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              Algorithmic Execution Tags (Tick-Audited)
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium">
+              Zero Manual Entry
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {result.algorithmicTags.map((tag) => (
+              <div
+                key={tag.id}
+                className="p-3 rounded-xl border bg-background/50 flex flex-col justify-between space-y-1.5 text-xs transition-all hover:bg-background/80"
+                style={{ borderColor: tag.badgeColor + '40' }}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <span
+                    className="font-bold flex items-center gap-1.5 text-[11px]"
+                    style={{ color: tag.badgeColor }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: tag.badgeColor }}
+                    />
+                    {tag.title}
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-foreground font-semibold">
+                    {tag.metric}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {tag.description}
+                </p>
+                <div className="text-[10px] text-zinc-300 italic pt-1 border-t border-border/20">
+                  💡 {tag.recommendation}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Strengths */}
       {result.strengths.length > 0 && (

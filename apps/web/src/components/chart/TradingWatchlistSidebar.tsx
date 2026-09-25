@@ -44,6 +44,8 @@ export const WATCHLIST_PRESETS: WatchlistItem[] = [
   { symbol: 'NSE:RELIANCE', name: 'RELIANCE', category: 'indian', exchange: 'NSE', price: '3,014.20', change: '+1.15%', isPositive: true },
   { symbol: 'NSE:HDFCBANK', name: 'HDFC BANK', category: 'indian', exchange: 'NSE', price: '1,642.50', change: '-0.30%', isPositive: false },
   { symbol: 'NSE:TCS', name: 'TCS', category: 'indian', exchange: 'NSE', price: '4,285.00', change: '+0.80%', isPositive: true },
+  { symbol: 'BSE:POLICYBZR', name: 'POLICY BAZAAR', category: 'indian', exchange: 'BSE', price: '1,885.20', change: '+2.40%', isPositive: true },
+  { symbol: 'BSE:ZOMATO', name: 'ZOMATO', category: 'indian', exchange: 'BSE', price: '274.60', change: '+1.85%', isPositive: true },
 
   // 🪙 Crypto 24/7
   { symbol: 'BINANCE:ETHUSDT', name: 'ETH / USDT', category: 'crypto', exchange: 'Binance', price: '$2,684.60', change: '+0.11%', isPositive: true },

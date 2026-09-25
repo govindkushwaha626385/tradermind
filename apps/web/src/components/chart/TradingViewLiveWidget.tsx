@@ -29,6 +29,7 @@ export interface TradingViewLiveWidgetProps {
   hideSideToolbar?: boolean;
   allowSymbolChange?: boolean;
   onFallbackToCanvas?: () => void;
+  onSymbolChange?: (symbol: string) => void;
 }
 
 // ── Local Error Boundary to catch any 3rd-party widget crashes ───────────────
@@ -78,6 +79,7 @@ function TradingViewLiveWidgetInternal({
   hideSideToolbar,
   allowSymbolChange = true,
   onFallbackToCanvas,
+  onSymbolChange,
 }: TradingViewLiveWidgetProps) {
   // CRITICAL: chartMountRef is an isolated DOM leaf with ZERO React children.
   // This guarantees that script innerHTML mutations never collide with React's reconciler.
@@ -85,14 +87,28 @@ function TradingViewLiveWidgetInternal({
   const containerIdRef = useRef<string>(`tv_chart_container_${Math.random().toString(36).substring(2, 9)}`);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [symbolOverride, setSymbolOverride] = useState<string | null>(null);
+
+  // Reset override if parent symbol prop changes
+  useEffect(() => {
+    setSymbolOverride(null);
+  }, [symbol]);
 
   // Smart responsive toolbar: on mobile (<640px), auto-hide side toolbar to give maximum room for candles
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 640 : false;
   const effectiveHideToolbar = hideSideToolbar !== undefined ? hideSideToolbar : isMobile;
 
   // Normalize symbol to valid TradingView ticker
-  const resolved = resolveTradingViewSymbol(symbol);
+  const activeSymbol = symbolOverride || symbol;
+  const resolved = resolveTradingViewSymbol(activeSymbol);
   const targetSymbol = resolved.cleanSymbol;
+
+  const handleSwitchExchange = (newSym: string) => {
+    setSymbolOverride(newSym);
+    if (onSymbolChange) {
+      onSymbolChange(newSym);
+    }
+  };
 
   const initWidget = () => {
     const containerId = containerIdRef.current;
@@ -211,19 +227,58 @@ function TradingViewLiveWidgetInternal({
 
   return (
     <div className="relative w-full h-full flex flex-col">
-      {/* Underlying asset notice if derivative */}
-      {resolved.isDerivative && (
-        <div className="px-3.5 py-1.5 bg-violet-950/40 border-b border-violet-800/40 flex items-center justify-between text-[11px] text-violet-300">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-violet-400" />
-            <span>
-              Derivative: <strong className="text-white font-mono">{symbol}</strong> · Charting Underlying Asset:{' '}
-              <strong className="text-violet-200 font-mono">{targetSymbol}</strong>
+      {/* Underlying asset notice or Canvas fallback recommendation */}
+      {(resolved.isDerivative || resolved.suggestCanvasFallback || resolved.bseAlternative) && (
+        <div className="px-3.5 py-1.5 bg-zinc-900/90 border-b border-border/40 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-300">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Layers className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="truncate">
+              Feed: <strong className="text-white font-mono">{targetSymbol}</strong>
+              {resolved.isDerivative && (
+                <span className="text-zinc-400"> (Underlying of {activeSymbol})</span>
+              )}
             </span>
           </div>
-          <span className="text-[10px] text-violet-400 hidden sm:inline">
-            Live Stream Feed
-          </span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {targetSymbol.startsWith('NSE:') && resolved.bseAlternative && (
+              <button
+                type="button"
+                onClick={() => handleSwitchExchange(resolved.bseAlternative!)}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-medium transition-colors cursor-pointer"
+                title="If TradingView shows 'symbol only available on TradingView' for NSE, switch to BSE feed which is embed-enabled"
+              >
+                <span>🔄 Try {resolved.bseAlternative}</span>
+              </button>
+            )}
+
+            {targetSymbol.startsWith('BSE:') && resolved.underlying && (
+              <button
+                type="button"
+                onClick={() => handleSwitchExchange(`NSE:${resolved.underlying}`)}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[10px] font-medium transition-colors cursor-pointer"
+                title="Switch to NSE feed"
+              >
+                <span>🔄 Try NSE feed</span>
+              </button>
+            )}
+
+            {onFallbackToCanvas && (
+              <button
+                type="button"
+                onClick={onFallbackToCanvas}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-semibold transition-colors cursor-pointer"
+                title="Switch to TradeMind Native Canvas Chart with 100% data availability, trade markers, and zero external blocks"
+              >
+                <LineChart className="w-3 h-3" />
+                <span>Switch to Native Canvas Replay</span>
+              </button>
+            )}
+            <span className="text-[10px] text-emerald-400 font-mono hidden sm:inline-flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Stream
+            </span>
+          </div>
         </div>
       )}
 
@@ -260,7 +315,7 @@ function TradingViewLiveWidgetInternal({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -273,6 +328,20 @@ function TradingViewLiveWidgetInternal({
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry Connection</span>
               </button>
+
+              {resolved.bseAlternative && targetSymbol.startsWith('NSE:') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSwitchExchange(resolved.bseAlternative!);
+                    setIsInitializing(true);
+                    setLoadError(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 text-xs font-semibold border border-amber-500/40 transition-colors cursor-pointer"
+                >
+                  <span>Try BSE Feed ({resolved.bseAlternative})</span>
+                </button>
+              )}
 
               {onFallbackToCanvas && (
                 <button

@@ -45,6 +45,7 @@ import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import { SkeletonStatRow } from '@/components/ui/SkeletonCard';
 import { AdminBroadcastModal } from '@/components/admin/AdminBroadcastModal';
+import { AdminLiveHealthMonitor } from '@/components/admin/AdminLiveHealthMonitor';
 
 interface AdminConfig {
   key: string;
@@ -85,7 +86,7 @@ const CONFIG_CATEGORIES = [
   { id: 'revenue', label: 'Revenue KPIs', icon: TrendingUp },
   { id: 'health', label: 'System Vitals', icon: Activity },
   { id: 'feature_flags', label: 'Feature Flags', icon: Flag },
-  { id: 'live_sync', label: 'Live Sync Stream', icon: RefreshCw },
+  { id: 'live_sync', label: 'Live Broker Sync & Health', icon: RefreshCw },
   { id: 'fees', label: 'Fees & Brokerage', icon: DollarSign },
   { id: 'general', label: 'General', icon: Settings },
   { id: 'broker', label: 'Broker Settings', icon: Plug },
@@ -94,7 +95,7 @@ const CONFIG_CATEGORIES = [
 ];
 
 export default function AdminPage() {
-  const [activeCategory, setActiveCategory] = useState('revenue');
+  const [activeCategory, setActiveCategory] = useState<string>('revenue');
   const [configs, setConfigs] = useState<AdminConfig[]>([]);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
@@ -639,24 +640,27 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* TAB 4: LIVE SYNC STREAM */}
+          {/* TAB 4: LIVE SYNC STREAM & BROKER HEALTH MONITOR */}
           {activeCategory === 'live_sync' && (
-            <div className="glass-card rounded-2xl p-5 space-y-4 animate-fade-in">
-              <div className="flex items-center justify-between border-b border-border/50 pb-3">
-                <div>
-                  <h2 className="font-bold text-lg flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5 text-indigo-500 animate-spin" />
-                    Live Broker Sync Monitor
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Real-time feed updating every 5 seconds.
-                  </p>
+            <div className="space-y-6 animate-fade-in">
+              <AdminLiveHealthMonitor />
+
+              <div className="glass-card rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                  <div>
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-indigo-500 animate-spin" />
+                      Live Broker Sync Stream (Raw Logs)
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Low-level broker execution import telemetry updating every 5 seconds.
+                    </p>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                    Live Polling (5s)
+                  </span>
                 </div>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  Live Polling (5s)
-                </span>
-              </div>
 
               {liveSyncLogs.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">
@@ -708,7 +712,8 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
           {/* STANDARD CONFIG TABS (fees, general, broker, rate_limits, ai) */}
           {!['revenue', 'health', 'feature_flags', 'live_sync'].includes(activeCategory) && (

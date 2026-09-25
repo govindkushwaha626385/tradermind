@@ -17,7 +17,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -32,6 +32,7 @@ import {
   ArrowDownRight,
   BarChart2,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -550,6 +551,60 @@ export default function TradeReplayPage() {
     ],
   } : null;
 
+  const algorithmicTags = useMemo(() => {
+    if (!selectedTrade) return [];
+    const rawTrade = selectedTrade as any;
+    const tags: Array<{ id: string; title: string; desc: string; color: string }> = [];
+    const entry = Number(selectedTrade.avgEntryPrice || 0);
+    const exit = selectedTrade.avgExitPrice ? Number(selectedTrade.avgExitPrice) : null;
+    const isLong = selectedTrade.direction === 'LONG';
+    const mfe = selectedTrade.maxFavorableExcursion != null ? Number(selectedTrade.maxFavorableExcursion) : null;
+    const netPnl = Number(selectedTrade.netPnl || 0);
+
+    if (mfe !== null && entry > 0 && exit !== null) {
+      const peakMove = isLong ? mfe - entry : entry - mfe;
+      const actualMove = isLong ? exit - entry : entry - exit;
+      if (peakMove > 0) {
+        const ratio = actualMove / peakMove;
+        if (peakMove / entry >= 0.01 && ratio < 0.30) {
+          tags.push({
+            id: 'HESITATION_LATE_EXIT',
+            title: 'Hesitation / Late Exit',
+            desc: `Captured only ${Math.max(0, Math.round(ratio * 100))}% of peak MFE excursion`,
+            color: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+          });
+        } else if (ratio >= 0.80 && netPnl > 0) {
+          tags.push({
+            id: 'OPTIMAL_TRAILING_EXIT',
+            title: 'Optimal Trailing Exit',
+            desc: `Captured ${Math.round(ratio * 100)}% of peak favorable move`,
+            color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+          });
+        }
+      }
+    }
+
+    if (rawTrade.mistakeTags?.includes('CHASING') || rawTrade.emotions?.includes('FOMO')) {
+      tags.push({
+        id: 'CHASING_ENTRY',
+        title: 'Chasing Entry (>2x ATR)',
+        desc: 'Extended entry beyond planned base level',
+        color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
+      });
+    }
+
+    if (rawTrade.emotions?.includes('REVENGE')) {
+      tags.push({
+        id: 'REVENGE_SIZING',
+        title: 'Revenge Sizing (>1.5x Baseline)',
+        desc: 'Elevated sizing immediately after a loss',
+        color: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+      });
+    }
+
+    return tags;
+  }, [selectedTrade]);
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl">
       <PageHeader
@@ -715,6 +770,28 @@ export default function TradeReplayPage() {
                         Watchlist
                       </button>
                     </div>
+
+                    {/* BSE Alternative if TV NSE is restricted */}
+                    {resolved.bseAlternative && liveSymbol !== resolved.bseAlternative && (
+                      <button
+                        type="button"
+                        onClick={() => setLiveSymbol(resolved.bseAlternative!)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[11px] font-medium transition-colors shrink-0 cursor-pointer"
+                        title="Try BSE feed if TradingView restricts NSE embedding"
+                      >
+                        <span>Try {resolved.bseAlternative}</span>
+                      </button>
+                    )}
+
+                    {/* Quick Switch to TradeMind Native Canvas (100% chart availability) */}
+                    <button
+                      type="button"
+                      onClick={() => setChartView('canvas')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-[11px] font-medium transition-colors shrink-0 cursor-pointer"
+                      title="Switch to TradeMind Native Canvas Replay with 100% chart availability and trade markers"
+                    >
+                      <span>Canvas Replay</span>
+                    </button>
 
                     {isWatchlistOverride && (
                       <button
@@ -913,6 +990,30 @@ export default function TradeReplayPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Algorithmic Execution Flaws & Discipline Tags */}
+              {algorithmicTags.length > 0 && (
+                <div className="pt-3 border-t border-border/40 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                    <span className="flex items-center gap-1 text-violet-400">
+                      <Sparkles className="w-3 h-3" />
+                      Algorithmic Execution Tags
+                    </span>
+                    <span className="text-[9px] font-mono uppercase text-zinc-500">Auto-Detected</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {algorithmicTags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className={cn('px-2.5 py-1.5 rounded-lg border text-xs flex flex-col gap-0.5', tag.color)}
+                      >
+                        <span className="font-bold text-[11px]">{tag.title}</span>
+                        <span className="text-[10px] opacity-80">{tag.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Live price during replay */}

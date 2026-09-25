@@ -66,6 +66,7 @@ import { AccountPortfolioSelector } from '@/components/dashboard/AccountPortfoli
 import { QuickSyncButton } from '@/components/QuickSyncButton';
 import { TiltProtectionModal } from '@/components/discipline/TiltProtectionModal';
 import { BehavioralInterventionBanner } from '@/components/discipline/BehavioralInterventionBanner';
+import { BrokerPreMarketAlertBanner } from '@/components/brokers/BrokerPreMarketAlertBanner';
 import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
 import { PlatformTourModal } from '@/components/education/PlatformTourModal';
 import { KeyboardShortcutsModal } from '@/components/education/KeyboardShortcutsModal';
@@ -730,6 +731,9 @@ export default function DashboardLayout({
 
         {/* ── Real-Time Behavioral Risk Intervention Banner & Audio Chime ──── */}
         <BehavioralInterventionBanner />
+
+        {/* ── Pre-Market Broker Token Health Alert & Invalidation Warning ──── */}
+        <BrokerPreMarketAlertBanner />
 
         {/* ── Impersonation Warning Banner ──── */}
         {impersonatedUser && (
