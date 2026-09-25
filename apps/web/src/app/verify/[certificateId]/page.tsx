@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!certificate) {
     return {
-      title: 'Certificate Verification Not Found — TradeMind',
+      title: 'Certificate Verification Not Found',
       description: 'The requested prop firm certificate identifier or verification hash could not be validated.',
       robots: { index: false, follow: true },
     };
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     maximumFractionDigits: 0,
   }).format(certificate.accountSize);
 
-  const title = `Verified: ${certificate.firmName} ${formattedSize} (${certificate.phase}) — ${certificate.maskedTraderName} | TradeMind`;
+  const title = `Verified: ${certificate.firmName} ${formattedSize} (${certificate.phase}) — ${certificate.maskedTraderName}`;
   const description = `Cryptographically authenticated Prop Firm Credential for ${certificate.firmName} ${formattedSize}. Consistency Score: ${certificate.consistencyScore}/100 · Drawdown: ${certificate.actualDrawdownPct}% (Compliant) · 100% Rule Adherence.`;
 
   return {

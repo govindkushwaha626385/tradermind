@@ -25,7 +25,7 @@ import {
 import { VerifySearchForm } from './VerifySearchForm';
 
 export const metadata: Metadata = {
-  title: 'Verify Prop Firm Certificate & Consistency Score — TradeMind',
+  title: 'Verify Prop Firm Certificate & Consistency Score',
   description:
     'Public verification portal for prop firm recruiters and funding evaluators. Verify trader certificates, consistency scores, max trailing drawdown, and tamper-evident SHA-256 audit signatures.',
   keywords: [
