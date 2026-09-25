@@ -168,6 +168,18 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         shortcut: 'E',
       },
       {
+        id: 'act-eod-digest',
+        title: 'Post-Market EOD Trade Digest (Realized P&L, Discipline & Mistakes)',
+        category: 'Actions',
+        icon: TrendingUp,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-eod-digest'));
+        },
+        badge: 'Post-Market',
+        shortcut: 'Shift+D',
+      },
+      {
         id: 'act-premarket',
         title: 'Launch Pre-Market Execution Routine Checklist',
         category: 'Actions',

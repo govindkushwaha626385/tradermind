@@ -18,9 +18,11 @@ import {
   Layers,
   Shield,
   Zap,
+  Calculator,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BlogPost } from '@/lib/blog-data';
+import { InlineRiskCalculatorWidget } from './InlineRiskCalculatorWidget';
 
 interface BlogIndexClientProps {
   posts: BlogPost[];
@@ -38,6 +40,7 @@ const CATEGORIES = [
 export function BlogIndexClient({ posts }: BlogIndexClientProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
@@ -94,8 +97,26 @@ export function BlogIndexClient({ posts }: BlogIndexClientProps) {
               </button>
             );
           })}
+
+          {/* Interactive Calculator Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setShowCalculator(!showCalculator)}
+            className={cn(
+              'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0',
+              showCalculator
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/30',
+            )}
+          >
+            <Calculator className="w-3.5 h-3.5" />
+            <span>{showCalculator ? 'Hide Calculator' : 'Risk & R:R Calculator'}</span>
+          </button>
         </div>
       </div>
+
+      {/* Embedded Quick Calculator (if opened) */}
+      {showCalculator && <InlineRiskCalculatorWidget />}
 
       {filteredPosts.length === 0 ? (
         <div className="text-center py-16 rounded-3xl border border-border/60 bg-card/40 space-y-3">

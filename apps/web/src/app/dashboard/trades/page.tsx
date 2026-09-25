@@ -49,6 +49,7 @@ import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
 import { TradeAutopsyModal } from '@/components/ai/TradeAutopsyModal';
+import { TradeExportModal } from '@/components/trades/TradeExportModal';
 import type { DashboardStats } from '@trademind/shared';
 
 interface TradeExecution {
@@ -120,6 +121,7 @@ export default function TradesPage() {
   const [compareTradeA, setCompareTradeA]               = useState<any | null>(null);
   const [compareOpen, setCompareOpen]                   = useState(false);
   const [selectedShareTrade, setSelectedShareTrade]     = useState<any | null>(null);
+  const [exportModalOpen, setExportModalOpen]           = useState(false);
 
   useEffect(() => {
     document.title = viewMode === 'closed'
@@ -283,14 +285,12 @@ export default function TradesPage() {
               Compare Studio
             </button>
             <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border hover:bg-accent text-sm font-medium transition-colors"
+              onClick={() => setExportModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border hover:bg-accent text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+              title="Export filtered trades into CSV, TSV, or JSON"
             >
-              {exporting
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Download className="w-4 h-4" />}
-              Export CSV
+              <Download className="w-4 h-4 text-violet-400" />
+              <span>Export Ledger</span>
             </button>
           </div>
         }
@@ -1160,6 +1160,13 @@ export default function TradesPage() {
           }}
         />
       )}
+
+      {/* ── Institutional Trade Ledger Export Modal ── */}
+      <TradeExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        defaultScope={viewMode === 'closed' ? 'journal' : 'executions'}
+      />
     </div>
   );
 }

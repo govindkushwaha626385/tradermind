@@ -60,6 +60,7 @@ import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { TradeCandleModal } from '@/components/chart/TradeCandleModal';
 import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
+import { TradeExportModal } from '@/components/trades/TradeExportModal';
 
 interface TradeJournalEntry {
   id: string;
@@ -121,6 +122,7 @@ export default function JournalPage() {
   const [compareTradeA, setCompareTradeA] = useState<TradeJournalEntry | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
   const [selectedShareTrade, setSelectedShareTrade] = useState<TradeJournalEntry | null>(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -461,17 +463,12 @@ export default function JournalPage() {
               Compare Studio
             </button>
             <button
-              onClick={handleExportCsv}
-              disabled={exporting || trades.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-background hover:bg-accent text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-              title="Export Journal to CSV"
+              onClick={() => setExportModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-background hover:bg-accent text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+              title="Export Journal to CSV, TSV, or JSON"
             >
-              {exporting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              Export CSV
+              <Download className="w-4 h-4 text-violet-400" />
+              <span>Export Ledger</span>
             </button>
           </div>
         }
@@ -1703,6 +1700,13 @@ export default function JournalPage() {
           }}
         />
       )}
+
+      {/* ── Institutional Trade Ledger Export Modal ── */}
+      <TradeExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        defaultScope="journal"
+      />
     </div>
   );
 }

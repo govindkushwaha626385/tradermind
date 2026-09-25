@@ -17,45 +17,35 @@ export function QuickSyncButton({ className }: { className?: string }) {
     setTooltip('Syncing live broker data...');
 
     try {
-      // 1. Fetch user's active broker connections
-      const res = await api.getBrokers();
-      const connections = (res.data || []) as any[];
-      const activeConns = connections.filter((c: any) => c.status === 'ACTIVE' || c.isActive);
+      // Execute parallel server-side synchronization across all active broker connections
+      const syncRes = await api.syncAllBrokers();
 
-      if (activeConns.length === 0) {
-        setTooltip('No active broker connected');
-        setStatus('idle');
-        setSyncing(false);
-        return;
-      }
+      if (syncRes.success && syncRes.data) {
+        const { totalConnections, successfulSyncs, totalImportedCount, totalTradesCreated } = syncRes.data;
 
-      let totalImported = 0;
-      let totalTrades = 0;
-
-      // 2. Sync all active connections
-      for (const conn of activeConns) {
-        try {
-          const syncRes = await api.syncBroker(conn.id);
-          const syncData = syncRes?.data as any;
-          if (syncRes.success && syncData) {
-            totalImported += syncData.executionsImported || 0;
-            totalTrades += syncData.tradesCreated || 0;
-          }
-        } catch (e) {
-          console.warn(`[Sync] Failed to sync broker ${conn.brokerId}:`, e);
+        if (totalConnections === 0) {
+          setTooltip('No active broker connected');
+          setStatus('idle');
+          setSyncing(false);
+          return;
         }
-      }
 
-      setStatus('success');
-      setTooltip(
-        totalImported > 0
-          ? `Synced ${totalImported} fills (${totalTrades} trades)`
-          : 'Sync complete (All up to date)',
-      );
+        setStatus('success');
+        setTooltip(
+          totalImportedCount > 0
+            ? `Synced ${totalImportedCount} fills (${totalTradesCreated} trades)`
+            : `Sync complete (${successfulSyncs}/${totalConnections} active brokers)`,
+        );
 
-      // 3. Dispatch global event so all open views update automatically
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('broker-synced', { detail: { totalImported, totalTrades } }));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('broker-synced', {
+              detail: { totalImported: totalImportedCount, totalTrades: totalTradesCreated },
+            }),
+          );
+        }
+      } else {
+        throw new Error((syncRes as any).error?.message || 'Sync failed');
       }
 
       setTimeout(() => {

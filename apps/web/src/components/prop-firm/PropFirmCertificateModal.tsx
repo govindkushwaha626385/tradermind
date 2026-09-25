@@ -332,7 +332,7 @@ export function PropFirmCertificateModal({
     ctx.font = '10px monospace';
     ctx.fillStyle = '#475569';
     ctx.fillText(
-      `ID: ${certId}  |  ISSUED: ${issueDate}  |  VERIFICATION: SHA-256 VALIDATED  |  AUTHENTICITY: tradermind-web.vercel.app/verify`,
+      `ID: ${certId}  |  ISSUED: ${issueDate}  |  VERIFICATION: SHA-256 VALIDATED  |  AUTHENTICITY: trademind.app/verify/${certId}`,
       w / 2,
       745,
     );
@@ -392,16 +392,16 @@ export function PropFirmCertificateModal({
   };
 
   const handleCopyLink = () => {
-    const shareUrl = `${window.location.origin}/dashboard/prop-firm?cert=${certId}`;
+    const shareUrl = `${window.location.origin}/verify/${certId}`;
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
-    toast.success('Certificate link copied to clipboard!');
+    toast.success('Official verification link copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleShareTwitter = () => {
     const text = `I just passed the ${data.firmName} ${formattedSize} challenge with zero rule violations! Verified on @TradeMind Institutional Journal 🚀📈`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.origin + '/dashboard/prop-firm')}`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.origin + '/verify/' + certId)}`;
     window.open(url, '_blank');
   };
 
@@ -465,6 +465,17 @@ export function PropFirmCertificateModal({
               <Share2 className="w-4 h-4" />
               <span>Share on X</span>
             </button>
+
+            <a
+              href={`/verify/${certId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all cursor-pointer"
+              title="Open public verification page"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-400" />
+              <span>Verify Online</span>
+            </a>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">

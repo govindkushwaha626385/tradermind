@@ -27,6 +27,7 @@ import {
   sendRiskBreachNotification,
 } from '@/lib/server/services/notification/webhook-dispatcher.service';
 import { purgeExpiredCache } from '@/lib/server/cache';
+import { dispatchMarketCloseDigests, type MarketSession } from '@/lib/server/services/eod-digest.service';
 import type { BrokerId, TradeExecution } from '@trademind/shared';
 import type { BrokerConnectorConfig } from '@/lib/server/connectors/base';
 
@@ -396,6 +397,22 @@ export async function POST(
       const purgedCache = await purgeExpiredCache();
 
       return NextResponse.json({ status: 'success', deletedSyncLogs: (deletedLogs as any).count ?? 0, cleanedExecPayloads: (cleanedExecs as any).count ?? 0, purgedCacheEntries: purgedCache });
+    } catch (err: any) {
+      return NextResponse.json({ status: 'error', message: err.message }, { status: 500 });
+    }
+  }
+
+  // ── eod-market-close (IST: 3:45 PM, EST: 4:15 PM, UTC: 00:00) ─────────
+  if (worker === 'eod-market-close' || worker === 'eod-digest') {
+    try {
+      const url = new URL(req.url);
+      const sessionParam = (url.searchParams.get('session')?.toUpperCase() || 'ALL') as MarketSession;
+      const validSession: MarketSession = ['IST', 'EST', 'UTC', 'ALL'].includes(sessionParam)
+        ? sessionParam
+        : 'ALL';
+
+      const res = await dispatchMarketCloseDigests(validSession);
+      return NextResponse.json({ status: 'success', ...res });
     } catch (err: any) {
       return NextResponse.json({ status: 'error', message: err.message }, { status: 500 });
     }

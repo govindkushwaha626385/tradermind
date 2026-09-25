@@ -156,18 +156,31 @@ export default function BrokersPage() {
   }
 
   const handleSyncAll = async () => {
-    const activeConns = connections.filter((c) => c.status === 'ACTIVE' || c.isActive);
-    if (activeConns.length === 0) {
-      toast.info('No active broker connections to sync');
-      return;
-    }
     setSyncingAll(true);
     try {
-      await Promise.all(activeConns.map((c) => api.syncBroker(c.id).catch((err) => err)));
-      toast.success(`Sync finished for ${activeConns.length} broker${activeConns.length > 1 ? 's' : ''}`);
-      await fetchBrokers();
-    } catch {
-      toast.error('One or more broker syncs failed');
+      const res = await api.syncAllBrokers();
+      if (res.success && res.data) {
+        const { totalConnections, successfulSyncs, totalImportedCount, totalTradesCreated } = res.data;
+        if (totalConnections === 0) {
+          toast.info('No active broker connections to sync');
+        } else {
+          toast.success(
+            `Synchronized ${successfulSyncs}/${totalConnections} active brokers (${totalImportedCount} fills, ${totalTradesCreated} trades created)`,
+          );
+          await fetchBrokers();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('broker-synced', {
+                detail: { totalImported: totalImportedCount, totalTrades: totalTradesCreated },
+              }),
+            );
+          }
+        }
+      } else {
+        toast.error((res as any).error?.message || 'Sync all failed');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to sync brokers');
     } finally {
       setSyncingAll(false);
     }

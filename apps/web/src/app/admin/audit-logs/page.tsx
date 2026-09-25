@@ -51,6 +51,15 @@ const ACTION_MAP: Record<string, { label: string; badge: string }> = {
   'plan.update': { label: 'Plan Updated', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
   'plan.delete': { label: 'Plan Deactivated', badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
   'user.delete': { label: 'User Deleted', badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  'ADMIN_FORCE_BROKER_SYNC': { label: 'Force Broker Sync', badge: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+  'ADMIN_FORCE_BROKER_SYNC_ALL': { label: 'Batch Sync All Brokers', badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
+  'ADMIN_BROKER_CONNECTION_UPDATED': { label: 'Broker Status Changed', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  'ADMIN_BROKER_CONNECTION_DELETED': { label: 'Broker Disconnected', badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  'ADMIN_JOURNAL_TRADE_DELETED': { label: 'Journal Trade Deleted', badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  'ADMIN_TRADE_EXECUTION_DELETED': { label: 'Execution Deleted', badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+  'ADMIN_BROADCAST_BANNER_UPDATED': { label: 'Broadcast Banner Updated', badge: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  'ADMIN_CACHE_PURGED': { label: 'System Cache Purged', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  'USER_QUOTA_OVERRIDE': { label: 'User Quota Overridden', badge: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
 };
 
 export default function AdminAuditLogsPage() {

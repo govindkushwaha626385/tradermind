@@ -70,6 +70,7 @@ import { GlobalMarketTicker } from '@/components/dashboard/GlobalMarketTicker';
 import { PlatformTourModal } from '@/components/education/PlatformTourModal';
 import { KeyboardShortcutsModal } from '@/components/education/KeyboardShortcutsModal';
 import { EodReviewModal } from '@/components/discipline/EodReviewModal';
+import { EodDigestModal } from '@/components/discipline/EodDigestModal';
 import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
 import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
@@ -387,6 +388,14 @@ export default function DashboardLayout({
     const handleOpenEod = () => setEodReviewOpen(true);
     window.addEventListener('open-eod-review', handleOpenEod);
     return () => window.removeEventListener('open-eod-review', handleOpenEod);
+  }, []);
+
+  const [eodDigestOpen, setEodDigestOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenEodDigest = () => setEodDigestOpen(true);
+    window.addEventListener('open-eod-digest', handleOpenEodDigest);
+    return () => window.removeEventListener('open-eod-digest', handleOpenEodDigest);
   }, []);
 
   const [positionCalcOpen, setPositionCalcOpen] = useState(false);
@@ -788,6 +797,12 @@ export default function DashboardLayout({
       <EodReviewModal
         isOpen={eodReviewOpen}
         onClose={() => setEodReviewOpen(false)}
+      />
+
+      {/* ── Automated Post-Market End-of-Day (EOD) Digest Modal ── */}
+      <EodDigestModal
+        isOpen={eodDigestOpen}
+        onClose={() => setEodDigestOpen(false)}
       />
 
       {/* ── Instant In-Journal Position Sizing & Risk Calculator Modal ── */}

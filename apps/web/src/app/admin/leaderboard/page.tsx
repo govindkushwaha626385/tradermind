@@ -17,8 +17,12 @@ import {
   Filter,
   CheckCircle,
   AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { toast } from '@/components/Toast';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface LeaderboardAdminEntry {
   userId: string;
@@ -55,12 +59,24 @@ export default function AdminLeaderboardPage() {
   const [period, setPeriod] = useState<'ALL_TIME' | 'MONTHLY' | 'WEEKLY'>('ALL_TIME');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'hidden'>('all');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [recomputing, setRecomputing] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+  // ConfirmDialog State
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    userId: string;
+    action: 'disqualify' | 'reinstate' | 'delete_snapshot';
+    title: string;
+    description: string;
+    danger: boolean;
+  }>({
+    open: false,
+    userId: '',
+    action: 'disqualify',
+    title: '',
+    description: '',
+    danger: false,
+  });
 
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
@@ -75,6 +91,7 @@ export default function AdminLeaderboardPage() {
       }
     } catch (err) {
       console.error('Failed to load admin leaderboard data:', err);
+      toast.error('Failed to load leaderboard data');
     } finally {
       setLoading(false);
     }
@@ -84,29 +101,72 @@ export default function AdminLeaderboardPage() {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  const handleModerate = async (userId: string, action: 'disqualify' | 'reinstate' | 'delete_snapshot') => {
-    const confirmMsg =
-      action === 'disqualify'
-        ? 'Are you sure you want to disqualify this trader? They will be hidden from the public leaderboard.'
-        : action === 'reinstate'
-        ? 'Reinstate this trader to the public leaderboard?'
-        : 'Delete this trader cached snapshot rank?';
+  const handleRecomputeRankings = async () => {
+    setRecomputing(true);
+    try {
+      const res = await api.adminRecomputeLeaderboard();
+      if (res.success) {
+        toast.success('Leaderboard rankings recomputed across ALL_TIME, MONTHLY, and WEEKLY');
+        fetchLeaderboard();
+      } else {
+        toast.error((res as any).error?.message || 'Failed to recompute rankings');
+      }
+    } catch {
+      toast.error('Failed to recompute leaderboard rankings');
+    } finally {
+      setRecomputing(false);
+    }
+  };
 
-    if (!confirm(confirmMsg)) return;
+  const promptModerate = (userId: string, action: 'disqualify' | 'reinstate' | 'delete_snapshot', name: string) => {
+    if (action === 'disqualify') {
+      setConfirmState({
+        open: true,
+        userId,
+        action,
+        title: 'Disqualify Trader',
+        description: `Are you sure you want to disqualify "${name}"? Their profile and score will be hidden from the public leaderboard.`,
+        danger: true,
+      });
+    } else if (action === 'reinstate') {
+      setConfirmState({
+        open: true,
+        userId,
+        action,
+        title: 'Reinstate Trader',
+        description: `Reinstate "${name}" to the public leaderboard?`,
+        danger: false,
+      });
+    } else {
+      setConfirmState({
+        open: true,
+        userId,
+        action,
+        title: 'Delete Snapshot Rank',
+        description: `Delete cached leaderboard ranking for "${name}"? It will be recalculated on the next cron cycle or on-demand recompute.`,
+        danger: true,
+      });
+    }
+  };
+
+  const executeModerate = async () => {
+    const { userId, action } = confirmState;
+    if (!userId) return;
 
     setActionInProgress(userId);
     try {
       await api.moderateAdminLeaderboard(userId, { action });
-      showToast(
+      toast.success(
         action === 'disqualify'
-          ? 'Trader disqualified and hidden from leaderboard.'
+          ? 'Trader disqualified and hidden from leaderboard'
           : action === 'reinstate'
-          ? 'Trader reinstated to leaderboard.'
-          : 'Snapshot deleted.',
+          ? 'Trader reinstated to leaderboard'
+          : 'Snapshot deleted',
       );
+      setConfirmState((prev) => ({ ...prev, open: false }));
       await fetchLeaderboard();
     } catch (err: any) {
-      alert(err?.message || 'Failed to perform action');
+      toast.error(err?.message || 'Failed to perform action');
     } finally {
       setActionInProgress(null);
     }
@@ -120,34 +180,37 @@ export default function AdminLeaderboardPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-xs font-medium shadow-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border/50 pb-5">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
             <Trophy className="w-6 h-6 text-amber-500" />
-            Leaderboard Moderation & Compliance
+            Leaderboard Moderation &amp; Compliance
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Audit public rankings, verify trader profiles, and disqualify fraudulent or abusive entries.
           </p>
         </div>
 
-        <button
-          onClick={fetchLeaderboard}
-          disabled={loading}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border hover:bg-accent text-xs font-medium transition-colors shadow-sm"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRecomputeRankings}
+            disabled={recomputing}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+            title="Recalculate snapshots across ALL_TIME, MONTHLY, and WEEKLY"
+          >
+            <Zap className={cn('w-3.5 h-3.5', recomputing && 'animate-spin')} />
+            <span>{recomputing ? 'Recomputing...' : 'Recompute Rankings'}</span>
+          </button>
+          <button
+            onClick={fetchLeaderboard}
+            disabled={loading}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-border hover:bg-accent text-xs font-medium transition-colors shadow-sm cursor-pointer"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats Cards */}
@@ -362,18 +425,18 @@ export default function AdminLeaderboardPage() {
                       <div className="flex items-center justify-end gap-1.5">
                         {row.isPublic ? (
                           <button
-                            onClick={() => handleModerate(row.userId, 'disqualify')}
+                            onClick={() => promptModerate(row.userId, 'disqualify', row.displayName)}
                             disabled={actionInProgress === row.userId}
-                            className="px-2.5 py-1 rounded-md text-[11px] font-medium border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            className="px-2.5 py-1 rounded-md text-[11px] font-medium border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                             title="Disqualify from leaderboard"
                           >
                             Disqualify
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleModerate(row.userId, 'reinstate')}
+                            onClick={() => promptModerate(row.userId, 'reinstate', row.displayName)}
                             disabled={actionInProgress === row.userId}
-                            className="px-2.5 py-1 rounded-md text-[11px] font-medium border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                            className="px-2.5 py-1 rounded-md text-[11px] font-medium border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
                             title="Reinstate to leaderboard"
                           >
                             Reinstate
@@ -381,9 +444,9 @@ export default function AdminLeaderboardPage() {
                         )}
 
                         <button
-                          onClick={() => handleModerate(row.userId, 'delete_snapshot')}
+                          onClick={() => promptModerate(row.userId, 'delete_snapshot', row.displayName)}
                           disabled={actionInProgress === row.userId}
-                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                           title="Clear snapshot rank"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -397,6 +460,18 @@ export default function AdminLeaderboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Confirm Moderation Dialog */}
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        description={confirmState.description}
+        danger={confirmState.danger}
+        confirmLabel={confirmState.action === 'disqualify' ? 'Disqualify' : confirmState.action === 'reinstate' ? 'Reinstate' : 'Delete'}
+        loading={Boolean(actionInProgress)}
+        onConfirm={executeModerate}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

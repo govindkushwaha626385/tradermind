@@ -19,10 +19,28 @@ import { eq, sql, desc, asc, and, gte, lte, ilike, inArray } from 'drizzle-orm';
 import { configManager, CONFIG_DEFINITIONS } from '@trademind/config';
 import { recordAdminAudit } from '@/lib/server/services/admin-audit.service';
 import { invalidateCache } from '@/lib/server/cache';
+import { syncBrokerConnection, syncAllBrokersAdmin } from '@/lib/server/services/broker-sync.service';
+import { dispatchMarketCloseDigests, type MarketSession } from '@/lib/server/services/eod-digest.service';
+import { computeLeaderboardRankings } from '@/lib/server/services/leaderboard.service';
 
 export const runtime = 'nodejs';
 
 // ── Schemas ──────────────────────────────────
+
+const updateBroadcastSchema = z.object({
+  enabled: z.boolean(),
+  text: z.string().max(300),
+  type: z.enum(['info', 'success', 'warning', 'alert']).default('info'),
+  link: z.string().optional().default(''),
+  linkText: z.string().max(50).optional().default('Learn More'),
+  maintenanceMode: z.boolean().default(false),
+});
+
+const updateBrokerAdminSchema = z.object({
+  isActive: z.boolean().optional(),
+  status: z.string().optional(),
+  label: z.string().optional(),
+});
 
 const updateConfigSchema = z.object({ value: z.any() });
 const taxRateSchema = z.object({ name: z.string().min(1), description: z.string().optional(), segment: z.string(), transactionType: z.string().optional().nullable(), rateType: z.enum(['percentage', 'flat']), rateValue: z.number(), appliedOn: z.enum(['buy', 'sell', 'both']), maxCap: z.number().optional().nullable(), minAmount: z.number().optional().nullable(), isActive: z.boolean().default(true), priority: z.number().default(0) });
@@ -576,6 +594,40 @@ export async function GET(
     return ok(flags);
   }
 
+  // GET /admin/jobs
+  if (section === 'jobs') {
+    const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') ?? 50)));
+    const offset = (page - 1) * limit;
+    const status = url.searchParams.get('status')?.toUpperCase() || undefined;
+    const queue = url.searchParams.get('queue') || undefined;
+    const search = url.searchParams.get('search')?.trim();
+
+    const conditions: any[] = [];
+    if (status && status !== 'ALL') conditions.push(eq(backgroundJobs.status, status));
+    if (queue && queue !== 'all') conditions.push(eq(backgroundJobs.queue, queue));
+    if (search) {
+      conditions.push(sql`(${backgroundJobs.jobName} ILIKE ${`%${search}%`} OR ${backgroundJobs.error} ILIKE ${`%${search}%`})`);
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [jobList, totalResult, queueStats] = await Promise.all([
+      db.select().from(backgroundJobs).where(whereClause).orderBy(desc(backgroundJobs.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`COUNT(*)` }).from(backgroundJobs).where(whereClause),
+      db.select({ status: backgroundJobs.status, count: sql<number>`COUNT(*)` }).from(backgroundJobs).groupBy(backgroundJobs.status),
+    ]);
+
+    const queueDepth: Record<string, number> = { PENDING: 0, RUNNING: 0, DONE: 0, FAILED: 0, RETRYING: 0 };
+    for (const row of queueStats) queueDepth[row.status] = Number(row.count);
+
+    const total = Number(totalResult[0]?.count ?? 0);
+    return ok({
+      jobs: jobList,
+      stats: queueDepth,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  }
+
   return apiError('Admin route not found', 404);
   } catch (err: unknown) {
     console.error('[Admin GET] Unhandled error:', err);
@@ -672,6 +724,215 @@ export async function POST(
     if (!created) return apiError('Failed to create partner', 500);
     await recordAdminAudit({ actor, action: 'ADMIN_PARTNER_CREATED', entityType: 'partner', entityId: created.id, metadata: { name: created.name, slug: created.slug, affiliateUrl: created.affiliateUrl } });
     return NextResponse.json({ success: true, data: created }, { status: 201 });
+  }
+
+  // POST /admin/brokers/:id/sync
+  if (section === 'brokers' && sub && detail === 'sync') {
+    const [conn] = await db.select().from(brokerConnections).where(eq(brokerConnections.id, sub)).limit(1);
+    if (!conn) return apiError('Broker connection not found', 404);
+    const syncRes = await syncBrokerConnection(conn.id, conn.userId);
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_FORCE_BROKER_SYNC',
+      entityType: 'broker_connection',
+      entityId: conn.id,
+      metadata: { brokerId: conn.brokerId, userId: conn.userId, syncRes },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok(syncRes);
+  }
+
+  // POST /admin/brokers/sync-all
+  if (section === 'brokers' && sub === 'sync-all') {
+    const syncRes = await syncAllBrokersAdmin();
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_FORCE_BROKER_SYNC_ALL',
+      entityType: 'broker_connection',
+      metadata: {
+        totalConnections: syncRes.totalConnections,
+        successfulSyncs: syncRes.successfulSyncs,
+        failedSyncs: syncRes.failedSyncs,
+        totalImportedCount: syncRes.totalImportedCount,
+        totalTradesCreated: syncRes.totalTradesCreated,
+      },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok(syncRes);
+  }
+
+  // POST /admin/digest/dispatch-all
+  if (section === 'digest' && sub === 'dispatch-all') {
+    const session = (body.session || 'ALL') as MarketSession;
+    const dispatchRes = await dispatchMarketCloseDigests(session, actor.id);
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_EOD_DIGEST_DISPATCH_ALL',
+      entityType: 'eod_digest',
+      metadata: {
+        session: dispatchRes.session,
+        sessionName: dispatchRes.sessionName,
+        totalEligibleUsers: dispatchRes.totalEligibleUsers,
+        sentCount: dispatchRes.sentCount,
+        skippedCount: dispatchRes.skippedCount,
+        durationMs: dispatchRes.durationMs,
+      },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok(dispatchRes);
+  }
+
+  // POST /admin/broadcast
+  if (section === 'broadcast') {
+    const parsed = updateBroadcastSchema.safeParse(body);
+    if (!parsed.success) return apiError('Validation failed: ' + parsed.error.message, 400);
+    const b = parsed.data;
+
+    await configManager.set('system.announcement_banner_enabled', b.enabled as never);
+    await configManager.set('system.announcement_banner_text', b.text as never);
+    await configManager.set('system.announcement_banner_type', b.type as never);
+    await configManager.set('system.announcement_banner_link', (b.link || '') as never);
+    await configManager.set('system.announcement_banner_link_text', (b.linkText || 'Learn More') as never);
+    await configManager.set('system.maintenance_mode', b.maintenanceMode as never);
+
+    const bannerKeys = [
+      { key: 'system.announcement_banner_enabled', val: b.enabled },
+      { key: 'system.announcement_banner_text', val: b.text },
+      { key: 'system.announcement_banner_type', val: b.type },
+      { key: 'system.announcement_banner_link', val: b.link || '' },
+      { key: 'system.announcement_banner_link_text', val: b.linkText || 'Learn More' },
+      { key: 'system.maintenance_mode', val: b.maintenanceMode },
+    ];
+    for (const item of bannerKeys) {
+      await db.update(adminConfigs).set({ value: item.val as any, updatedBy: actor.email, updatedAt: new Date() }).where(eq(adminConfigs.key, item.key));
+    }
+
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_BROADCAST_BANNER_UPDATED',
+      entityType: 'system_broadcast',
+      entityId: 'announcement_banner',
+      metadata: b,
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+
+    return ok({ message: 'Broadcast banner updated successfully', banner: b });
+  }
+
+  // POST /admin/system/flush-cache
+  if (section === 'system' && sub === 'flush-cache') {
+    await invalidateCache('*');
+    try {
+      await db.delete(cacheEntries);
+    } catch {
+      // ignore
+    }
+    await recordAdminAudit({ actor, action: 'ADMIN_CACHE_PURGED', entityType: 'system_cache', entityId: 'all' });
+    return ok({ message: 'System cache purged successfully across all clusters' });
+  }
+
+  // POST /admin/system/ping-db
+  if (section === 'system' && sub === 'ping-db') {
+    const start = Date.now();
+    const [result] = await db.execute(sql`SELECT NOW() as now, current_database() as db_name, version() as pg_version`);
+    const latencyMs = Date.now() - start;
+    return ok({
+      status: 'healthy',
+      latencyMs,
+      timestamp: (result as any)?.now,
+      database: (result as any)?.db_name,
+      pgVersion: (result as any)?.pg_version,
+    });
+  }
+
+  // POST /admin/jobs/dispatch
+  if (section === 'jobs' && sub === 'dispatch') {
+    const queue = body.queue || 'default';
+    const jobName = body.jobName;
+    if (!jobName) return apiError('Job name is required', 400);
+    const payload = body.payload || {};
+    const [job] = await db.insert(backgroundJobs).values({
+      queue,
+      jobName,
+      payload,
+      status: 'PENDING',
+      attempts: 0,
+      maxAttempts: Number(body.maxAttempts ?? 3),
+      runAt: new Date(),
+    }).returning();
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_JOB_DISPATCHED',
+      entityType: 'background_job',
+      entityId: job?.id ?? 'new',
+      metadata: { queue, jobName, payload },
+    });
+    return ok({ message: 'Background job enqueued successfully', job });
+  }
+
+  // POST /admin/jobs/:id/retry
+  if (section === 'jobs' && sub && detail === 'retry') {
+    const [job] = await db.select().from(backgroundJobs).where(eq(backgroundJobs.id, sub)).limit(1);
+    if (!job) return apiError('Job not found', 404);
+    const [updated] = await db.update(backgroundJobs).set({
+      status: 'PENDING',
+      attempts: 0,
+      error: null,
+      runAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(backgroundJobs.id, sub)).returning();
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_JOB_RETRIED',
+      entityType: 'background_job',
+      entityId: sub,
+      metadata: { jobName: job.jobName, queue: job.queue },
+    });
+    return ok({ message: 'Job reset to PENDING and scheduled for immediate retry', job: updated });
+  }
+
+  // POST /admin/jobs/clear-completed
+  if (section === 'jobs' && sub === 'clear-completed') {
+    const deleted = await db.delete(backgroundJobs).where(eq(backgroundJobs.status, 'DONE')).returning({ id: backgroundJobs.id });
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_COMPLETED_JOBS_PURGED',
+      entityType: 'background_job',
+      entityId: 'multiple',
+      metadata: { count: deleted.length },
+    });
+    return ok({ message: `Purged ${deleted.length} completed jobs from queue history`, count: deleted.length });
+  }
+
+  // POST /admin/leaderboard/recompute
+  if (section === 'leaderboard' && sub === 'recompute') {
+    const periods: Array<'ALL_TIME' | 'MONTHLY' | 'WEEKLY'> = ['ALL_TIME', 'MONTHLY', 'WEEKLY'];
+    const results: Record<string, number> = {};
+    for (const p of periods) {
+      const ranked = await computeLeaderboardRankings(p);
+      results[p] = ranked.length;
+    }
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_LEADERBOARD_RECOMPUTED',
+      entityType: 'leaderboard',
+      entityId: 'all_periods',
+      metadata: results,
+    });
+    return ok({ message: 'Leaderboard snapshots recomputed across all periods', results });
+  }
+
+  // POST /admin/ai/flush-cache
+  if (section === 'ai' && sub === 'flush-cache') {
+    const deleted = await db.delete(aiCache).returning({ id: aiCache.id });
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_AI_CACHE_PURGED',
+      entityType: 'ai_cache',
+      entityId: 'all',
+      metadata: { count: deleted.length },
+    });
+    return ok({ message: `Purged ${deleted.length} cached AI inferences from database`, count: deleted.length });
   }
 
   return apiError('Admin route not found', 404);
@@ -916,6 +1177,30 @@ export async function PUT(
     return ok(updated);
   }
 
+  // PUT /admin/brokers/:id
+  if (section === 'brokers' && sub) {
+    const parsed = updateBrokerAdminSchema.safeParse(body);
+    if (!parsed.success) return apiError('Validation failed: ' + parsed.error.message, 400);
+    const [conn] = await db.select().from(brokerConnections).where(eq(brokerConnections.id, sub)).limit(1);
+    if (!conn) return apiError('Broker connection not found', 404);
+    
+    const updateData: Record<string, any> = { updatedAt: new Date() };
+    if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
+    if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+    if (parsed.data.label !== undefined) updateData.label = parsed.data.label;
+
+    const [updated] = await db.update(brokerConnections).set(updateData).where(eq(brokerConnections.id, sub)).returning();
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_BROKER_CONNECTION_UPDATED',
+      entityType: 'broker_connection',
+      entityId: sub,
+      metadata: { brokerId: conn.brokerId, previousActive: conn.isActive, newActive: updated?.isActive },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok(updated);
+  }
+
   return apiError('Admin route not found', 404);
   } catch (err: unknown) {
     console.error('[Admin PUT] Unhandled error:', err);
@@ -1005,6 +1290,24 @@ export async function PATCH(
     if (!existing) return apiError('Feature flag not found', 404);
     const [updated] = await db.update(featureFlags).set({ isEnabled: body.isEnabled !== undefined ? Boolean(body.isEnabled) : existing.isEnabled, description: body.description ?? existing.description, rules: body.rules ?? existing.rules, updatedAt: new Date() }).where(eq(featureFlags.id, sub)).returning();
     await recordAdminAudit({ actor, action: 'FEATURE_FLAG_UPDATED', entityType: 'feature_flag', entityId: sub, metadata: { name: existing.name, isEnabled: updated!.isEnabled } });
+    return ok(updated);
+  }
+
+  // PATCH /admin/strategies/:id/toggle
+  if (section === 'strategies' && sub && detail === 'toggle') {
+    const [strat] = await db.select().from(tradingStrategies).where(eq(tradingStrategies.id, sub)).limit(1);
+    if (!strat) return apiError('Strategy not found', 404);
+    const [updated] = await db.update(tradingStrategies).set({
+      isActive: !strat.isActive,
+      updatedAt: new Date(),
+    }).where(eq(tradingStrategies.id, sub)).returning();
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_STRATEGY_STATUS_TOGGLED',
+      entityType: 'trading_strategy',
+      entityId: sub,
+      metadata: { name: strat.name, previousActive: strat.isActive, newActive: updated?.isActive },
+    });
     return ok(updated);
   }
 
@@ -1099,12 +1402,84 @@ export async function DELETE(
     return ok({ message: 'Feature flag deleted' });
   }
 
-  // DELETE /admin/cache
-  if (section === 'cache') {
-    const pattern = url.searchParams.get('pattern') ?? '*';
-    await invalidateCache(pattern);
-    await recordAdminAudit({ actor, action: 'ADMIN_CACHE_FLUSHED', entityType: 'cache', entityId: pattern, metadata: { pattern } });
-    return ok({ message: `Cache flushed for pattern "${pattern}"` });
+  // DELETE /admin/brokers/:id
+  if (section === 'brokers' && sub) {
+    const [conn] = await db.select().from(brokerConnections).where(eq(brokerConnections.id, sub)).limit(1);
+    if (!conn) return apiError('Broker connection not found', 404);
+    await db.delete(brokerConnections).where(eq(brokerConnections.id, sub));
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_BROKER_CONNECTION_DELETED',
+      entityType: 'broker_connection',
+      entityId: sub,
+      metadata: { brokerId: conn.brokerId, userId: conn.userId, brokerClientId: conn.brokerClientId },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok({ message: 'Broker connection deleted successfully' });
+  }
+
+  // DELETE /admin/journal/:id
+  if (section === 'journal' && sub) {
+    const [trade] = await db.select().from(journalTrades).where(eq(journalTrades.id, sub)).limit(1);
+    if (!trade) return apiError('Journal trade not found', 404);
+    await db.delete(journalTrades).where(eq(journalTrades.id, sub));
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_JOURNAL_TRADE_DELETED',
+      entityType: 'journal_trade',
+      entityId: sub,
+      metadata: { symbol: trade.tradingsymbol, userId: trade.userId, netPnl: trade.netPnl },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok({ message: 'Trade deleted successfully from journal' });
+  }
+
+  // DELETE /admin/executions/:id
+  if (section === 'executions' && sub) {
+    const [exec] = await db.select().from(tradeExecutions).where(eq(tradeExecutions.id, sub)).limit(1);
+    if (!exec) return apiError('Trade execution not found', 404);
+    await db.delete(tradeExecutions).where(eq(tradeExecutions.id, sub));
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_TRADE_EXECUTION_DELETED',
+      entityType: 'trade_execution',
+      entityId: sub,
+      metadata: { symbol: exec.tradingsymbol, userId: exec.userId },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok({ message: 'Trade execution deleted successfully' });
+  }
+
+  // DELETE /admin/jobs/:id
+  if (section === 'jobs' && sub) {
+    const [job] = await db.select().from(backgroundJobs).where(eq(backgroundJobs.id, sub)).limit(1);
+    if (!job) return apiError('Job not found', 404);
+    await db.delete(backgroundJobs).where(eq(backgroundJobs.id, sub));
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_JOB_DELETED',
+      entityType: 'background_job',
+      entityId: sub,
+      metadata: { jobName: job.jobName, queue: job.queue, status: job.status },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok({ message: 'Background job deleted' });
+  }
+
+  // DELETE /admin/strategies/:id
+  if (section === 'strategies' && sub) {
+    const [strat] = await db.select().from(tradingStrategies).where(eq(tradingStrategies.id, sub)).limit(1);
+    if (!strat) return apiError('Strategy not found', 404);
+    await db.delete(tradingStrategies).where(eq(tradingStrategies.id, sub));
+    await recordAdminAudit({
+      actor,
+      action: 'ADMIN_STRATEGY_DELETED',
+      entityType: 'trading_strategy',
+      entityId: sub,
+      metadata: { name: strat.name, userId: strat.userId },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+    return ok({ message: 'Trading strategy deleted successfully' });
   }
 
   return apiError('Admin route not found', 404);

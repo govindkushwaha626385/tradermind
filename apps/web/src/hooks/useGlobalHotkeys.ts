@@ -123,6 +123,13 @@ export function useGlobalHotkeys({
           e.preventDefault();
           onOpenEodReview ? onOpenEodReview() : window.dispatchEvent(new CustomEvent('open-eod-review'));
           break;
+        case 'd':
+        case 'D':
+          if (e.shiftKey) {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('open-eod-digest'));
+          }
+          break;
         case 's':
           e.preventDefault();
           onTriggerSync ? onTriggerSync() : window.dispatchEvent(new CustomEvent('trigger-broker-sync'));

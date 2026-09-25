@@ -24,6 +24,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BLOG_POSTS, type BlogPost } from '@/lib/blog-data';
 import { ArticleShareActions } from '@/components/blog/ArticleShareActions';
+import { InlineRiskCalculatorWidget } from '@/components/blog/InlineRiskCalculatorWidget';
 
 interface ArticlePageProps {
   params: Promise<{
@@ -187,6 +188,9 @@ export default async function BlogPostPage({ params }: ArticlePageProps) {
             {post.content}
           </ReactMarkdown>
         </article>
+
+        {/* Embedded Interactive Risk & R:R Calculator */}
+        <InlineRiskCalculatorWidget />
 
         {/* Tags & Bottom Share Bar */}
         <div className="pt-6 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

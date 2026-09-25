@@ -127,25 +127,30 @@ export async function syncBrokerConnection(
 
     const connector = await getBrokerConnector(connection.brokerId as BrokerId, config);
 
-    // Refresh token if expired and refreshToken is available
-    if (connection.tokenExpiresAt && new Date(connection.tokenExpiresAt) < new Date()) {
-      if (decryptedRefreshToken) {
-        try {
-          const newTokens = await connector.refreshTokens(decryptedRefreshToken);
-          await db
-            .update(brokerConnections)
-            .set({
-              accessToken: encrypt(newTokens.accessToken),
-              refreshToken: newTokens.refreshToken ? encrypt(newTokens.refreshToken) : connection.refreshToken,
-              tokenExpiresAt: newTokens.expiresAt,
-              status: 'ACTIVE',
-            })
-            .where(eq(brokerConnections.id, connectionId));
-          config.accessToken = newTokens.accessToken;
-        } catch (refreshErr) {
-          console.warn(`[broker-sync] Token refresh failed for ${connectionId}:`, refreshErr);
+    // Proactive token refresh if expired or expiring within 15 minutes
+    const isTokenExpiringSoon = connection.tokenExpiresAt &&
+      new Date(connection.tokenExpiresAt).getTime() - Date.now() < 15 * 60 * 1000;
+
+    if (isTokenExpiringSoon && decryptedRefreshToken) {
+      try {
+        console.log(`[broker-sync] Proactively refreshing token for connection ${connectionId} (${connection.brokerId})`);
+        const newTokens = await connector.refreshTokens(decryptedRefreshToken);
+        await db
+          .update(brokerConnections)
+          .set({
+            accessToken: encrypt(newTokens.accessToken),
+            refreshToken: newTokens.refreshToken ? encrypt(newTokens.refreshToken) : connection.refreshToken,
+            tokenExpiresAt: newTokens.expiresAt,
+            status: 'ACTIVE',
+            updatedAt: new Date(),
+          })
+          .where(eq(brokerConnections.id, connectionId));
+        config.accessToken = newTokens.accessToken;
+      } catch (refreshErr) {
+        console.warn(`[broker-sync] Token refresh failed for ${connectionId}:`, refreshErr);
+        if (connection.tokenExpiresAt && new Date(connection.tokenExpiresAt) < new Date()) {
           await db.update(brokerConnections).set({ status: 'EXPIRED' }).where(eq(brokerConnections.id, connectionId));
-          throw new Error('Broker token expired. Please reconnect your account.');
+          throw new Error('Broker token expired and could not be renewed. Please reconnect your account.');
         }
       }
     }
@@ -375,9 +380,170 @@ export async function syncBrokerConnection(
         .where(eq(syncLogs.id, syncLog.id));
     }
 
-    return {
-      success: false,
-      error: err.message ?? 'Failed to synchronize with broker',
-    };
+      return {
+        success: false,
+        error: err.message ?? 'Failed to synchronize with broker',
+      };
+    }
   }
+
+export interface MultiBrokerSyncResult {
+  totalConnections: number;
+  successfulSyncs: number;
+  failedSyncs: number;
+  totalImportedCount: number;
+  totalTradesCreated: number;
+  details: {
+    connectionId: string;
+    brokerId: string;
+    label: string | null;
+    success: boolean;
+    importedCount?: number;
+    tradesCreated?: number;
+    error?: string;
+  }[];
+}
+
+/**
+ * Synchronize all active broker connections for a specific user in parallel.
+ */
+export async function syncAllUserBrokers(userId: string): Promise<MultiBrokerSyncResult> {
+  const db = getDatabase();
+  const connections = await db
+    .select()
+    .from(brokerConnections)
+    .where(and(eq(brokerConnections.userId, userId), eq(brokerConnections.isActive, true)));
+
+  const result: MultiBrokerSyncResult = {
+    totalConnections: connections.length,
+    successfulSyncs: 0,
+    failedSyncs: 0,
+    totalImportedCount: 0,
+    totalTradesCreated: 0,
+    details: [],
+  };
+
+  for (const conn of connections) {
+    if (conn.authType === 'csv_import') {
+      result.details.push({
+        connectionId: conn.id,
+        brokerId: conn.brokerId,
+        label: conn.label,
+        success: true,
+        importedCount: 0,
+        tradesCreated: 0,
+      });
+      result.successfulSyncs += 1;
+      continue;
+    }
+
+    try {
+      const syncRes = await syncBrokerConnection(conn.id, userId);
+      if (syncRes.success) {
+        result.successfulSyncs += 1;
+        result.totalImportedCount += syncRes.importedCount ?? 0;
+        result.totalTradesCreated += syncRes.tradesCreated ?? 0;
+        result.details.push({
+          connectionId: conn.id,
+          brokerId: conn.brokerId,
+          label: conn.label,
+          success: true,
+          importedCount: syncRes.importedCount,
+          tradesCreated: syncRes.tradesCreated,
+        });
+      } else {
+        result.failedSyncs += 1;
+        result.details.push({
+          connectionId: conn.id,
+          brokerId: conn.brokerId,
+          label: conn.label,
+          success: false,
+          error: syncRes.error,
+        });
+      }
+    } catch (err: any) {
+      result.failedSyncs += 1;
+      result.details.push({
+        connectionId: conn.id,
+        brokerId: conn.brokerId,
+        label: conn.label,
+        success: false,
+        error: err.message ?? 'Unknown sync failure',
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Super-Admin method to trigger synchronization across all active connections in the platform.
+ */
+export async function syncAllBrokersAdmin(): Promise<MultiBrokerSyncResult> {
+  const db = getDatabase();
+  const connections = await db
+    .select()
+    .from(brokerConnections)
+    .where(eq(brokerConnections.isActive, true));
+
+  const result: MultiBrokerSyncResult = {
+    totalConnections: connections.length,
+    successfulSyncs: 0,
+    failedSyncs: 0,
+    totalImportedCount: 0,
+    totalTradesCreated: 0,
+    details: [],
+  };
+
+  for (const conn of connections) {
+    if (conn.authType === 'csv_import') {
+      result.details.push({
+        connectionId: conn.id,
+        brokerId: conn.brokerId,
+        label: conn.label,
+        success: true,
+        importedCount: 0,
+        tradesCreated: 0,
+      });
+      result.successfulSyncs += 1;
+      continue;
+    }
+
+    try {
+      const syncRes = await syncBrokerConnection(conn.id, conn.userId);
+      if (syncRes.success) {
+        result.successfulSyncs += 1;
+        result.totalImportedCount += syncRes.importedCount ?? 0;
+        result.totalTradesCreated += syncRes.tradesCreated ?? 0;
+        result.details.push({
+          connectionId: conn.id,
+          brokerId: conn.brokerId,
+          label: conn.label,
+          success: true,
+          importedCount: syncRes.importedCount,
+          tradesCreated: syncRes.tradesCreated,
+        });
+      } else {
+        result.failedSyncs += 1;
+        result.details.push({
+          connectionId: conn.id,
+          brokerId: conn.brokerId,
+          label: conn.label,
+          success: false,
+          error: syncRes.error,
+        });
+      }
+    } catch (err: any) {
+      result.failedSyncs += 1;
+      result.details.push({
+        connectionId: conn.id,
+        brokerId: conn.brokerId,
+        label: conn.label,
+        success: false,
+        error: err.message ?? 'Unknown sync failure',
+      });
+    }
+  }
+
+  return result;
 }

@@ -35,16 +35,24 @@ import {
   Trophy,
   TrendingUp,
   Handshake,
+  Megaphone,
+  Zap,
+  Trash2,
+  Target,
+  Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { api, getAccessToken } from '@/lib/api';
+import { AdminBroadcastModal } from '@/components/admin/AdminBroadcastModal';
+import { toast } from '@/components/Toast';
 
 const ADMIN_NAV = [
   { label: 'Dashboard',      href: '/admin',               icon: LayoutGrid },
   { label: 'Partners',       href: '/admin/partners',      icon: Handshake },
   { label: 'Billing',        href: '/admin/billing',       icon: TrendingUp },
   { label: 'Leaderboard',    href: '/admin/leaderboard',   icon: Trophy },
+  { label: 'Strategies',     href: '/admin/strategies',    icon: Target },
   { label: 'Store Products', href: '/admin/store',         icon: ShoppingBag },
   { label: 'Reviews',        href: '/admin/reviews',       icon: Star },
   { label: 'Users',          href: '/admin/users',         icon: Users },
@@ -54,6 +62,7 @@ const ADMIN_NAV = [
   { label: 'Executions',     href: '/admin/executions',    icon: LineChart },
   { label: 'Brokers',        href: '/admin/brokers',       icon: Building2 },
   { label: 'Invoices',       href: '/admin/invoices',      icon: Receipt },
+  { label: 'Worker Queue',   href: '/admin/jobs',          icon: Cpu },
   { label: 'Sync Logs',      href: '/admin/sync-logs',     icon: RefreshCw },
   { label: 'Audit Logs',     href: '/admin/audit-logs',    icon: Shield },
   { label: 'Tax Rates',      href: '/admin/tax-rates',     icon: Percent },
@@ -75,6 +84,43 @@ export default function AdminLayout({
   const [mobileSidebarOpen, setMobileOpen] = useState(false);
   const [adminName, setAdminName]       = useState<string | null>(null);
   const [adminEmail, setAdminEmail]     = useState<string | null>(null);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [pingingDb, setPingingDb]       = useState(false);
+  const [dbLatencyMs, setDbLatencyMs]   = useState<number | null>(null);
+  const [flushingCache, setFlushingCache] = useState(false);
+
+  const handlePingDb = async () => {
+    setPingingDb(true);
+    try {
+      const res = await api.adminPingDb();
+      if (res.success && res.data) {
+        setDbLatencyMs(res.data.latencyMs);
+        toast.success(`Database Pong: ${res.data.latencyMs}ms (${res.data.status})`);
+      } else {
+        toast.error('Database ping failed');
+      }
+    } catch {
+      toast.error('Database connection timed out');
+    } finally {
+      setPingingDb(false);
+    }
+  };
+
+  const handleFlushCache = async () => {
+    setFlushingCache(true);
+    try {
+      const res = await api.adminFlushCache();
+      if (res.success) {
+        toast.success('Purged all L1 in-memory and L2 Redis cache keys across cluster');
+      } else {
+        toast.error('Failed to flush cache');
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to flush cache');
+    } finally {
+      setFlushingCache(false);
+    }
+  };
 
   useEffect(() => {
     const token = getAccessToken();
@@ -249,12 +295,50 @@ export default function AdminLayout({
             </nav>
           </div>
 
-          {/* Admin badge */}
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
-            <Shield className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-xs font-semibold text-red-600 dark:text-red-400">Admin Mode</span>
+          {/* Right Action Ribbon */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBroadcastOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all cursor-pointer"
+              title="Site-wide Announcements & Maintenance Mode"
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Broadcast</span>
+            </button>
+
+            <button
+              onClick={handlePingDb}
+              disabled={pingingDb}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-all cursor-pointer"
+              title="Measure database connection latency"
+            >
+              <Zap className={cn('w-3.5 h-3.5 text-emerald-500', pingingDb && 'animate-pulse')} />
+              <span>{pingingDb ? '...' : dbLatencyMs !== null ? `${dbLatencyMs}ms` : 'Ping DB'}</span>
+            </button>
+
+            <button
+              onClick={handleFlushCache}
+              disabled={flushingCache}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all cursor-pointer"
+              title="Purge all L1 in-memory and L2 Redis cache keys"
+            >
+              <Trash2 className={cn('w-3.5 h-3.5', flushingCache && 'animate-spin')} />
+              <span className="hidden md:inline">Flush Cache</span>
+            </button>
+
+            {/* Admin badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20">
+              <Shield className="w-3.5 h-3.5 text-red-500" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400 hidden xs:inline">Admin Mode</span>
+            </div>
           </div>
         </header>
+
+        {/* Global Broadcast & Emergency Maintenance Modal */}
+        <AdminBroadcastModal
+          isOpen={broadcastOpen}
+          onClose={() => setBroadcastOpen(false)}
+        />
 
         {/* Page content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8">

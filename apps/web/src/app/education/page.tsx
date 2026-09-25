@@ -26,6 +26,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { TRADER_ROADMAP, TRACK_META, type RoadmapStage, type RoadmapTrack } from '@/lib/roadmap-data';
+import { EducationHeaderActions } from '@/components/education/EducationHeaderActions';
 
 export const metadata: Metadata = {
   title: 'Trader Evolution Academy & Roadmap — TradeMind',
@@ -63,22 +64,8 @@ export default function EducationPage() {
             The definitive 4-stage progression framework followed by institutional prop firm traders. Master capital defense, setup edge, volatility math, and multi-broker portfolio scaling.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/dashboard/roadmap"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 shadow-md shadow-primary/20 transition-all"
-            >
-              <Compass className="w-4 h-4" />
-              <span>Open Interactive Dashboard Tracker</span>
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl border border-border/80 bg-background hover:bg-accent text-foreground font-semibold text-xs transition-colors"
-            >
-              <span>Create Free Account</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+          {/* Interactive Actions & Quiz Modal */}
+          <EducationHeaderActions />
         </div>
 
         {/* Specialization Tracks Overview */}

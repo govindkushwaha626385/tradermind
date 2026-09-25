@@ -263,6 +263,23 @@ export const api = {
     }),
   syncBroker: (id: string) =>
     request<unknown>(`/brokers/${id}/sync`, { method: 'POST' }),
+  syncAllBrokers: () =>
+    request<{
+      totalConnections: number;
+      successfulSyncs: number;
+      failedSyncs: number;
+      totalImportedCount: number;
+      totalTradesCreated: number;
+      details: Array<{
+        connectionId: string;
+        brokerId: string;
+        label: string | null;
+        success: boolean;
+        importedCount?: number;
+        tradesCreated?: number;
+        error?: string;
+      }>;
+    }>('/brokers/sync-all', { method: 'POST' }),
   disconnectBroker: (id: string) =>
     request<unknown>(`/brokers/${id}`, { method: 'DELETE' }),
   getBrokerFunds: () => request<unknown[]>('/brokers/funds'),
@@ -753,19 +770,120 @@ export const api = {
   deleteAdminPlan: (id: string) =>
     request<unknown>(`/admin/plans/${id}`, { method: 'DELETE' }),
 
-  // ── Admin: Journal Trades Viewer ──────────
+  // ── Admin: Journal Trades Viewer & Operations ──────────
   getAdminJournal: (params?: Record<string, string | number | undefined>) =>
     request<{ data: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       '/admin/journal',
       { params },
     ),
+  adminDeleteJournalTrade: (id: string) =>
+    request<{ message: string }>(`/admin/journal/${id}`, { method: 'DELETE' }),
 
-  // ── Admin: Broker Connections Viewer ──────
+  // ── Admin: Trade Executions ────────────────────────────
+  adminDeleteTradeExecution: (id: string) =>
+    request<{ message: string }>(`/admin/executions/${id}`, { method: 'DELETE' }),
+  adminDeleteExecution: (id: string) =>
+    request<{ message: string }>(`/admin/executions/${id}`, { method: 'DELETE' }),
+
+  // ── Admin: Broker Connections & Super-Controls ──────────
   getAdminBrokers: (params?: Record<string, string | number | undefined>) =>
     request<{ data: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       '/admin/brokers',
       { params },
     ),
+  adminForceSyncBroker: (id: string) =>
+    request<{ success: boolean; message?: string; importedCount?: number; tradesCreated?: number; error?: string }>(
+      `/admin/brokers/${id}/sync`,
+      { method: 'POST' },
+    ),
+  adminSyncAllBrokers: () =>
+    request<{
+      totalConnections: number;
+      successfulSyncs: number;
+      failedSyncs: number;
+      totalImportedCount: number;
+      totalTradesCreated: number;
+      details: Array<{
+        connectionId: string;
+        brokerId: string;
+        label: string | null;
+        success: boolean;
+        importedCount?: number;
+        tradesCreated?: number;
+        error?: string;
+      }>;
+    }>('/admin/brokers/sync-all', { method: 'POST' }),
+  adminUpdateBroker: (id: string, data: { isActive?: boolean; status?: string; label?: string }) =>
+    request<unknown>(`/admin/brokers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  adminDeleteBroker: (id: string) =>
+    request<{ message: string }>(`/admin/brokers/${id}`, { method: 'DELETE' }),
+
+  // ── Admin: Broadcast & System Actions ─────────────────
+  adminUpdateBroadcastBanner: (data: {
+    enabled: boolean;
+    text: string;
+    type: 'info' | 'success' | 'warning' | 'alert';
+    link?: string;
+    linkText?: string;
+    maintenanceMode: boolean;
+  }) =>
+    request<{ message: string; banner: unknown }>('/admin/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  adminFlushCache: () =>
+    request<{ message: string }>('/admin/system/flush-cache', { method: 'POST' }),
+  adminPingDb: () =>
+    request<{ status: string; latencyMs: number; timestamp: string; database: string }>('/admin/system/ping-db', {
+      method: 'POST',
+    }),
+  adminFlushAiCache: () =>
+    request<{ message: string; count: number }>('/admin/ai/flush-cache', { method: 'POST' }),
+
+  // ── Admin: Background Jobs & Queue Console ────────────
+  getAdminJobs: (params?: Record<string, string | number | undefined>) =>
+    request<{
+      jobs: Array<{
+        id: string;
+        queue: string;
+        jobName: string;
+        payload: Record<string, unknown>;
+        status: string;
+        attempts: number;
+        maxAttempts: number;
+        runAt: string;
+        startedAt: string | null;
+        completedAt: string | null;
+        error: string | null;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+      stats: Record<string, number>;
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>('/admin/jobs', { params }),
+  adminDispatchJob: (data: {
+    queue: string;
+    jobName: string;
+    payload?: Record<string, unknown>;
+    maxAttempts?: number;
+  }) =>
+    request<{ message: string; job: unknown }>('/admin/jobs/dispatch', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  adminRetryJob: (id: string) =>
+    request<{ message: string; job: unknown }>(`/admin/jobs/${id}/retry`, {
+      method: 'POST',
+    }),
+  adminClearCompletedJobs: () =>
+    request<{ message: string; count: number }>('/admin/jobs/clear-completed', {
+      method: 'POST',
+    }),
+  adminDeleteJob: (id: string) =>
+    request<{ message: string }>(`/admin/jobs/${id}`, { method: 'DELETE' }),
 
   // ── Admin: Invoices Viewer ────────────────
   getAdminInvoices: (params?: Record<string, string | number | undefined>) =>
@@ -854,6 +972,45 @@ export const api = {
     request<{ message: string; results: any }>('/notifications/webhooks/dispatch-debrief', {
       method: 'POST',
     }),
+  getEodDigest: (session?: string) =>
+    request<{ digest: import('@/lib/server/services/eod-digest.service').EodDigestData }>(
+      `/digest/eod${session ? `?session=${session}` : ''}`
+    ),
+  triggerEodDigest: (data?: { session?: string; channels?: string[] }) =>
+    request<{
+      message: string;
+      digest: import('@/lib/server/services/eod-digest.service').EodDigestData;
+      delivery: { inApp: boolean; webhook: { discord?: boolean; telegram?: boolean }; emailJobQueued: boolean };
+    }>('/digest/eod/trigger', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }),
+  adminDispatchEodDigests: (session: 'IST' | 'EST' | 'UTC' | 'ALL') =>
+    request<{
+      session: string;
+      sessionName: string;
+      totalEligibleUsers: number;
+      sentCount: number;
+      skippedCount: number;
+      durationMs: number;
+    }>('/admin/digest/dispatch-all', {
+      method: 'POST',
+      body: JSON.stringify({ session }),
+    }),
+
+  // ── Public Prop Firm Certificate Verification ──
+  getPublicCertificate: (certificateId: string) =>
+    request<{ certificate: import('@/lib/server/services/certificate-verification.service').VerifiedCertificateResult }>(
+      `/verify/${encodeURIComponent(certificateId)}`
+    ),
+  lookupPublicCertificate: (query: string) =>
+    request<{ certificate: import('@/lib/server/services/certificate-verification.service').VerifiedCertificateResult }>(
+      '/verify/lookup',
+      {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+      }
+    ),
 
   // ── AI Services ───────────────────────────
   analyzeTradeAutopsy: (tradeId: string) =>
@@ -1206,6 +1363,18 @@ export const api = {
       total: number;
     }>('/admin/strategies', {
       params: params as Record<string, string | number | undefined>,
+    }),
+  adminToggleStrategy: (id: string) =>
+    request<{ id: string; isActive: boolean }>(`/admin/strategies/${id}/toggle`, {
+      method: 'PATCH',
+    }),
+  adminDeleteStrategy: (id: string) =>
+    request<{ message: string }>(`/admin/strategies/${id}`, {
+      method: 'DELETE',
+    }),
+  adminRecomputeLeaderboard: () =>
+    request<{ message: string; results: Record<string, number> }>('/admin/leaderboard/recompute', {
+      method: 'POST',
     }),
 
   // ── Partners & Affiliate Directory ────────

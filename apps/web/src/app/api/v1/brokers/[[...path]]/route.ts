@@ -20,7 +20,7 @@ import { checkBrokerLimit } from '@/lib/server/usage-limit';
 import { ok, created, notFound, apiError, parseBody } from '@/lib/server/response';
 import { getBrokerConnector } from '@/lib/server/connectors/base';
 import { parseCsvTrades } from '@/lib/server/services/csv-import.service';
-import { syncBrokerConnection } from '@/lib/server/services/broker-sync.service';
+import { syncBrokerConnection, syncAllUserBrokers } from '@/lib/server/services/broker-sync.service';
 import type { BrokerId } from '@trademind/shared';
 import { BROKER_IDS } from '@trademind/shared';
 import type { BrokerConnectorConfig } from '@/lib/server/connectors/base';
@@ -134,6 +134,7 @@ export async function POST(
     if (rl) return rl;
 
     if (seg1 === 'connect') return handleConnect(req, user.id);
+    if (seg1 === 'sync-all') return handleSyncAll(user.id);
     if (seg2 === 'sync') return handleSync(user.id, seg1);
     if (seg1 === 'import' && seg2 === 'csv' && seg3 === 'preview') return handleCsvPreview(req);
     if (seg1 === 'import' && seg2 === 'csv') return handleCsvImport(req, user.id);
@@ -365,6 +366,14 @@ async function handleSync(userId: string, connectionId: string) {
       ? (syncResult.message ?? 'Broker synchronization completed.')
       : `Sync queued. (Notice: ${syncResult.error})`,
     ...syncResult,
+  });
+}
+
+async function handleSyncAll(userId: string) {
+  const result = await syncAllUserBrokers(userId);
+  return ok({
+    message: `Synchronized ${result.successfulSyncs} of ${result.totalConnections} active connections (${result.totalImportedCount} fills imported, ${result.totalTradesCreated} trades created).`,
+    ...result,
   });
 }
 

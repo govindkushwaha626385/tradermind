@@ -17,6 +17,7 @@ import { APP_NAME } from '@trademind/shared';
 
 const DESKTOP_NAV_ITEMS = [
   { label: 'Live Demo', href: '/demo', isSpecial: true },
+  { label: 'Terminal Simulation', href: '#simulation' },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Academy', href: '/education' },
@@ -27,12 +28,14 @@ const DESKTOP_NAV_ITEMS = [
 
 const ALL_NAV_ITEMS = [
   { label: 'Live Sandbox Demo', href: '/demo', badge: 'Instant' },
+  { label: 'Terminal Simulation', href: '#simulation', badge: 'Live Replay' },
   { label: 'Features & Edge', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Supported Brokers', href: '#brokers' },
   { label: 'Trader Academy & Roadmap', href: '/education' },
   { label: '19 Pro Calculators', href: '/calculators' },
   { label: 'Research Blog', href: '/blog' },
+  { label: 'Prop Firm Verification', href: '/verify', badge: 'Audited' },
   { label: 'Trader Leaderboard', href: '/leaderboard' },
   { label: 'Pricing Plans', href: '#pricing' },
   { label: 'Trader Reviews', href: '#testimonials' },

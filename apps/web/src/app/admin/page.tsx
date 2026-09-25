@@ -38,11 +38,13 @@ import {
   Clock,
   Layers,
   Percent,
+  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import { SkeletonStatRow } from '@/components/ui/SkeletonCard';
+import { AdminBroadcastModal } from '@/components/admin/AdminBroadcastModal';
 
 interface AdminConfig {
   key: string;
@@ -139,6 +141,27 @@ export default function AdminPage() {
   const [togglingFlag, setTogglingFlag] = useState<string | null>(null);
   const [liveSyncLogs, setLiveSyncLogs] = useState<LiveSyncLog[]>([]);
   const [flushingCache, setFlushingCache] = useState(false);
+  const [flushingAiCache, setFlushingAiCache] = useState(false);
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
+  const [pingingDb, setPingingDb] = useState(false);
+  const [dbLatencyMs, setDbLatencyMs] = useState<number | null>(null);
+
+  const handlePingDb = async () => {
+    setPingingDb(true);
+    try {
+      const res = await api.adminPingDb();
+      if (res.success && res.data) {
+        setDbLatencyMs(res.data.latencyMs);
+        toast.success(`Database Pong: ${res.data.latencyMs}ms (${res.data.status})`);
+      } else {
+        toast.error('Database ping failed');
+      }
+    } catch {
+      toast.error('Database connection timed out');
+    } finally {
+      setPingingDb(false);
+    }
+  };
 
   const [aiAnalytics, setAiAnalytics] = useState<{
     totalRequestsCached: number;
@@ -216,6 +239,23 @@ export default function AdminPage() {
     }
   };
 
+  const handleFlushAiCache = async () => {
+    setFlushingAiCache(true);
+    try {
+      const res = await api.adminFlushAiCache();
+      if (res.success) {
+        toast.success(`Purged ${res.data?.count ?? 0} cached AI inferences from database`);
+        fetchAdminData();
+      } else {
+        toast.error('Failed to flush AI cache');
+      }
+    } catch {
+      toast.error('Failed to flush AI cache');
+    } finally {
+      setFlushingAiCache(false);
+    }
+  };
+
   const handleFlushCache = async () => {
     setFlushingCache(true);
     try {
@@ -290,9 +330,26 @@ export default function AdminPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setBroadcastModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 text-sm font-semibold hover:bg-primary/20 transition-all cursor-pointer"
+            title="Site-wide Announcements & Maintenance Mode"
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>Broadcast Notice</span>
+          </button>
+          <button
+            onClick={handlePingDb}
+            disabled={pingingDb}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-sm font-semibold hover:bg-emerald-500/20 transition-all cursor-pointer"
+            title="Check database connection latency"
+          >
+            <Zap className={cn('w-4 h-4 text-emerald-500', pingingDb && 'animate-pulse')} />
+            <span>{pingingDb ? 'Pinging...' : dbLatencyMs !== null ? `${dbLatencyMs}ms` : 'Ping DB'}</span>
+          </button>
+          <button
             onClick={fetchAdminData}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/80 transition-colors cursor-pointer"
           >
             <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
             Refresh
@@ -300,7 +357,7 @@ export default function AdminPage() {
           <button
             onClick={handleFlushCache}
             disabled={flushingCache}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-colors cursor-pointer"
             title="Purge all L1 & L2 cache"
           >
             <Trash2 className={cn('w-4 h-4', flushingCache && 'animate-spin')} />
@@ -702,14 +759,25 @@ export default function AdminPage() {
                         Zero-Cost AI Engine Analytics
                       </span>
                     </div>
-                    <button
-                      onClick={handleTestAi}
-                      disabled={testingAi}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm"
-                    >
-                      <RefreshCw className={cn('w-3.5 h-3.5', testingAi && 'animate-spin')} />
-                      {testingAi ? 'Testing...' : 'Test AI Providers'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleFlushAiCache}
+                        disabled={flushingAiCache}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                        title="Purge all cached AI inferences"
+                      >
+                        <Trash2 className={cn('w-3.5 h-3.5', flushingAiCache && 'animate-spin')} />
+                        {flushingAiCache ? 'Purging...' : 'Purge AI Cache'}
+                      </button>
+                      <button
+                        onClick={handleTestAi}
+                        disabled={testingAi}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold transition-all disabled:opacity-50 shadow-sm cursor-pointer"
+                      >
+                        <RefreshCw className={cn('w-3.5 h-3.5', testingAi && 'animate-spin')} />
+                        {testingAi ? 'Testing...' : 'Test AI Providers'}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -779,6 +847,13 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Global Broadcast & Emergency Maintenance Modal */}
+      <AdminBroadcastModal
+        isOpen={broadcastModalOpen}
+        onClose={() => setBroadcastModalOpen(false)}
+        onSuccess={fetchAdminData}
+      />
     </div>
   );
 }

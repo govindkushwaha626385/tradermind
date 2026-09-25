@@ -12,6 +12,7 @@ import { ChevronDown, ArrowRight } from 'lucide-react';
 import { APP_NAME } from '@trademind/shared';
 import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { HeroSection } from '@/components/landing/HeroSection';
+import { LiveTradingSimulationTerminal } from '@/components/landing/LiveTradingSimulationTerminal';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { CompetitorComparisonSection } from '@/components/landing/CompetitorComparisonSection';
@@ -166,6 +167,9 @@ export default function HomePage() {
 
       {/* ── Stats (social proof numbers) ─── */}
       <StatsSection />
+
+      {/* ── Interactive Live Trading Terminal & Simulation ── */}
+      <LiveTradingSimulationTerminal />
 
       {/* ── Features Section ──────────────── */}
       <FeaturesSection />

@@ -17,11 +17,14 @@ import {
   TrendingDown,
   BookOpen,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface JournalEntry {
   id: string;
@@ -68,6 +71,11 @@ export default function AdminJournalPage() {
   const [symbolSearch, setSymbolSearch] = useState('');
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
 
+  // Delete trade state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [tradeToDelete, setTradeToDelete] = useState<JournalEntry | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     document.title = 'Journal Viewer — TradeMind | Admin';
   }, []);
@@ -95,6 +103,29 @@ export default function AdminJournalPage() {
   useEffect(() => {
     fetchJournal();
   }, [fetchJournal]);
+
+  const handleDeleteConfirm = async () => {
+    if (!tradeToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const res = await api.adminDeleteJournalTrade(tradeToDelete.id);
+      if (res.success) {
+        toast.success(`Trade ${tradeToDelete.tradingsymbol} removed from journal`);
+        setEntries((prev) => prev.filter((x) => x.id !== tradeToDelete.id));
+        if (selectedEntry?.id === tradeToDelete.id) {
+          setSelectedEntry(null);
+        }
+        setDeleteConfirmOpen(false);
+        setTradeToDelete(null);
+      } else {
+        toast.error((res as any).error?.message || 'Failed to delete trade');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete trade');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const formatDate = (d: string | null) => {
     if (!d) return '—';
@@ -199,6 +230,7 @@ export default function AdminJournalPage() {
                   <th className="text-right px-4 py-3.5 font-medium text-muted-foreground">Net P&amp;L</th>
                   <th className="text-right px-4 py-3.5 font-medium text-muted-foreground">R-Multiple</th>
                   <th className="text-left px-4 py-3.5 font-medium text-muted-foreground">Opened</th>
+                  <th className="text-right px-4 py-3.5 font-medium text-muted-foreground">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
@@ -257,6 +289,19 @@ export default function AdminJournalPage() {
                     </td>
                     <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap font-mono">
                       {formatDate(entry.openedAt)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTradeToDelete(entry);
+                          setDeleteConfirmOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                        title="Delete trade entry from database"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -405,8 +450,43 @@ export default function AdminJournalPage() {
               </p>
             </div>
           )}
+
+          {/* Drawer Actions */}
+          <div className="pt-3 border-t border-border/40 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-mono">ID: {selectedEntry.id}</span>
+            <button
+              onClick={() => {
+                setTradeToDelete(selectedEntry);
+                setDeleteConfirmOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Trade Record</span>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete Journal Trade Record"
+        description={
+          tradeToDelete
+            ? `Permanently delete trade #${tradeToDelete.tradingsymbol} (${tradeToDelete.direction}, net PnL: ${formatPnl(tradeToDelete.netPnl)}) for ${tradeToDelete.userEmail}? This will recalculate trader statistics and cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete Trade"
+        cancelLabel="Keep Trade"
+        danger
+        loading={deleteLoading}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setTradeToDelete(null);
+        }}
+      />
     </div>
   );
 }
