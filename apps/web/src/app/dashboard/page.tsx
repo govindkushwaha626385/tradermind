@@ -40,6 +40,7 @@ import {
   Layers,
   ChevronDown,
   ShieldCheck,
+  FileText,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -51,6 +52,7 @@ import { BehavioralShield } from '@/components/ai/BehavioralShield';
 import { PremarketRoutineModal } from '@/components/discipline/PremarketRoutineModal';
 import { DailyDebrief } from '@/components/ai/DailyDebrief';
 import { ReviewSubmitModal } from '@/components/ReviewSubmitModal';
+import { WeeklyEdgeReportModal } from '@/components/analytics/WeeklyEdgeReportModal';
 import { MarketSessionStatus } from '@/components/dashboard/MarketSessionStatus';
 import { RiskGuard } from '@/components/dashboard/RiskGuard';
 import { RiskKillSwitchWidget } from '@/components/dashboard/RiskKillSwitchWidget';
@@ -136,6 +138,7 @@ export default function DashboardPage() {
   const [premarketOpen, setPremarketOpen] = useState(false);
   const [debriefOpen, setDebriefOpen]     = useState(false);
   const [reviewOpen, setReviewOpen]       = useState(false);
+  const [isWeeklyReportOpen, setIsWeeklyReportOpen] = useState(false);
   const [lastUpdated, setLastUpdated]     = useState<string>('');
   const [mainViewMode, setMainViewMode]   = useState<'equity' | 'terminal'>('equity');
   const [terminalSymbol, setTerminalSymbol] = useState<string>('NSE:NIFTY');
@@ -336,6 +339,14 @@ export default function DashboardPage() {
           >
             <Sparkles className="w-3.5 h-3.5" />
             Daily Debrief
+          </button>
+          <button
+            onClick={() => setIsWeeklyReportOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/30 text-sm font-semibold text-indigo-300 hover:text-white transition-all shadow-sm cursor-pointer"
+            title="Generate Institutional Weekly Edge Report (PDF / Image Export)"
+          >
+            <FileText className="w-3.5 h-3.5 text-indigo-400" />
+            Weekly Edge
           </button>
           <button
             onClick={() => fetchDashboard(true)}
@@ -860,6 +871,11 @@ export default function DashboardPage() {
         isOpen={reviewOpen}
         onClose={() => setReviewOpen(false)}
         onSubmitted={() => fetchDashboard(true)}
+      />
+      <WeeklyEdgeReportModal
+        isOpen={isWeeklyReportOpen}
+        onClose={() => setIsWeeklyReportOpen(false)}
+        currency={currency}
       />
     </div>
   );

@@ -74,7 +74,9 @@ import { EodReviewModal } from '@/components/discipline/EodReviewModal';
 import { EodDigestModal } from '@/components/discipline/EodDigestModal';
 import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
 import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
+import { EodVoiceBriefingModal } from '@/components/discipline/EodVoiceBriefingModal';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
+import { Volume2 } from 'lucide-react';
 
 // ── Sidebar nav groups ─────────────────────────────────────────────
 
@@ -357,6 +359,7 @@ export default function DashboardLayout({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tiltModalOpen, setTiltModalOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [voiceBriefingOpen, setVoiceBriefingOpen] = useState(false);
 
   // Power-User Global Hotkeys: J (Journal), R (Replay), C (Calculators), T (Trades), Cmd+K, ?, Shift+T
   useGlobalHotkeys({
@@ -704,6 +707,16 @@ export default function DashboardLayout({
               <Keyboard className="w-4 h-4" />
             </button>
 
+            {/* 60s AI Audio EOD Debrief */}
+            <button
+              onClick={() => setVoiceBriefingOpen(true)}
+              className="p-2 rounded-lg hover:bg-accent text-violet-400 hover:text-violet-300 transition-colors cursor-pointer"
+              title="60s AI Audio Debrief"
+              aria-label="60s AI Audio Debrief"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+
             {/* Platform Tour & Academy */}
             <button
               onClick={() => setShowTour(true)}
@@ -826,6 +839,12 @@ export default function DashboardLayout({
         totalXp={1450}
         completedCount={8}
         totalMilestones={20}
+      />
+
+      {/* ── Automated 60-Second AI Voice/Audio Debrief Modal ── */}
+      <EodVoiceBriefingModal
+        isOpen={voiceBriefingOpen}
+        onClose={() => setVoiceBriefingOpen(false)}
       />
     </div>
   );

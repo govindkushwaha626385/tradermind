@@ -22,6 +22,7 @@ import {
   Clock,
   Flame,
   BarChart2,
+  FileText,
 } from 'lucide-react';
 import { cn, formatCurrency, formatPercent } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -38,6 +39,7 @@ import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { WhatIfSimulator } from '@/components/analytics/WhatIfSimulator';
 import { TaxReport } from '@/components/analytics/TaxReport';
 import { MfeMaeScatterPlot, type ExcursionTradePoint } from '@/components/analytics/MfeMaeScatterPlot';
+import { WeeklyEdgeReportModal } from '@/components/analytics/WeeklyEdgeReportModal';
 import type { DashboardStats, AdvancedAnalyticsResponse } from '@trademind/shared';
 
 const TABS = [
@@ -91,6 +93,7 @@ export default function AnalyticsPage() {
   const [deepLoading, setDeepLoading] = useState(false);
   const [calculatingMfe, setCalculatingMfe] = useState(false);
   const [excursionTrades, setExcursionTrades] = useState<ExcursionTradePoint[]>([]);
+  const [isWeeklyReportOpen, setIsWeeklyReportOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'Analytics — TradeMind';
@@ -321,34 +324,46 @@ export default function AnalyticsPage() {
         description="Deep dive into your trading performance"
         icon={BarChart3}
         actions={
-          (activeTab === 'performance' || activeTab === 'deep-stats') ? (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 p-0.5 bg-accent/60 rounded-lg">
-                {(['1W', '1M', '3M', '6M', '1Y', 'ALL'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTimeframe(t)}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md text-xs font-medium transition-all',
-                      timeframe === t
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={activeTab === 'deep-stats' ? fetchDeepStats : fetchAnalytics}
-                disabled={loading || deepLoading}
-                className="p-1.5 rounded-lg border border-border hover:bg-accent disabled:opacity-50 transition-colors"
-                aria-label="Refresh analytics"
-              >
-                <RefreshCw className={cn('w-4 h-4', (loading || deepLoading) && 'animate-spin')} />
-              </button>
-            </div>
-          ) : undefined
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsWeeklyReportOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+              title="Generate Institutional Weekly Edge Report (PDF / Image Export)"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Weekly Edge Report</span>
+            </button>
+
+            {(activeTab === 'performance' || activeTab === 'deep-stats') && (
+              <>
+                <div className="flex items-center gap-1 p-0.5 bg-accent/60 rounded-lg">
+                  {(['1W', '1M', '3M', '6M', '1Y', 'ALL'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTimeframe(t)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer',
+                        timeframe === t
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={activeTab === 'deep-stats' ? fetchDeepStats : fetchAnalytics}
+                  disabled={loading || deepLoading}
+                  className="p-1.5 rounded-lg border border-border hover:bg-accent disabled:opacity-50 transition-colors cursor-pointer"
+                  aria-label="Refresh analytics"
+                >
+                  <RefreshCw className={cn('w-4 h-4', (loading || deepLoading) && 'animate-spin')} />
+                </button>
+              </>
+            )}
+          </div>
         }
       />
 
@@ -807,6 +822,13 @@ export default function AnalyticsPage() {
           )}
         </div>
       )}
+
+      {/* Institutional Weekly Edge Report Modal */}
+      <WeeklyEdgeReportModal
+        isOpen={isWeeklyReportOpen}
+        onClose={() => setIsWeeklyReportOpen(false)}
+        currency={currency}
+      />
     </div>
   );
 }

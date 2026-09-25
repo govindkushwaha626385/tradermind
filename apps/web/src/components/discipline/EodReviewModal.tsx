@@ -37,6 +37,8 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import type { DailyDebriefResult } from '@trademind/shared';
+import { Volume2 } from 'lucide-react';
+import { EodVoiceBriefingModal } from './EodVoiceBriefingModal';
 
 interface EodReviewModalProps {
   isOpen: boolean;
@@ -58,6 +60,7 @@ const EMOTION_OPTIONS = [
 export function EodReviewModal({ isOpen, onClose, onComplete }: EodReviewModalProps) {
   const { format, currency } = useCurrency();
   const [currentStep, setCurrentStep] = useState<EodStep>('scorecard');
+  const [voiceBriefingOpen, setVoiceBriefingOpen] = useState(false);
 
   // Debrief data
   const [debrief, setDebrief] = useState<DailyDebriefResult | null>(null);
@@ -293,7 +296,16 @@ Logged on TradeMind (Institutional Trading Journal)`;
               </>
             )}
 
-            <div className="flex justify-end pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setVoiceBriefingOpen(true)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-violet-600/15 hover:bg-violet-600/25 text-violet-400 border border-violet-500/30 flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Volume2 className="w-4 h-4 text-violet-400" />
+                <span>Listen to 60s AI Audio Debrief</span>
+              </button>
+
               <button
                 onClick={() => setCurrentStep('honesty')}
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-md shadow-primary/25 transition-all"
@@ -494,6 +506,13 @@ Logged on TradeMind (Institutional Trading Journal)`;
           </div>
         )}
       </div>
+
+      {/* Embedded Voice Briefing Modal */}
+      <EodVoiceBriefingModal
+        isOpen={voiceBriefingOpen}
+        onClose={() => setVoiceBriefingOpen(false)}
+        debriefData={debrief}
+      />
     </div>
   );
 }

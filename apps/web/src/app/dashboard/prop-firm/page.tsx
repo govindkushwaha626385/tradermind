@@ -43,6 +43,7 @@ import {
   PropFirmCertificateModal,
   type PropFirmCertificateData,
 } from '@/components/prop-firm/PropFirmCertificateModal';
+import { PropFirmMultiAccountMatrix } from '@/components/prop-firm/PropFirmMultiAccountMatrix';
 
 interface PropFirmAccount {
   id: string;
@@ -332,6 +333,7 @@ export default function PropFirmPage() {
   const [isPropCertOpen, setIsPropCertOpen] = useState(false);
   const [simulatedLoss, setSimulatedLoss] = useState<string>('500');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [viewMode, setViewMode] = useState<'single' | 'matrix'>('single');
 
   // New account form state
   const [formPreset, setFormPreset] = useState<string>('custom');
@@ -945,34 +947,69 @@ export default function PropFirmPage() {
         icon={Award}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.firmName} — {a.accountName} ({curSymbol}{a.accountSize.toLocaleString()})
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={handleSyncLiveTrades}
-              disabled={isSyncing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-sm font-semibold transition-colors shadow-sm cursor-pointer"
-              title="Sync live trade PnL & recalculate drawdown"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Sync Live PnL</span>
-            </button>
-            <button
-              onClick={() => setIsPropCertOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
-              title="Generate Official Prop Firm Pass / Funded Certificate (PDF & High-Res PNG)"
-            >
-              <Award className="w-4 h-4" />
-              <span className="hidden sm:inline">Certificate</span>
-            </button>
+            {/* View Mode Toggle */}
+            <div className="flex items-center rounded-xl p-1 bg-muted/40 border border-border/40 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('single')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-medium transition-all text-xs flex items-center gap-1.5 cursor-pointer',
+                  viewMode === 'single'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Single Account</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('matrix')}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-medium transition-all text-xs flex items-center gap-1.5 cursor-pointer',
+                  viewMode === 'matrix'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Scaling Matrix ({accounts.length})</span>
+              </button>
+            </div>
+
+            {viewMode === 'single' && (
+              <>
+                <select
+                  value={selectedId}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                >
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.firmName} — {a.accountName} ({curSymbol}{a.accountSize.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleSyncLiveTrades}
+                  disabled={isSyncing}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+                  title="Sync live trade PnL & recalculate drawdown"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Sync Live PnL</span>
+                </button>
+                <button
+                  onClick={() => setIsPropCertOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
+                  title="Generate Official Prop Firm Pass / Funded Certificate (PDF & High-Res PNG)"
+                >
+                  <Award className="w-4 h-4" />
+                  <span className="hidden sm:inline">Certificate</span>
+                </button>
+              </>
+            )}
+
             <Link
               href="/dashboard/roadmap?track=prop_firm"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-secondary/80 hover:bg-secondary text-foreground text-sm font-semibold transition-colors shadow-sm"
@@ -992,7 +1029,18 @@ export default function PropFirmPage() {
         }
       />
 
-      {/* Pass Celebration Banner */}
+      {viewMode === 'matrix' ? (
+        <PropFirmMultiAccountMatrix
+          accounts={accounts}
+          onSelectAccount={(id) => {
+            setSelectedId(id);
+            setViewMode('single');
+          }}
+          onRefresh={loadAccounts}
+        />
+      ) : (
+        <>
+          {/* Pass Celebration Banner */}
       {isReadyToPass && (
         <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1433,6 +1481,8 @@ export default function PropFirmPage() {
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Add Prop Firm Modal */}
       {isAddModalOpen && renderAddAccountModal()}

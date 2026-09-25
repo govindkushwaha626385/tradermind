@@ -33,6 +33,7 @@ import {
   BarChart2,
   RefreshCw,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
@@ -41,6 +42,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
 import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
 import { TradingWatchlistSidebar } from '@/components/chart/TradingWatchlistSidebar';
+import { DualTimeframeReplayChart } from '@/components/chart/DualTimeframeReplayChart';
 import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 import { useCurrency } from '@/hooks/useCurrency';
 import type { TradeReplayData } from '@trademind/shared';
@@ -396,7 +398,7 @@ export default function TradeReplayPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [chartView, setChartView] = useState<'live' | 'canvas' | 'scrubber'>('live');
+  const [chartView, setChartView] = useState<'dual' | 'live' | 'canvas' | 'scrubber'>('dual');
   const [liveSymbol, setLiveSymbol] = useState<string>('NSE:NIFTY');
   const [mobileLiveView, setMobileLiveView] = useState<'chart' | 'watchlist'>('chart');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -670,9 +672,22 @@ export default function TradeReplayPage() {
                 <div className="flex items-center rounded-xl p-1 bg-muted/40 border border-border/40 text-xs">
                   <button
                     type="button"
+                    onClick={() => setChartView('dual')}
+                    className={cn(
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-xs cursor-pointer',
+                      chartView === 'dual'
+                        ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Dual MTF Confluence</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setChartView('live')}
                     className={cn(
-                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-xs',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-xs cursor-pointer',
                       chartView === 'live'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -685,7 +700,7 @@ export default function TradeReplayPage() {
                     type="button"
                     onClick={() => setChartView('canvas')}
                     className={cn(
-                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs cursor-pointer',
                       chartView === 'canvas'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -697,7 +712,7 @@ export default function TradeReplayPage() {
                     type="button"
                     onClick={() => setChartView('scrubber')}
                     className={cn(
-                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs',
+                      'px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-all text-xs cursor-pointer',
                       chartView === 'scrubber'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground',
@@ -808,7 +823,13 @@ export default function TradeReplayPage() {
             })()}
 
             {/* Chart Area */}
-            {chartView === 'live' ? (
+            {chartView === 'dual' && selectedTrade ? (
+              <DualTimeframeReplayChart
+                trade={selectedTrade}
+                ltfCandles={candles}
+                currency={selectedTrade.currency || currency}
+              />
+            ) : chartView === 'live' ? (
               <div className="flex flex-col lg:flex-row rounded-2xl overflow-hidden border border-border/40 bg-zinc-950 h-[480px] sm:h-[560px] lg:h-[620px] xl:h-[660px]">
                 {/* Chart Viewport (full width on desktop or when mobileLiveView === 'chart') */}
                 <div className={cn(
