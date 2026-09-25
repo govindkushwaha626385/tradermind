@@ -95,6 +95,8 @@ export function LightweightCandleChart({
   const [showBollinger, setShowBollinger] = useState(false);
   const [showVolume, setShowVolume] = useState(true);
   const [showRsi, setShowRsi] = useState(false);
+  const [showHtfConfluence, setShowHtfConfluence] = useState(true);
+  const [htfTimeframe, setHtfTimeframe] = useState<'15m' | '1h' | '4h'>('1h');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredCandle, setHoveredCandle] = useState<{
     open: number;
@@ -627,6 +629,51 @@ export function LightweightCandleChart({
       lowerSeries.setData(lowerData);
     }
 
+    // ── Add Multi-Timeframe Confluence Bands (5M, 15M, 1H) ──
+    if (showHtfConfluence && candles.length >= 4) {
+      const htfResistanceSeries = chart.addSeries(LineSeries, {
+        color: '#f59e0b',
+        lineWidth: 2,
+        lineStyle: 2,
+        title: `HTF Res (${htfTimeframe.toUpperCase()})`,
+      });
+      const htfSupportSeries = chart.addSeries(LineSeries, {
+        color: '#10b981',
+        lineWidth: 2,
+        lineStyle: 2,
+        title: `HTF Sup (${htfTimeframe.toUpperCase()})`,
+      });
+      const htfBasisSeries = chart.addSeries(LineSeries, {
+        color: '#8b5cf6',
+        lineWidth: 1,
+        lineStyle: 3,
+        title: `HTF Eq (${htfTimeframe.toUpperCase()})`,
+      });
+
+      const bucketSize = htfTimeframe === '15m' ? 3 : htfTimeframe === '1h' ? 12 : 24;
+      const resData: LineData<Time>[] = [];
+      const supData: LineData<Time>[] = [];
+      const basisData: LineData<Time>[] = [];
+
+      for (let i = 0; i < candles.length; i += bucketSize) {
+        const chunk = candles.slice(i, i + bucketSize);
+        if (chunk.length === 0) continue;
+        const chunkHigh = Math.max(...chunk.map((c) => c.high));
+        const chunkLow = Math.min(...chunk.map((c) => c.low));
+        const chunkBasis = (chunkHigh + chunkLow) / 2;
+
+        chunk.forEach((c) => {
+          resData.push({ time: c.time, value: parseFloat(chunkHigh.toFixed(2)) });
+          supData.push({ time: c.time, value: parseFloat(chunkLow.toFixed(2)) });
+          basisData.push({ time: c.time, value: parseFloat(chunkBasis.toFixed(2)) });
+        });
+      }
+
+      htfResistanceSeries.setData(resData);
+      htfSupportSeries.setData(supData);
+      htfBasisSeries.setData(basisData);
+    }
+
     // ── Add RSI (14) Momentum Indicator ──
     if (showRsi && candles.length >= 15) {
       const rsiSeries = chart.addSeries(LineSeries, {
@@ -938,6 +985,31 @@ export function LightweightCandleChart({
             >
               <Layers className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Levels</span>
+            </button>
+
+            {/* Toggle Multi-Timeframe Confluence Bands (15M, 1H, 4H) */}
+            <button
+              onClick={() => {
+                if (!showHtfConfluence) {
+                  setShowHtfConfluence(true);
+                  setHtfTimeframe('15m');
+                } else if (htfTimeframe === '15m') {
+                  setHtfTimeframe('1h');
+                } else if (htfTimeframe === '1h') {
+                  setHtfTimeframe('4h');
+                } else {
+                  setShowHtfConfluence(false);
+                }
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                showHtfConfluence
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-xs'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-500'
+              }`}
+              title="Toggle Higher-Timeframe Confluence Bands (Click to cycle: 15M -> 1H -> 4H -> Off)"
+            >
+              <Target className="w-3.5 h-3.5 text-amber-400" />
+              <span>HTF {showHtfConfluence ? htfTimeframe.toUpperCase() : 'Off'}</span>
             </button>
 
             {/* One-Click Chart Screenshot Export */}

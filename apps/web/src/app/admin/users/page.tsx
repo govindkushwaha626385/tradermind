@@ -25,6 +25,7 @@ import {
   X,
   LogIn,
   Download,
+  Sliders,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -32,6 +33,10 @@ import { downloadCsv } from '@/lib/export-csv';
 import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import {
+  UserQuotaOverrideModal,
+  type UserOverrideData,
+} from '@/components/admin/UserQuotaOverrideModal';
 
 interface AdminUser {
   id: string;
@@ -47,6 +52,13 @@ interface AdminUser {
     status: string;
     provider: string;
     currentPeriodEnd: string | null;
+    trialEndsAt?: string | null;
+  } | null;
+  override?: {
+    customTradeQuota?: number;
+    notes?: string;
+    grantedBy?: string;
+    grantedAt?: string;
   } | null;
 }
 
@@ -83,6 +95,9 @@ export default function AdminUsersPage() {
   const [confirmTarget, setConfirmTarget] = useState<AdminUser | UserDetail | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  // Quota Override Modal state
+  const [overrideModalUser, setOverrideModalUser] = useState<UserOverrideData | null>(null);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
 
   const handleImpersonate = async (targetUser: AdminUser) => {
     if (targetUser.role === 'ADMIN') {
@@ -391,19 +406,38 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {user.subscription ? (
-                          <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', getStatusColor(user.subscription.status))}>
-                            {user.subscription.status}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No plan</span>
-                        )}
+                        <div className="flex flex-col gap-1 items-start">
+                          {user.subscription ? (
+                            <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', getStatusColor(user.subscription.status))}>
+                              {user.subscription.status}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No plan</span>
+                          )}
+                          {user.override?.customTradeQuota !== undefined && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              ⚡ {user.override.customTradeQuota === -1 ? 'Unlimited' : `${user.override.customTradeQuota}/mo`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                         {formatDate(user.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOverrideModalUser(user as any);
+                              setIsOverrideModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors cursor-pointer"
+                            title="Super-Console: Override Quotas & RBAC"
+                          >
+                            <Sliders className="w-3 h-3 text-primary" />
+                            <span>Override</span>
+                          </button>
                           {user.role !== 'ADMIN' && (
                             <button
                               onClick={(e) => {
@@ -563,15 +597,52 @@ export default function AdminUsersPage() {
                   ) : (
                     <p className="text-xs text-muted-foreground">No active subscription</p>
                   )}
+
+                  {/* Super-Console Quota Override Badge */}
+                  {selectedUser.override && (
+                    <div className="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs space-y-1.5">
+                      <div className="font-bold text-amber-500 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Custom Quota Active</span>
+                        </div>
+                        <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-500/20 text-amber-400">
+                          OVERRIDDEN
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span>Monthly Trades:</span>
+                        <strong className="text-foreground">
+                          {selectedUser.override.customTradeQuota === -1 ? 'Unlimited' : `${selectedUser.override.customTradeQuota}/mo`}
+                        </strong>
+                      </div>
+                      {selectedUser.override.notes && (
+                        <div className="text-[11px] text-muted-foreground italic border-t border-border/40 pt-1">
+                          "{selectedUser.override.notes}"
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Quick actions */}
                 <div className="pt-2 space-y-2">
+                  <button
+                    onClick={() => {
+                      setOverrideModalUser(selectedUser as any);
+                      setIsOverrideModalOpen(true);
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500/10 via-primary/10 to-emerald-500/10 hover:from-amber-500/20 hover:to-emerald-500/20 text-foreground border border-border transition-all cursor-pointer"
+                  >
+                    <Sliders className="w-4 h-4 text-primary" />
+                    <span>Override Quotas & Trial</span>
+                  </button>
+
                   {selectedUser.role !== 'ADMIN' && (
                     <button
                       onClick={() => handleImpersonate(selectedUser)}
                       disabled={impersonating === selectedUser.id}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
                     >
                       {impersonating === selectedUser.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -585,7 +656,7 @@ export default function AdminUsersPage() {
                     onClick={() => toggleRole(selectedUser)}
                     disabled={updatingRole === selectedUser.id}
                     className={cn(
-                      'w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                      'w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer',
                       selectedUser.role === 'ADMIN'
                         ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
                         : 'bg-primary/10 text-primary hover:bg-primary/20',
@@ -609,7 +680,7 @@ export default function AdminUsersPage() {
                   <button
                     onClick={() => requestDeleteUser(selectedUser)}
                     disabled={deletingUser === selectedUser.id}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {deletingUser === selectedUser.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -626,6 +697,22 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Super-Console User Quota & RBAC Override Modal */}
+      <UserQuotaOverrideModal
+        isOpen={isOverrideModalOpen}
+        onClose={() => {
+          setIsOverrideModalOpen(false);
+          setOverrideModalUser(null);
+        }}
+        user={overrideModalUser}
+        onSuccess={() => {
+          fetchUsers(pagination.page);
+          if (selectedUser?.id && overrideModalUser?.id === selectedUser.id) {
+            viewUserDetail(selectedUser.id);
+          }
+        }}
+      />
     </div>
   );
 }

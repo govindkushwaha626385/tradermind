@@ -7,7 +7,7 @@
 // ──────────────────────────────────────────────
 
 import { NextResponse } from 'next/server';
-import { getDatabase, subscriptions, plans, brokerConnections, tradeExecutions, users } from '@trademind/database';
+import { getDatabase, subscriptions, plans, brokerConnections, tradeExecutions, users, adminConfigs } from '@trademind/database';
 import { eq, and, sql } from 'drizzle-orm';
 
 export const FEATURES = {
@@ -22,16 +22,34 @@ export const FEATURES = {
 /**
  * Get the user's current plan features.
  * Falls back to free plan defaults when no active subscription exists.
+ * Merges super-admin overrides from adminConfigs (user_override:{userId}).
  */
 export async function getUserPlanFeatures(userId: string): Promise<Record<string, unknown>> {
   try {
     const db = getDatabase();
 
+    // Check if there is an active custom quota override for this user
+    let userOverride: any = null;
+    try {
+      const [overrideCfg] = await db
+        .select()
+        .from(adminConfigs)
+        .where(eq(adminConfigs.key, `user_override:${userId}`))
+        .limit(1);
+      if (overrideCfg?.value) {
+        userOverride = overrideCfg.value;
+      }
+    } catch {
+      // ignore
+    }
+
     const [sub] = await db
       .select()
       .from(subscriptions)
-      .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, 'active')))
+      .where(and(eq(subscriptions.userId, userId), sql`${subscriptions.status} IN ('active', 'trialing')`))
       .limit(1);
+
+    let baseFeatures: Record<string, unknown> = {};
 
     if (sub) {
       const [plan] = await db
@@ -39,16 +57,21 @@ export async function getUserPlanFeatures(userId: string): Promise<Record<string
         .from(plans)
         .where(eq(plans.id, sub.planId))
         .limit(1);
-      return (plan?.features as Record<string, unknown>) ?? {};
+      baseFeatures = { ...((plan?.features as Record<string, unknown>) ?? {}) };
+    } else {
+      const [freePlan] = await db
+        .select()
+        .from(plans)
+        .where(eq(plans.slug, 'free'))
+        .limit(1);
+      baseFeatures = { ...((freePlan?.features as Record<string, unknown>) ?? {}) };
     }
 
-    const [freePlan] = await db
-      .select()
-      .from(plans)
-      .where(eq(plans.slug, 'free'))
-      .limit(1);
+    if (userOverride?.customTradeQuota !== undefined) {
+      baseFeatures[FEATURES.MAX_TRADES_PER_MONTH] = userOverride.customTradeQuota;
+    }
 
-    return (freePlan?.features as Record<string, unknown>) ?? {};
+    return baseFeatures;
   } catch (err) {
     console.warn('[usage-limit] Error getting plan features:', err);
     return {};

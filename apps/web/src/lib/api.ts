@@ -715,6 +715,24 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ role }),
     }),
+  overrideUserQuota: (
+    id: string,
+    data: {
+      role?: 'USER' | 'ADMIN';
+      customTradeQuota?: number;
+      planSlug?: string;
+      extendTrialDays?: number;
+      status?: 'active' | 'trialing' | 'canceled' | 'past_due' | 'expired';
+      notes?: string;
+    },
+  ) =>
+    request<{ message: string; userId: string; subscription?: unknown; override?: unknown }>(
+      `/admin/users/${id}/override`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      },
+    ),
   deleteAdminUser: (id: string) =>
     request<{ message: string }>(`/admin/users/${id}`, {
       method: 'DELETE',

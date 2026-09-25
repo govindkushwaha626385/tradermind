@@ -6,6 +6,7 @@
 // - Live multi-market data (Indian NSE/BSE, Global Crypto, US Stocks, Forex)
 // - Automatic symbol resolution for F&O options/futures to underlying tickers
 // - CSP-safe script injection with error boundary and fallback
+// - React-safe isolated DOM mount (zero 'removeChild' DOM reconciliation errors)
 // - Full left-side vector drawing toolbar (Trendlines, Fib, Long/Short box, etc.)
 // - Full top timeframe switcher (1m, 3m, 5m, 15m, 30m, 1h, 4h, 1D, 1W)
 // - Seamless dark theme (#09090b) matching TradeMind UI
@@ -13,8 +14,8 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState, memo } from 'react';
-import { AlertTriangle, RefreshCw, Layers, ExternalLink, LineChart } from 'lucide-react';
+import React, { useEffect, useRef, useState, memo, Component, type ReactNode } from 'react';
+import { AlertTriangle, RefreshCw, Layers, LineChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 
@@ -30,7 +31,44 @@ export interface TradingViewLiveWidgetProps {
   onFallbackToCanvas?: () => void;
 }
 
-function TradingViewLiveWidgetComponent({
+// ── Local Error Boundary to catch any 3rd-party widget crashes ───────────────
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback: (error: Error, reset: () => void) => ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class WidgetErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[TradingView Widget Boundary Error]', error, errorInfo);
+  }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError && this.state.error) {
+      return this.props.fallback(this.state.error, this.reset);
+    }
+    return this.props.children;
+  }
+}
+
+function TradingViewLiveWidgetInternal({
   symbol = 'BINANCE:ETHUSDT',
   interval = '5',
   theme = 'dark',
@@ -41,7 +79,9 @@ function TradingViewLiveWidgetComponent({
   allowSymbolChange = true,
   onFallbackToCanvas,
 }: TradingViewLiveWidgetProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  // CRITICAL: chartMountRef is an isolated DOM leaf with ZERO React children.
+  // This guarantees that script innerHTML mutations never collide with React's reconciler.
+  const chartMountRef = useRef<HTMLDivElement>(null);
   const containerIdRef = useRef<string>(`tv_chart_container_${Math.random().toString(36).substring(2, 9)}`);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -52,10 +92,10 @@ function TradingViewLiveWidgetComponent({
 
   const initWidget = () => {
     const containerId = containerIdRef.current;
-    if (!containerRef.current) return;
+    if (!chartMountRef.current) return;
 
-    // Reset container HTML
-    containerRef.current.innerHTML = `<div id="${containerId}" style="width: 100%; height: 100%;"></div>`;
+    // Reset ONLY the isolated mount container
+    chartMountRef.current.innerHTML = `<div id="${containerId}" style="width: 100%; height: 100%;"></div>`;
 
     if (typeof (window as any).TradingView !== 'undefined') {
       try {
@@ -105,7 +145,9 @@ function TradingViewLiveWidgetComponent({
       initWidget();
       return () => {
         isMounted = false;
-        if (containerRef.current) containerRef.current.innerHTML = '';
+        if (chartMountRef.current) {
+          chartMountRef.current.innerHTML = '';
+        }
       };
     }
 
@@ -157,8 +199,8 @@ function TradingViewLiveWidgetComponent({
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
       if (timeoutTimer) clearTimeout(timeoutTimer);
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (chartMountRef.current) {
+        chartMountRef.current.innerHTML = '';
       }
     };
   }, [targetSymbol, interval, theme, timezone, hideSideToolbar, allowSymbolChange]);
@@ -181,13 +223,17 @@ function TradingViewLiveWidgetComponent({
         </div>
       )}
 
+      {/* Main Container */}
       <div
-        ref={containerRef}
         className={cn('relative w-full flex-1 rounded-2xl overflow-hidden bg-zinc-950 border border-border/40 shadow-inner', className)}
         style={{ minHeight: typeof height === 'number' ? `${height}px` : height }}
       >
+        {/* ISOLATED LEAF NODE: Zero React Children Inside. TradingView mounts here. */}
+        <div ref={chartMountRef} className="w-full h-full" />
+
+        {/* Loading Overlay — Sibling to chartMountRef, not child */}
         {isInitializing && !loadError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3 bg-zinc-950 z-10">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3 bg-zinc-950/90 backdrop-blur-xs z-10 pointer-events-none">
             <div className="w-8 h-8 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center animate-pulse">
               <RefreshCw className="w-4 h-4 text-violet-400 animate-spin" />
             </div>
@@ -197,6 +243,7 @@ function TradingViewLiveWidgetComponent({
           </div>
         )}
 
+        {/* Fallback & Error Overlay */}
         {loadError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-4 bg-zinc-950 z-20">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -217,7 +264,7 @@ function TradingViewLiveWidgetComponent({
                   setLoadError(null);
                   initWidget();
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold border border-zinc-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold border border-zinc-700 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry Connection</span>
@@ -227,7 +274,7 @@ function TradingViewLiveWidgetComponent({
                 <button
                   type="button"
                   onClick={onFallbackToCanvas}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-500/20 transition-all"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-500/20 transition-all cursor-pointer"
                 >
                   <LineChart className="w-3.5 h-3.5" />
                   <span>Switch to Execution Replay</span>
@@ -241,4 +288,46 @@ function TradingViewLiveWidgetComponent({
   );
 }
 
-export const TradingViewLiveWidget = memo(TradingViewLiveWidgetComponent);
+function TradingViewLiveWidgetSafe(props: TradingViewLiveWidgetProps) {
+  return (
+    <WidgetErrorBoundary
+      fallback={(err, reset) => (
+        <div className="relative w-full h-[580px] rounded-2xl overflow-hidden bg-zinc-950 border border-border/40 flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="space-y-1 max-w-md">
+            <h4 className="text-sm font-bold text-white">Live Terminal Encoutered an Issue</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {err?.message || 'Unexpected widget error'}. You can reset the chart or switch to Execution Replay.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold border border-zinc-700 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset Widget</span>
+            </button>
+            {props.onFallbackToCanvas && (
+              <button
+                type="button"
+                onClick={props.onFallbackToCanvas}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold shadow-md shadow-violet-500/20 transition-all cursor-pointer"
+              >
+                <LineChart className="w-3.5 h-3.5" />
+                <span>Switch to Execution Replay</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    >
+      <TradingViewLiveWidgetInternal {...props} />
+    </WidgetErrorBoundary>
+  );
+}
+
+export const TradingViewLiveWidget = memo(TradingViewLiveWidgetSafe);

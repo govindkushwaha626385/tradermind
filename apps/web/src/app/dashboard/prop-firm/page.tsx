@@ -39,6 +39,10 @@ import { toast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
+import {
+  PropFirmCertificateModal,
+  type PropFirmCertificateData,
+} from '@/components/prop-firm/PropFirmCertificateModal';
 
 interface PropFirmAccount {
   id: string;
@@ -325,6 +329,7 @@ export default function PropFirmPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCredentialOpen, setIsCredentialOpen] = useState(false);
+  const [isPropCertOpen, setIsPropCertOpen] = useState(false);
   const [simulatedLoss, setSimulatedLoss] = useState<string>('500');
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -961,12 +966,12 @@ export default function PropFirmPage() {
               <span className="hidden sm:inline">Sync Live PnL</span>
             </button>
             <button
-              onClick={() => setIsCredentialOpen(true)}
+              onClick={() => setIsPropCertOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
-              title="Generate Verified Institutional Credential Certificate"
+              title="Generate Official Prop Firm Pass / Funded Certificate (PDF & High-Res PNG)"
             >
               <Award className="w-4 h-4" />
-              <span className="hidden sm:inline">Export Credential</span>
+              <span className="hidden sm:inline">Certificate</span>
             </button>
             <Link
               href="/dashboard/roadmap?track=prop_firm"
@@ -1005,11 +1010,19 @@ export default function PropFirmPage() {
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
+              onClick={() => setIsPropCertOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-colors whitespace-nowrap shadow-sm cursor-pointer flex items-center gap-1.5 border border-amber-500/40"
+              title="Download official PDF & PNG certificate for passing"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-400" />
+              <span>Claim Certificate</span>
+            </button>
+            <button
               onClick={() => setIsCredentialOpen(true)}
               className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors whitespace-nowrap shadow-sm cursor-pointer flex items-center gap-1.5 border border-white/20"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Claim Credential</span>
+              <span>Credential</span>
             </button>
             <button
               onClick={() => {
@@ -1045,13 +1058,21 @@ export default function PropFirmPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setIsCredentialOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-950 text-xs font-bold transition-transform hover:scale-[1.02] whitespace-nowrap shadow-md cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Generate Funded Certificate</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsPropCertOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-gray-950 text-xs font-bold transition-transform hover:scale-[1.02] whitespace-nowrap shadow-md cursor-pointer flex items-center gap-1.5"
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>Download Certificate</span>
+            </button>
+            <button
+              onClick={() => setIsCredentialOpen(true)}
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium border border-white/20 transition-colors"
+            >
+              Badge
+            </button>
+          </div>
         </div>
       )}
 
@@ -1428,6 +1449,29 @@ export default function PropFirmPage() {
         completedCount={currentAccount.tradingDaysCompleted}
         totalMilestones={Math.max(currentAccount.minTradingDays, 5)}
       />
+
+      {/* Official High-DPI Prop Firm Certificate Modal */}
+      {currentAccount && (
+        <PropFirmCertificateModal
+          isOpen={isPropCertOpen}
+          onClose={() => setIsPropCertOpen(false)}
+          data={{
+            traderName: currentAccount.accountName || 'Funded Specialist',
+            firmName: currentAccount.firmName,
+            accountName: currentAccount.accountName,
+            accountSize: currentAccount.accountSize,
+            currency: currentAccount.currency || 'USD',
+            phase: currentAccount.phase,
+            profitTargetPct: currentAccount.profitTargetPct,
+            profitEarned: currentAccount.currentBalance - currentAccount.startingBalance,
+            maxDrawdownPct: currentAccount.maxDrawdownPct,
+            actualDrawdownPct: drawdownUsedPct,
+            tradingDaysCompleted: currentAccount.tradingDaysCompleted,
+            minTradingDays: currentAccount.minTradingDays,
+            completionDate: new Date().toISOString(),
+          }}
+        />
+      )}
     </div>
   );
 }

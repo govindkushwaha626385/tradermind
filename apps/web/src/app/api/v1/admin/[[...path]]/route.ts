@@ -27,6 +27,14 @@ export const runtime = 'nodejs';
 const updateConfigSchema = z.object({ value: z.any() });
 const taxRateSchema = z.object({ name: z.string().min(1), description: z.string().optional(), segment: z.string(), transactionType: z.string().optional().nullable(), rateType: z.enum(['percentage', 'flat']), rateValue: z.number(), appliedOn: z.enum(['buy', 'sell', 'both']), maxCap: z.number().optional().nullable(), minAmount: z.number().optional().nullable(), isActive: z.boolean().default(true), priority: z.number().default(0) });
 const updateUserRoleSchema = z.object({ role: z.enum(['USER', 'ADMIN']) });
+const userOverrideSchema = z.object({
+  role: z.enum(['USER', 'ADMIN']).optional(),
+  customTradeQuota: z.number().int().optional(),
+  planSlug: z.string().optional(),
+  extendTrialDays: z.number().int().min(1).max(3650).optional(),
+  status: z.enum(['active', 'trialing', 'canceled', 'past_due', 'expired']).optional(),
+  notes: z.string().max(1000).optional(),
+});
 const createPlanSchema = z.object({ slug: z.string().trim().regex(/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/).max(50), name: z.string().min(1).max(100), description: z.string().max(500).optional(), amount: z.coerce.number().int().min(0).default(0), currency: z.string().length(3).transform((v) => v.toUpperCase()).default('INR'), interval: z.enum(['month', 'year', 'one-time', 'free']).default('month'), features: z.record(z.string(), z.unknown()).default({}), isActive: z.boolean().default(true), sortOrder: z.number().int().default(0), isPopular: z.boolean().default(false) });
 const updatePlanSchema = createPlanSchema.partial();
 const updateSubSchema = z.object({ planId: z.string().uuid().optional(), status: z.enum(['active', 'canceled', 'past_due', 'expired']).optional() });
@@ -77,7 +85,7 @@ export async function GET(
 
   // GET /admin/users
   if (section === 'users') {
-    if (sub && !['role'].includes(sub)) {
+    if (sub && !['role', 'override'].includes(sub)) {
       // GET /admin/users/:id
       const id = sub;
       const [user2] = await db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -85,7 +93,14 @@ export async function GET(
       const [sub2] = await db.select().from(subscriptions).where(eq(subscriptions.userId, id)).limit(1);
       const [brokerCount] = await db.select({ count: sql<number>`COUNT(*)` }).from(brokerConnections).where(eq(brokerConnections.userId, id));
       const [tradeCount] = await db.select({ count: sql<number>`COUNT(*)` }).from(tradeExecutions).where(eq(tradeExecutions.userId, id));
-      return ok({ ...user2, subscription: sub2 ?? null, brokerCount: Number(brokerCount?.count ?? 0), tradeCount: Number(tradeCount?.count ?? 0) });
+      const [overrideCfg] = await db.select().from(adminConfigs).where(eq(adminConfigs.key, `user_override:${id}`)).limit(1);
+      return ok({
+        ...user2,
+        subscription: sub2 ? { ...sub2 } : null,
+        brokerCount: Number(brokerCount?.count ?? 0),
+        tradeCount: Number(tradeCount?.count ?? 0),
+        override: overrideCfg?.value ?? null,
+      });
     }
     const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
     const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') ?? 20)));
@@ -103,7 +118,18 @@ export async function GET(
     const userIds = userList.map((u) => u.id);
     const userSubs = userIds.length > 0 ? await db.select().from(subscriptions).where(inArray(subscriptions.userId, userIds)) : [];
     const subMap = new Map(userSubs.map((s) => [s.userId, s]));
-    const enriched = userList.map((u) => { const s = subMap.get(u.id); return { ...u, subscription: s ? { id: s.id, planId: s.planId, status: s.status, provider: s.provider, currentPeriodEnd: s.currentPeriodEnd } : null }; });
+    const overrideKeys = userIds.map((id) => `user_override:${id}`);
+    const overrideConfigs = overrideKeys.length > 0 ? await db.select().from(adminConfigs).where(inArray(adminConfigs.key, overrideKeys)) : [];
+    const overrideMap = new Map(overrideConfigs.map((c) => [c.key.replace('user_override:', ''), c.value]));
+    const enriched = userList.map((u) => {
+      const s = subMap.get(u.id);
+      const o = overrideMap.get(u.id);
+      return {
+        ...u,
+        subscription: s ? { id: s.id, planId: s.planId, status: s.status, provider: s.provider, currentPeriodEnd: s.currentPeriodEnd, trialEndsAt: s.trialEndsAt } : null,
+        override: o ?? null,
+      };
+    });
     const total = Number(totalResult[0]?.count ?? 0);
     return ok({ users: enriched, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   }
@@ -703,6 +729,130 @@ export async function PUT(
     if (!updated) return apiError('User not found', 404);
     await recordAdminAudit({ actor, action: 'user.role.update', entityType: 'user', entityId: sub, metadata: { role: parsed.data.role }, ipAddress: req.headers.get('x-forwarded-for') ?? undefined });
     return ok(updated);
+  }
+
+  // PUT /admin/users/:id/override
+  if (section === 'users' && sub && (detail === 'override' || detail === 'quota')) {
+    const parsed = userOverrideSchema.safeParse(body);
+    if (!parsed.success) return apiError('Validation failed: ' + parsed.error.message, 400);
+
+    const userId = sub;
+    const [targetUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!targetUser) return apiError('User not found', 404);
+
+    // 1. Role update if provided
+    if (parsed.data.role) {
+      if (actor.id === userId && parsed.data.role !== 'ADMIN') {
+        return apiError('Cannot remove your own admin privileges', 403);
+      }
+      await db.update(users).set({ role: parsed.data.role, updatedAt: new Date() }).where(eq(users.id, userId));
+    }
+
+    // 2. Subscription / Trial Extension update
+    let updatedSubscription = null;
+    if (parsed.data.planSlug || parsed.data.extendTrialDays || parsed.data.status) {
+      let targetPlanId: string | null = null;
+      if (parsed.data.planSlug) {
+        const [foundPlan] = await db.select().from(plans).where(eq(plans.slug, parsed.data.planSlug)).limit(1);
+        if (foundPlan) targetPlanId = foundPlan.id;
+      }
+      if (!targetPlanId) {
+        const [defaultPlan] = await db.select().from(plans).where(eq(plans.slug, 'pro_monthly')).limit(1);
+        if (defaultPlan) targetPlanId = defaultPlan.id;
+      }
+
+      const [existingSub] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId)).limit(1);
+      
+      const now = new Date();
+      let newPeriodEnd = existingSub?.currentPeriodEnd && new Date(existingSub.currentPeriodEnd) > now 
+        ? new Date(existingSub.currentPeriodEnd) 
+        : new Date(now);
+
+      if (parsed.data.extendTrialDays) {
+        newPeriodEnd = new Date(newPeriodEnd.getTime() + parsed.data.extendTrialDays * 86400000);
+      }
+
+      const subStatus = parsed.data.status || (parsed.data.extendTrialDays ? 'trialing' : existingSub?.status || 'active');
+
+      if (existingSub) {
+        const [upd] = await db.update(subscriptions).set({
+          planId: targetPlanId || existingSub.planId,
+          status: subStatus,
+          currentPeriodEnd: newPeriodEnd,
+          trialEndsAt: parsed.data.extendTrialDays ? newPeriodEnd : existingSub.trialEndsAt,
+          updatedAt: new Date(),
+        }).where(eq(subscriptions.id, existingSub.id)).returning();
+        updatedSubscription = upd;
+      } else if (targetPlanId) {
+        const [ins] = await db.insert(subscriptions).values({
+          userId,
+          planId: targetPlanId,
+          provider: 'manual_admin',
+          status: subStatus,
+          currentPeriodStart: now,
+          currentPeriodEnd: newPeriodEnd,
+          trialEndsAt: parsed.data.extendTrialDays ? newPeriodEnd : null,
+        }).returning();
+        updatedSubscription = ins;
+      }
+    }
+
+    // 3. Trade Quota & Metadata Override
+    let savedOverride = null;
+    if (parsed.data.customTradeQuota !== undefined || parsed.data.notes) {
+      const overrideKey = `user_override:${userId}`;
+      const overrideValue = {
+        customTradeQuota: parsed.data.customTradeQuota ?? -1,
+        notes: parsed.data.notes || '',
+        grantedBy: actor.email,
+        grantedAt: new Date().toISOString(),
+      };
+      
+      const [existingCfg] = await db.select().from(adminConfigs).where(eq(adminConfigs.key, overrideKey)).limit(1);
+      if (existingCfg) {
+        await db.update(adminConfigs).set({
+          value: overrideValue,
+          updatedBy: actor.email,
+          updatedAt: new Date(),
+        }).where(eq(adminConfigs.key, overrideKey));
+      } else {
+        await db.insert(adminConfigs).values({
+          key: overrideKey,
+          value: overrideValue,
+          type: 'object',
+          label: `Quota Override: ${targetUser.email}`,
+          description: `Custom quota granted by ${actor.email}`,
+          category: 'user_override',
+          isPublic: false,
+          updatedBy: actor.email,
+        });
+      }
+      savedOverride = overrideValue;
+    }
+
+    // 4. Audit Log
+    await recordAdminAudit({
+      actor,
+      action: 'user.quota_override.applied',
+      entityType: 'user',
+      entityId: userId,
+      metadata: {
+        role: parsed.data.role,
+        customTradeQuota: parsed.data.customTradeQuota,
+        planSlug: parsed.data.planSlug,
+        extendTrialDays: parsed.data.extendTrialDays,
+        status: parsed.data.status,
+        notes: parsed.data.notes,
+      },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+
+    return ok({
+      message: 'User RBAC, quota, and trial settings updated successfully',
+      userId,
+      subscription: updatedSubscription,
+      override: savedOverride,
+    });
   }
 
   // PUT /admin/plans/:id
