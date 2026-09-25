@@ -115,7 +115,7 @@ const TOUR_STEPS: TourStep[] = [
       'AI Journal autofill saves hours of manual note-taking',
     ],
     ctaLabel: 'Explore AI Copilot',
-    ctaHref: '/dashboard/ai-coach',
+    ctaHref: '/dashboard/ai-assistant',
     previewGradient: 'from-pink-500/20 via-rose-600/5 to-transparent',
   },
   {
@@ -133,7 +133,7 @@ const TOUR_STEPS: TourStep[] = [
       'Daily automated debrief notifications sent directly to your screen',
     ],
     ctaLabel: 'Configure Risk Parameters',
-    ctaHref: '/dashboard/risk',
+    ctaHref: '/dashboard/discipline',
     previewGradient: 'from-amber-500/20 via-yellow-600/5 to-transparent',
   },
 ];
