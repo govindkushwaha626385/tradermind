@@ -601,6 +601,103 @@ export default function AnalyticsPage() {
                 ))}
               </div>
 
+              {/* Row 1.5: Institutional Quantitative Edge Suite (TradesViz & Hedge Fund Grade) */}
+              <div className="glass-card rounded-2xl p-5 border border-primary/20 bg-gradient-to-r from-primary/5 via-card/50 to-background space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-foreground">
+                        Institutional Quantitative Edge Suite
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Hedge-fund statistical benchmarks: Van Tharp SQN, Lars Kestner K-Ratio, and Kelly Allocation
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary">
+                    TradesViz &amp; TraderVue Superior
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* System Quality Number (SQN) */}
+                  <div className="p-4 rounded-xl bg-background/70 border border-border/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">Van Tharp SQN</span>
+                      <span className={cn(
+                        'text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                        (deepStats.sqn ?? 0) >= 3.0
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                          : (deepStats.sqn ?? 0) >= 2.0
+                          ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+                          : (deepStats.sqn ?? 0) >= 1.6
+                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                          : 'bg-muted text-muted-foreground border-border/50'
+                      )}>
+                        {deepStats.sqnRating ?? 'Evaluating'}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-black font-mono text-foreground">
+                      {(deepStats.sqn ?? 0) > 0 ? (deepStats.sqn ?? 0).toFixed(2) : '—'}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      System Quality Number based on R-multiple distribution
+                    </p>
+                  </div>
+
+                  {/* Profit Factor */}
+                  <div className="p-4 rounded-xl bg-background/70 border border-border/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">Profit Factor</span>
+                      <span className="text-[10px] font-mono text-muted-foreground font-semibold">Gross P / L</span>
+                    </div>
+                    <div className={cn(
+                      'text-2xl font-black font-mono',
+                      (deepStats.profitFactor ?? 0) >= 1.5 ? 'text-success' : (deepStats.profitFactor ?? 0) >= 1.0 ? 'text-warning' : 'text-destructive'
+                    )}>
+                      {(deepStats.profitFactor ?? 0) > 0 ? `${(deepStats.profitFactor ?? 0).toFixed(2)}x` : '—'}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Ratio of total gross profits to total gross losses
+                    </p>
+                  </div>
+
+                  {/* Kelly Criterion % */}
+                  <div className="p-4 rounded-xl bg-background/70 border border-border/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">Half-Kelly Risk</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent text-accent-foreground">Optimal</span>
+                    </div>
+                    <div className="text-2xl font-black font-mono text-primary">
+                      {(deepStats.kellyCriterionPct ?? 0) > 0 ? `${(deepStats.kellyCriterionPct ?? 0).toFixed(1)}%` : '0.0%'}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Optimal account risk allocation per trade for max compounding
+                    </p>
+                  </div>
+
+                  {/* K-Ratio */}
+                  <div className="p-4 rounded-xl bg-background/70 border border-border/60 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">K-Ratio</span>
+                      <span className="text-[10px] font-mono text-muted-foreground font-semibold">Linear Consistency</span>
+                    </div>
+                    <div className={cn(
+                      'text-2xl font-black font-mono',
+                      (deepStats.kRatio ?? 0) >= 1.5 ? 'text-success' : 'text-foreground'
+                    )}>
+                      {(deepStats.kRatio ?? 0) !== 0 ? (deepStats.kRatio ?? 0).toFixed(2) : '—'}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Consistency of equity growth slope vs variance
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Row 2: Streak Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[

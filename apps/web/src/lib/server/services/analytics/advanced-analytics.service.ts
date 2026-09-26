@@ -337,3 +337,100 @@ export async function analyzeByPlaybook(userId: string) {
 
   return results.sort((a, b) => b.totalPnl - a.totalPnl);
 }
+
+/**
+ * Calculate Profit Factor: Total Gross Profits / Total Gross Losses
+ */
+export function calculateProfitFactor(pnlArray: number[]): number {
+  const grossProfit = pnlArray.filter((p) => p > 0).reduce((sum, p) => sum + p, 0);
+  const grossLoss = Math.abs(pnlArray.filter((p) => p < 0).reduce((sum, p) => sum + p, 0));
+
+  if (grossLoss === 0) return grossProfit > 0 ? 99.99 : 0;
+  return Math.round((grossProfit / grossLoss) * 100) / 100;
+}
+
+/**
+ * Calculate Van Tharp's System Quality Number (SQN)
+ * SQN = sqrt(N) * (Mean R / StdDev R)
+ */
+export function calculateSqn(rMultiples: number[]): { sqn: number; rating: string } {
+  if (rMultiples.length < 5) {
+    return { sqn: 0, rating: 'Need ≥ 5 trades' };
+  }
+
+  const n = rMultiples.length;
+  const mean = rMultiples.reduce((s, r) => s + r, 0) / n;
+  const variance =
+    rMultiples.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
+  const stdDev = Math.sqrt(variance);
+
+  if (stdDev === 0) return { sqn: 0, rating: 'Undefined' };
+
+  // Van Tharp caps N at 100 to prevent artificial inflation from sample size
+  const sampleMultiplier = Math.sqrt(Math.min(n, 100));
+  const sqn = Math.round(sampleMultiplier * (mean / stdDev) * 100) / 100;
+
+  let rating = 'Hard to Trade';
+  if (sqn >= 5.0) rating = 'Institutional Grade';
+  else if (sqn >= 3.0) rating = 'Excellent System';
+  else if (sqn >= 2.0) rating = 'Good System';
+  else if (sqn >= 1.6) rating = 'Average Edge';
+  else if (sqn >= 1.0) rating = 'Below Average';
+
+  return { sqn, rating };
+}
+
+/**
+ * Calculate Half-Kelly Optimal Risk Allocation %
+ * Kelly % = WinRate - [(1 - WinRate) / (AvgWin / AvgLoss)]
+ * Half-Kelly is applied for institutional drawdown defense.
+ */
+export function calculateKellyCriterion(
+  winRate: number,
+  avgWin: number,
+  avgLoss: number,
+): number {
+  if (avgLoss <= 0 || avgWin <= 0 || winRate <= 0) return 0;
+  const winLossRatio = avgWin / avgLoss;
+  const fullKelly = winRate - (1 - winRate) / winLossRatio;
+  if (fullKelly <= 0) return 0;
+
+  // Apply Half-Kelly and cap at 20% max safe risk allocation
+  const halfKelly = (fullKelly / 2) * 100;
+  return Math.min(20, Math.max(0, Math.round(halfKelly * 100) / 100));
+}
+
+/**
+ * Calculate Lars Kestner's K-Ratio: slope / standard error of regression
+ * Measures equity curve smoothness and consistency over time.
+ */
+export function calculateKRatio(equityCurve: number[]): number {
+  const n = equityCurve.length;
+  if (n < 4) return 0;
+
+  const xMean = (n - 1) / 2;
+  const yMean = equityCurve.reduce((s, y) => s + y, 0) / n;
+
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    const xDiff = i - xMean;
+    num += xDiff * (equityCurve[i]! - yMean);
+    den += xDiff * xDiff;
+  }
+
+  if (den === 0) return 0;
+  const slope = num / den;
+
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    const yHat = yMean + slope * (i - xMean);
+    sse += (equityCurve[i]! - yHat) ** 2;
+  }
+
+  const standardError = Math.sqrt(sse / ((n - 2) * den));
+  if (standardError === 0) return slope > 0 ? 5.0 : 0;
+
+  const kRatio = slope / standardError;
+  return Math.round(Math.min(10, Math.max(-5, kRatio)) * 100) / 100;
+}

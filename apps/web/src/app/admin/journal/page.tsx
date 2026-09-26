@@ -18,9 +18,11 @@ import {
   BookOpen,
   Filter,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/export-csv';
 import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -143,6 +145,37 @@ export default function AdminJournalPage() {
     return `${prefix}₹${val.toFixed(2)}`;
   };
 
+  const handleExportCsv = () => {
+    if (entries.length === 0) {
+      toast.error('No journal entries to export');
+      return;
+    }
+    const filename = `TradeMind_Admin_Journal_${new Date().toISOString().split('T')[0]}`;
+    const columns = [
+      { header: 'Trade ID', accessor: (e: JournalEntry) => e.id },
+      { header: 'User', accessor: (e: JournalEntry) => e.userName || e.userEmail },
+      { header: 'User Email', accessor: (e: JournalEntry) => e.userEmail },
+      { header: 'Symbol', accessor: (e: JournalEntry) => e.tradingsymbol },
+      { header: 'Exchange', accessor: (e: JournalEntry) => e.exchange },
+      { header: 'Asset Class', accessor: (e: JournalEntry) => e.assetClass },
+      { header: 'Direction', accessor: (e: JournalEntry) => e.direction },
+      { header: 'Status', accessor: (e: JournalEntry) => e.status },
+      { header: 'Quantity', accessor: (e: JournalEntry) => e.totalQuantity },
+      { header: 'Entry Price', accessor: (e: JournalEntry) => e.avgEntryPrice },
+      { header: 'Exit Price', accessor: (e: JournalEntry) => e.avgExitPrice ?? '' },
+      { header: 'Gross PnL', accessor: (e: JournalEntry) => e.grossPnl },
+      { header: 'Net PnL', accessor: (e: JournalEntry) => e.netPnl },
+      { header: 'R-Multiple', accessor: (e: JournalEntry) => (e.rMultiple != null ? `${e.rMultiple}R` : '') },
+      { header: 'Opened At', accessor: (e: JournalEntry) => e.openedAt },
+      { header: 'Closed At', accessor: (e: JournalEntry) => e.closedAt ?? '' },
+      { header: 'Emotions', accessor: (e: JournalEntry) => (e.emotions ?? []).join('; ') },
+      { header: 'Mistakes', accessor: (e: JournalEntry) => (e.mistakeTags ?? []).join('; ') },
+      { header: 'Notes', accessor: (e: JournalEntry) => e.traderNotes ?? '' },
+    ];
+    downloadCsv(filename, entries, columns);
+    toast.success(`Exported ${entries.length} journal trades to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -155,13 +188,24 @@ export default function AdminJournalPage() {
             Browse all user trade journal entries, annotations, notes, and outcome metrics
           </p>
         </div>
-        <button
-          onClick={() => fetchJournal(pagination.page)}
-          className="p-2.5 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
-          title="Refresh"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            disabled={entries.length === 0}
+            className="px-3.5 py-2 rounded-xl bg-card hover:bg-accent text-foreground transition-colors border border-border/60 text-xs font-semibold flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+            title="Export Journal to CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => fetchJournal(pagination.page)}
+            className="p-2.5 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
+            title="Refresh"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

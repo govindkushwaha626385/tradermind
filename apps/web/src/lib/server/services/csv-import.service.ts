@@ -12,7 +12,23 @@
 //   - Groww (Trade History)
 // ──────────────────────────────────────────────
 
-export type SupportedCsvBroker = 'zerodha' | 'upstox' | 'angelone' | 'fyers' | 'groww' | 'dhan' | 'binance' | 'bybit' | 'ibkr' | 'metatrader' | 'universal' | 'unknown';
+export type SupportedCsvBroker =
+  | 'zerodha'
+  | 'upstox'
+  | 'angelone'
+  | 'fyers'
+  | 'groww'
+  | 'dhan'
+  | 'binance'
+  | 'bybit'
+  | 'ibkr'
+  | 'metatrader'
+  | 'thinkorswim'
+  | 'tradovate'
+  | 'webull'
+  | 'robinhood'
+  | 'universal'
+  | 'unknown';
 
 export interface ParsedCsvTrade {
   tradingsymbol: string;
@@ -143,6 +159,10 @@ function detectBroker(headers: string[]): SupportedCsvBroker {
   if (h.includes('bybit') || (h.includes('contracts') && h.includes('closed p&l'))) return 'bybit';
   if (h.includes('ibkr') || (h.includes('conid') && h.includes('basis'))) return 'ibkr';
   if (h.includes('ticket') && (h.includes('open price') || h.includes('close price'))) return 'metatrader';
+  if ((h.includes('exec time') || h.includes('pos effect') || h.includes('spread')) && (h.includes('symbol') || h.includes('net price'))) return 'thinkorswim';
+  if (h.includes('contract') && (h.includes('buysell') || h.includes('realizedpnl') || h.includes('fillprice') || h.includes('tradovate'))) return 'tradovate';
+  if (h.includes('webull') || (h.includes('filled time') && h.includes('total amount'))) return 'webull';
+  if (h.includes('robinhood') || (h.includes('trans code') && h.includes('activity date'))) return 'robinhood';
 
   // Check if minimum required columns exist for Universal CSV
   const hasSymbol = headers.some((k) => /^(symbol|ticker|pair|contract|tradingsymbol|instrument|asset)$/i.test(k.trim()));
@@ -563,6 +583,163 @@ function parseUniversal(rows: Record<string, string>[], brokerLabel = 'Universal
   return { trades, errors };
 }
 
+function parseThinkOrSwim(rows: Record<string, string>[]): { trades: ParsedCsvTrade[]; errors: string[] } {
+  const trades: ParsedCsvTrade[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    try {
+      const sym = (row['Symbol'] ?? row['symbol'] ?? row['Underlying'] ?? '').trim();
+      if (!sym || sym.startsWith('--') || sym.toLowerCase().includes('total')) continue;
+
+      const rawSide = (row['Side'] ?? row['side'] ?? row['Pos Effect'] ?? row['pos effect'] ?? '').toUpperCase();
+      const direction: 'LONG' | 'SHORT' = rawSide.includes('SELL') || rawSide.includes('SHORT') ? 'SHORT' : 'LONG';
+      const qty = safeNum(row['Qty'] ?? row['qty'] ?? row['Quantity'] ?? '1') || 1;
+      const price = safeNum(row['Price'] ?? row['price'] ?? row['Net Price'] ?? '0');
+      const openedAt = parseFlexDate(row['Exec Time'] ?? row['exec time'] ?? row['Date'] ?? row['Time']);
+      const isOption = Boolean(row['Exp'] || row['Strike'] || row['Type'] || /([A-Z]+)\s*\d{6}[CP]\d+/.test(sym));
+
+      trades.push({
+        tradingsymbol: sym.toUpperCase().replace(/\s+/g, ''),
+        exchange: 'US_EQUITY',
+        assetClass: isOption ? 'OPTIONS' : 'EQUITY',
+        direction,
+        status: 'CLOSED',
+        totalQuantity: qty,
+        avgEntryPrice: price,
+        openedAt,
+        grossPnl: 0,
+        totalFeesAndTaxes: 0,
+        netPnl: 0,
+        tradeType: 'MANUAL',
+      });
+    } catch (e: any) {
+      errors.push(`ThinkorSwim row ${i + 1}: ${e.message}`);
+    }
+  }
+
+  return { trades, errors };
+}
+
+function parseTradovate(rows: Record<string, string>[]): { trades: ParsedCsvTrade[]; errors: string[] } {
+  const trades: ParsedCsvTrade[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    try {
+      const sym = (row['contract'] ?? row['Contract'] ?? row['symbol'] ?? row['Symbol'] ?? '').trim();
+      if (!sym) continue;
+
+      const rawSide = (row['buySell'] ?? row['Side'] ?? row['side'] ?? '').toUpperCase();
+      const direction: 'LONG' | 'SHORT' = rawSide.includes('SELL') || rawSide.includes('SHORT') || rawSide === 'S' ? 'SHORT' : 'LONG';
+      const qty = safeNum(row['amount'] ?? row['qty'] ?? row['quantity'] ?? '1') || 1;
+      const price = safeNum(row['price'] ?? row['fillPrice'] ?? row['Price'] ?? '0');
+      const realizedPnl = row['realizedPnL'] ? safeNum(row['realizedPnL']) : 0;
+      const fees = safeNum(row['fee'] ?? row['fees'] ?? row['Commission'] ?? '0');
+      const openedAt = parseFlexDate(row['timestamp'] ?? row['time'] ?? row['Timestamp'] ?? row['Date']);
+
+      trades.push({
+        tradingsymbol: sym.toUpperCase().replace(/\s+/g, ''),
+        exchange: 'FUTURES',
+        assetClass: 'FUTURES',
+        direction,
+        status: 'CLOSED',
+        totalQuantity: qty,
+        avgEntryPrice: price,
+        openedAt,
+        grossPnl: realizedPnl + fees,
+        totalFeesAndTaxes: fees,
+        netPnl: realizedPnl,
+        tradeType: 'MANUAL',
+      });
+    } catch (e: any) {
+      errors.push(`Tradovate row ${i + 1}: ${e.message}`);
+    }
+  }
+
+  return { trades, errors };
+}
+
+function parseWebull(rows: Record<string, string>[]): { trades: ParsedCsvTrade[]; errors: string[] } {
+  const trades: ParsedCsvTrade[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    try {
+      const sym = (row['Symbol'] ?? row['symbol'] ?? row['Name'] ?? '').trim();
+      if (!sym) continue;
+
+      const rawSide = (row['Side'] ?? row['Action'] ?? '').toUpperCase();
+      const direction: 'LONG' | 'SHORT' = rawSide.includes('SELL') || rawSide.includes('SHORT') ? 'SHORT' : 'LONG';
+      const qty = safeNum(row['Filled'] ?? row['Quantity'] ?? row['qty'] ?? '1') || 1;
+      const price = safeNum(row['Price'] ?? row['Avg Price'] ?? '0');
+      const openedAt = parseFlexDate(row['Filled Time'] ?? row['Time'] ?? row['Date']);
+
+      trades.push({
+        tradingsymbol: sym.toUpperCase().replace(/\s+/g, ''),
+        exchange: 'US_EQUITY',
+        assetClass: guessAssetClass(sym, 'US_EQUITY'),
+        direction,
+        status: 'CLOSED',
+        totalQuantity: qty,
+        avgEntryPrice: price,
+        openedAt,
+        grossPnl: 0,
+        totalFeesAndTaxes: 0,
+        netPnl: 0,
+        tradeType: 'MANUAL',
+      });
+    } catch (e: any) {
+      errors.push(`Webull row ${i + 1}: ${e.message}`);
+    }
+  }
+
+  return { trades, errors };
+}
+
+function parseRobinhood(rows: Record<string, string>[]): { trades: ParsedCsvTrade[]; errors: string[] } {
+  const trades: ParsedCsvTrade[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    try {
+      const sym = (row['Instrument'] ?? row['instrument'] ?? row['Symbol'] ?? '').trim();
+      if (!sym) continue;
+
+      const code = (row['Trans Code'] ?? row['Description'] ?? '').toUpperCase();
+      if (!code.includes('BUY') && !code.includes('SELL') && !code.includes('BTO') && !code.includes('STC')) continue;
+
+      const direction: 'LONG' | 'SHORT' = code.includes('SELL') || code.includes('STC') || code.includes('STO') ? 'SHORT' : 'LONG';
+      const qty = safeNum(row['Quantity'] ?? row['quantity'] ?? '1') || 1;
+      const price = safeNum(row['Price'] ?? row['price'] ?? '0');
+      const openedAt = parseFlexDate(row['Activity Date'] ?? row['Process Date'] ?? row['date']);
+
+      trades.push({
+        tradingsymbol: sym.toUpperCase().replace(/\s+/g, ''),
+        exchange: 'US_EQUITY',
+        assetClass: guessAssetClass(sym, 'US_EQUITY'),
+        direction,
+        status: 'CLOSED',
+        totalQuantity: qty,
+        avgEntryPrice: price,
+        openedAt,
+        grossPnl: 0,
+        totalFeesAndTaxes: 0,
+        netPnl: 0,
+        tradeType: 'MANUAL',
+      });
+    } catch (e: any) {
+      errors.push(`Robinhood row ${i + 1}: ${e.message}`);
+    }
+  }
+
+  return { trades, errors };
+}
+
 // ── Main parse entry point ────────────────────────────────────────
 
 export function parseCsvTrades(rawCsv: string): CsvImportResult {
@@ -572,17 +749,21 @@ export function parseCsvTrades(rawCsv: string): CsvImportResult {
   let result: { trades: ParsedCsvTrade[]; errors: string[] };
 
   switch (broker) {
-    case 'zerodha':   result = parseZerodha(rows);   break;
-    case 'upstox':    result = parseUpstox(rows);    break;
-    case 'angelone':  result = parseAngelOne(rows);  break;
-    case 'dhan':      result = parseDhan(rows);      break;
-    case 'fyers':     result = parseFyers(rows);     break;
-    case 'groww':     result = parseGroww(rows);     break;
-    case 'binance':   result = parseUniversal(rows, 'Binance'); break;
-    case 'bybit':     result = parseUniversal(rows, 'Bybit'); break;
-    case 'ibkr':      result = parseUniversal(rows, 'Interactive Brokers'); break;
-    case 'metatrader':result = parseUniversal(rows, 'MetaTrader'); break;
-    case 'universal': result = parseUniversal(rows, 'Universal'); break;
+    case 'zerodha':     result = parseZerodha(rows);   break;
+    case 'upstox':      result = parseUpstox(rows);    break;
+    case 'angelone':    result = parseAngelOne(rows);  break;
+    case 'dhan':        result = parseDhan(rows);      break;
+    case 'fyers':       result = parseFyers(rows);     break;
+    case 'groww':       result = parseGroww(rows);     break;
+    case 'binance':     result = parseUniversal(rows, 'Binance'); break;
+    case 'bybit':       result = parseUniversal(rows, 'Bybit'); break;
+    case 'ibkr':        result = parseUniversal(rows, 'Interactive Brokers'); break;
+    case 'metatrader':  result = parseUniversal(rows, 'MetaTrader'); break;
+    case 'thinkorswim': result = parseThinkOrSwim(rows); break;
+    case 'tradovate':   result = parseTradovate(rows); break;
+    case 'webull':      result = parseWebull(rows); break;
+    case 'robinhood':   result = parseRobinhood(rows); break;
+    case 'universal':   result = parseUniversal(rows, 'Universal'); break;
     default: {
       const fallback = parseUniversal(rows, 'Smart Fallback');
       if (fallback.trades.length > 0) {

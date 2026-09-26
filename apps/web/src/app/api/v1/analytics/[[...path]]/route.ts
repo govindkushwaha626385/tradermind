@@ -26,6 +26,7 @@ import {
   calculateSharpeRatio, calculateSortinoRatio, calculateStreaks,
   calculateMaxDrawdown, calculateRMultipleDistribution, calculateHoldingTimeStats,
   analyzeBySession, analyzeByWeekday,
+  calculateProfitFactor, calculateSqn, calculateKellyCriterion, calculateKRatio,
 } from '@/lib/server/services/analytics/advanced-analytics.service';
 import { calculateMfeMaeForAllTrades } from '@/lib/server/services/analytics/mfe-mae.service';
 
@@ -252,7 +253,7 @@ export async function GET(
     const conditions: any[] = [eq(journalTrades.userId, user.id), eq(journalTrades.status, 'CLOSED')];
     if (startDate) conditions.push(gte(journalTrades.openedAt, startDate));
     const trades = await db.select({ netPnl: journalTrades.netPnl, openedAt: journalTrades.openedAt, closedAt: journalTrades.closedAt, holdingPeriodMinutes: journalTrades.holdingPeriodMinutes, rMultiple: journalTrades.rMultiple, maxFavorableExcursion: journalTrades.maxFavorableExcursion, maxAdverseExcursion: journalTrades.maxAdverseExcursion, direction: journalTrades.direction }).from(journalTrades).where(and(...conditions)).orderBy(asc(journalTrades.openedAt));
-    if (trades.length === 0) return ok({ sharpeRatio: 0, sortinoRatio: 0, maxDrawdown: 0, maxDrawdownPct: 0, currentWinStreak: 0, currentLossStreak: 0, longestWinStreak: 0, longestLossStreak: 0, avgHoldMin: 0, avgWinHoldMin: 0, avgLossHoldMin: 0, rMultipleDistribution: [], avgRMultiple: null, avgMfe: null, avgMae: null, mfeMaeCount: 0, sessions: [], weekdays: [], expectancy: 0, timeframe: timeframeParam, totalTrades: 0 });
+    if (trades.length === 0) return ok({ sharpeRatio: 0, sortinoRatio: 0, maxDrawdown: 0, maxDrawdownPct: 0, currentWinStreak: 0, currentLossStreak: 0, longestWinStreak: 0, longestLossStreak: 0, avgHoldMin: 0, avgWinHoldMin: 0, avgLossHoldMin: 0, rMultipleDistribution: [], avgRMultiple: null, avgMfe: null, avgMae: null, mfeMaeCount: 0, sessions: [], weekdays: [], expectancy: 0, profitFactor: 0, sqn: 0, sqnRating: 'Need ≥ 5 trades', kellyCriterionPct: 0, kRatio: 0, timeframe: timeframeParam, totalTrades: 0 });
     const netPnlArray = trades.map((t) => t.netPnl ?? 0);
     const wins = trades.filter((t) => (t.netPnl ?? 0) > 0);
     const losses = trades.filter((t) => (t.netPnl ?? 0) <= 0);
@@ -275,8 +276,46 @@ export async function GET(
     const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + (t.netPnl ?? 0), 0) / wins.length : 0;
     const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + (t.netPnl ?? 0), 0) / losses.length) : 0;
     const expectancy = Math.round((winRate * avgWin - lossRate * avgLoss) * 100) / 100;
+
+    // Institutional statistical additions
+    const profitFactor = calculateProfitFactor(netPnlArray);
+    const { sqn, rating: sqnRating } = calculateSqn(rMultiples);
+    const kellyCriterionPct = calculateKellyCriterion(winRate, avgWin, avgLoss);
+
+    // Cumulative equity series for K-Ratio
+    let runningPnl = 0;
+    const cumulativeSeries = netPnlArray.map((p) => { runningPnl += p; return runningPnl; });
+    const kRatio = calculateKRatio(cumulativeSeries);
+
     const [sessions, weekdays] = await Promise.all([analyzeBySession(user.id, startDate, now), analyzeByWeekday(user.id)]);
-    return ok({ sharpeRatio, sortinoRatio, maxDrawdown: drawdown.maxDrawdown, maxDrawdownPct: drawdown.maxDrawdownPct, currentWinStreak: streaks.currentWinStreak, currentLossStreak: streaks.currentLossStreak, longestWinStreak: streaks.longestWinStreak, longestLossStreak: streaks.longestLossStreak, avgHoldMin: holdingStats.avgHoldMin, avgWinHoldMin: holdingStats.avgWinHoldMin, avgLossHoldMin: holdingStats.avgLossHoldMin, rMultipleDistribution, avgRMultiple, avgMfe, avgMae, mfeMaeCount: tradesWithMfeMae.length, sessions, weekdays, expectancy, timeframe: timeframeParam, totalTrades: trades.length });
+    return ok({
+      sharpeRatio,
+      sortinoRatio,
+      maxDrawdown: drawdown.maxDrawdown,
+      maxDrawdownPct: drawdown.maxDrawdownPct,
+      currentWinStreak: streaks.currentWinStreak,
+      currentLossStreak: streaks.currentLossStreak,
+      longestWinStreak: streaks.longestWinStreak,
+      longestLossStreak: streaks.longestLossStreak,
+      avgHoldMin: holdingStats.avgHoldMin,
+      avgWinHoldMin: holdingStats.avgWinHoldMin,
+      avgLossHoldMin: holdingStats.avgLossHoldMin,
+      rMultipleDistribution,
+      avgRMultiple,
+      avgMfe,
+      avgMae,
+      mfeMaeCount: tradesWithMfeMae.length,
+      sessions,
+      weekdays,
+      expectancy,
+      profitFactor,
+      sqn,
+      sqnRating,
+      kellyCriterionPct,
+      kRatio,
+      timeframe: timeframeParam,
+      totalTrades: trades.length,
+    });
   }
 
   // ── equity-curve ───────────────────────────────────────────

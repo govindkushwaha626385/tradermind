@@ -284,8 +284,13 @@ export interface AdvancedAnalyticsResponse {
   sessions: SessionAnalysis[];
   weekdays: WeekdayAnalysis[];
 
-  // Expectancy
+  // Expectancy & Institutional Metrics
   expectancy: number;  // (WinRate × AvgWin) - (LossRate × AvgLoss)
+  profitFactor?: number; // Gross Profits / Gross Losses
+  sqn?: number;          // Van Tharp System Quality Number
+  sqnRating?: string;    // Rating tier (Holy Grail, Excellent, Good, Average, Hard to Trade)
+  kellyCriterionPct?: number; // Optimal Kelly risk allocation %
+  kRatio?: number;       // Lars Kestner K-Ratio (equity curve consistency)
 
   // Period
   timeframe: string;

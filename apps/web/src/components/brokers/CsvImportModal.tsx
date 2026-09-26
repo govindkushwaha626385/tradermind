@@ -62,6 +62,10 @@ const BROKER_DISPLAY_NAMES: Record<string, string> = {
   bybit: 'Bybit Derivatives',
   ibkr: 'Interactive Brokers (IBKR)',
   metatrader: 'MetaTrader 4/5 (MT4/MT5)',
+  thinkorswim: 'ThinkorSwim (TD Ameritrade / Charles Schwab)',
+  tradovate: 'Tradovate / NinjaTrader',
+  webull: 'Webull Financial',
+  robinhood: 'Robinhood',
   universal: 'Universal Trade CSV',
   unknown: 'Universal / Custom CSV',
 };
@@ -77,6 +81,10 @@ const SAMPLE_FORMAT_DOCS: Record<string, string> = {
   bybit: 'Orders → Derivatives Order → Trade History → Export',
   ibkr: 'Account Management → Reports → Activity → CSV Export',
   metatrader: 'Terminal → Account History → Right-click → Save as Report (CSV)',
+  thinkorswim: 'Account Statement → Order History / Executions → Export to CSV',
+  tradovate: 'Orders & Positions → Orders Report → Export CSV',
+  webull: 'Account → Trade History → Export',
+  robinhood: 'Account → History → Download Trade History (CSV)',
   universal: 'Standard CSV with Symbol, Quantity, Price, Date, and Side (Buy/Sell)',
 };
 
