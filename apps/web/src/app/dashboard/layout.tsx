@@ -54,6 +54,7 @@ import {
   Compass,
   Newspaper,
   FileText,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -77,6 +78,8 @@ import { EodDigestModal } from '@/components/discipline/EodDigestModal';
 import { PositionSizeCalculatorModal } from '@/components/calculators/PositionSizeCalculatorModal';
 import { TraderCredentialModal } from '@/components/education/TraderCredentialModal';
 import { EodVoiceBriefingModal } from '@/components/discipline/EodVoiceBriefingModal';
+import { InstitutionalVoiceBotModal } from '@/components/ai/InstitutionalVoiceBotModal';
+import { MultimodalChartVisionModal } from '@/components/chart/MultimodalChartVisionModal';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { Volume2 } from 'lucide-react';
 
@@ -97,6 +100,7 @@ const SIDEBAR_GROUPS = [
       { label: 'Trades',      href: '/dashboard/trades',      icon: TrendingUp },
       { label: 'Prop Firm',   href: '/dashboard/prop-firm',   icon: Award },
       { label: 'Replay',      href: '/dashboard/replay',      icon: Play },
+      { label: 'Backtesting', href: '/dashboard/backtesting', icon: FlaskConical },
       { label: 'Strategies',  href: '/dashboard/strategies',  icon: Target },
       { label: 'Checklists',  href: '/dashboard/checklists',  icon: ListChecks },
     ],
@@ -452,6 +456,14 @@ export default function DashboardLayout({
     return () => window.removeEventListener('open-trader-credential', handleOpenCredential);
   }, []);
 
+  const [chartVisionOpen, setChartVisionOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenVision = () => setChartVisionOpen(true);
+    window.addEventListener('open-chart-vision', handleOpenVision);
+    return () => window.removeEventListener('open-chart-vision', handleOpenVision);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const impStr = sessionStorage.getItem('trademind_impersonated_user');
@@ -741,14 +753,19 @@ export default function DashboardLayout({
               <Keyboard className="w-4 h-4" />
             </button>
 
-            {/* 60s AI Audio EOD Debrief */}
+            {/* Aura Institutional Voice AI Copilot */}
             <button
               onClick={() => setVoiceBriefingOpen(true)}
-              className="p-2 rounded-lg hover:bg-accent text-violet-400 hover:text-violet-300 transition-colors cursor-pointer"
-              title="60s AI Audio Debrief"
-              aria-label="60s AI Audio Debrief"
+              className="relative p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-violet-950/40 hover:bg-violet-900/60 border border-violet-500/30 text-violet-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-violet-500/10 group"
+              title="Aura — AI Voice Copilot & Forensic Debrief Bot"
+              aria-label="Aura AI Voice Copilot"
             >
-              <Volume2 className="w-4 h-4" />
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+              </span>
+              <Volume2 className="w-3.5 h-3.5 text-violet-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden xl:inline text-xs font-bold tracking-tight font-display">Aura Voice</span>
             </button>
 
             {/* Platform Tour & Academy */}
@@ -875,10 +892,16 @@ export default function DashboardLayout({
         totalMilestones={20}
       />
 
-      {/* ── Automated 60-Second AI Voice/Audio Debrief Modal ── */}
-      <EodVoiceBriefingModal
+      {/* ── Aura — Institutional AI Voice Copilot & Debrief Modal ── */}
+      <InstitutionalVoiceBotModal
         isOpen={voiceBriefingOpen}
         onClose={() => setVoiceBriefingOpen(false)}
+      />
+
+      {/* ── Multimodal AI Chart Vision Inspector Modal ── */}
+      <MultimodalChartVisionModal
+        isOpen={chartVisionOpen}
+        onClose={() => setChartVisionOpen(false)}
       />
     </div>
   );

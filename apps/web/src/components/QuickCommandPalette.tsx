@@ -39,6 +39,9 @@ import {
   Compass,
   BookMarked,
   Zap,
+  Eye,
+  Volume2,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -78,6 +81,7 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-trades', title: 'Executions & Order Blotter', category: 'Navigation', icon: TrendingUp, href: '/dashboard/trades', shortcut: 'T' },
       { id: 'nav-prop-firm', title: 'Prop Firm Challenges (FTMO, FundedNext, Apex)', category: 'Navigation', icon: Award, href: '/dashboard/prop-firm', badge: 'Challenges' },
       { id: 'nav-replay', title: 'Visual Trade Replay Studio & Live Chart', category: 'Navigation', icon: PlayCircle, href: '/dashboard/replay', shortcut: 'R', badge: 'TradingView' },
+      { id: 'nav-backtesting', title: 'Strategy Backtesting & Simulator Studio (Bar-by-Bar)', category: 'Navigation', icon: FlaskConical, href: '/dashboard/backtesting', badge: 'Simulator' },
       { id: 'nav-analytics', title: 'Performance Analytics & MFE/MAE', category: 'Navigation', icon: BarChart3, href: '/dashboard/analytics', shortcut: 'A' },
       { id: 'nav-roadmap', title: 'Trader Progression Roadmap & Evolution Levels', category: 'Navigation', icon: Compass, href: '/dashboard/roadmap', shortcut: 'M', badge: 'Levels 1-4' },
       { id: 'nav-academy', title: 'Trader Evolution Academy & Public Track Blueprints', category: 'Navigation', icon: BookOpen, href: '/education', badge: 'Academy' },
@@ -178,6 +182,30 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         },
         badge: 'Post-Market',
         shortcut: 'Shift+D',
+      },
+      {
+        id: 'act-chart-vision',
+        title: 'Multimodal AI Chart Vision Inspector (Gemini Vision OCR)',
+        category: 'Actions',
+        icon: Eye,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-chart-vision'));
+        },
+        badge: 'Gemini Vision',
+        shortcut: 'Shift+C',
+      },
+      {
+        id: 'act-voice-aura',
+        title: 'Aura — Voice AI Copilot & Real-Time Forensic Debrief Bot',
+        category: 'Actions',
+        icon: Volume2,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-institutional-voice-bot'));
+        },
+        badge: 'Voice AI',
+        shortcut: 'V',
       },
       {
         id: 'act-premarket',

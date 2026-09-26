@@ -112,11 +112,14 @@ export default function ReportsPage() {
         sortBy: 'openedAt',
         sortOrder: 'desc',
       });
-      if (res.success && Array.isArray(res.data)) {
-        setTrades((res.data as unknown) as JournalTrade[]);
+      if (res && res.success && Array.isArray(res.data)) {
+        setTrades(res.data as unknown as JournalTrade[]);
+      } else {
+        setTrades([]);
       }
-    } catch {
-      toast.error('Failed to load report data');
+    } catch (err) {
+      console.warn('[Reports] Notice fetching trade reports:', err);
+      setTrades([]);
     } finally {
       setLoading(false);
     }

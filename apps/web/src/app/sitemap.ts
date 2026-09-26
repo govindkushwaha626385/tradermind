@@ -115,6 +115,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.85,
     },
     {
+      url: `${APP_URL}/dashboard/backtesting`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
       url: `${APP_URL}/share/trade/demo-sample`,
       lastModified: new Date(),
       changeFrequency: 'weekly',

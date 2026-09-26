@@ -62,6 +62,17 @@ interface EconomicEvent {
   isHighImpact: boolean;
 }
 
+function formatCalendarValue(val?: number | string | null, unit?: string) {
+  if (val === null || val === undefined || val === '') return '—';
+  const str = String(val).trim();
+  if (!unit) return str;
+  const cleanUnit = unit.trim();
+  if (cleanUnit && !str.endsWith(cleanUnit)) {
+    return `${str}${cleanUnit}`;
+  }
+  return str;
+}
+
 export default function MarketNewsPage() {
   const [activeTab, setActiveTab] = useState<'news' | 'calendar'>('news');
   const [newsCategory, setNewsCategory] = useState<'general' | 'forex' | 'crypto'>('general');
@@ -458,13 +469,13 @@ export default function MarketNewsPage() {
                         {evt.event}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-foreground">
-                        {evt.actual !== null && evt.actual !== undefined ? `${evt.actual}${evt.unit}` : '—'}
+                        {formatCalendarValue(evt.actual, evt.unit)}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono text-muted-foreground">
-                        {evt.estimate !== null && evt.estimate !== undefined ? `${evt.estimate}${evt.unit}` : '—'}
+                        {formatCalendarValue(evt.estimate, evt.unit)}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono text-muted-foreground">
-                        {evt.prev !== null && evt.prev !== undefined ? `${evt.prev}${evt.unit}` : '—'}
+                        {formatCalendarValue(evt.prev, evt.unit)}
                       </td>
                     </tr>
                   ))}

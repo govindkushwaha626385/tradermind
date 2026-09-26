@@ -21,7 +21,7 @@ export const runtime = 'nodejs';
 const listQuerySchema = z.object({
   cursor: z.string().optional(),
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
+  limit: z.coerce.number().min(1).max(10000).default(20),
   status: z.enum(['OPEN', 'CLOSED', 'PARTIALLY_CLOSED']).optional(),
   symbol: z.string().optional(),
   direction: z.enum(['LONG', 'SHORT']).optional(),

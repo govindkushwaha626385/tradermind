@@ -47,8 +47,30 @@ export const metadata: Metadata = {
 };
 
 export default function EducationPage() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    name: 'TradeMind Trader Evolution Academy & Institutional Roadmap',
+    description:
+      'A 4-stage institutional curriculum for traders: from capital defense and risk mathematics to Smart Money Concepts, options Greeks, and prop firm funding.',
+    provider: {
+      '@type': 'Organization',
+      name: 'TradeMind',
+      sameAs: 'https://trademind.app',
+    },
+    educationalCredentialAwarded: 'TradeMind Verified Market Operator Credential',
+    hasCourseInstance: {
+      '@type': 'CourseInstance',
+      courseMode: 'Online',
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground animate-fade-in flex flex-col justify-between">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <LandingNavbar />
 
       {/* Top Ambient Glow */}

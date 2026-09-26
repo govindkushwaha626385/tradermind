@@ -89,8 +89,8 @@ export default function AdminAiPage() {
     },
     {
       id: 'audio_briefing',
-      name: 'EOD AI Audio / Voice Briefing',
-      description: 'Synthesizes 60-second end-of-day audio debrief via Web Speech TTS',
+      name: 'Aura — Voice AI Copilot & Debrief Bot',
+      description: 'Futuristic glowing 3D orb voice assistant with multi-accent female speech synthesis and speech recognition',
       icon: Volume2,
       enabled: true,
       tierRequired: 'Pro',
@@ -134,6 +134,13 @@ export default function AdminAiPage() {
   const [maxTokens, setMaxTokens] = useState<number>(400);
   const [temperature, setTemperature] = useState<number>(0.4);
   const [savedSettings, setSavedSettings] = useState(false);
+
+  // Voice Persona & Engine Settings
+  const [voicePersona, setVoicePersona] = useState<'aura' | 'vance'>('aura');
+  const [voiceAccent, setVoiceAccent] = useState<'US' | 'UK' | 'AU' | 'GLOBAL'>('US');
+  const [voiceSpeed, setVoiceSpeed] = useState<number>(1.0);
+  const [voicePitch, setVoicePitch] = useState<number>(1.1);
+  const [savedVoiceSettings, setSavedVoiceSettings] = useState(false);
 
   // Fetch telemetry
   const fetchAiData = async () => {
@@ -594,6 +601,108 @@ export default function AdminAiPage() {
             />
             <span className="text-[10px] text-zinc-500 block">
               0.2 = Highly deterministic & consistent | 0.8 = Creative & expressive.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Aura Voice Engine & Persona Configuration ───────────────── */}
+      <div className="rounded-2xl border border-violet-500/20 bg-zinc-950 p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+          <div className="flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-violet-400" />
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              Aura Voice Engine &amp; Persona Configuration
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                Web Speech TTS &amp; STT
+              </span>
+            </h3>
+          </div>
+          <button
+            onClick={() => {
+              setSavedVoiceSettings(true);
+              toast.success('Voice engine & persona settings saved');
+              setTimeout(() => setSavedVoiceSettings(false), 2000);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+          >
+            {savedVoiceSettings ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+            <span>{savedVoiceSettings ? 'Saved!' : 'Save Voice Config'}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          {/* Persona */}
+          <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+            <label className="block text-zinc-300 font-semibold">Default Voice Persona</label>
+            <select
+              value={voicePersona}
+              onChange={(e) => setVoicePersona(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-950 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="aura">Aura (Natural Female Institutional Diction)</option>
+              <option value="vance">Vance (Male Quantitative Risk Analyst)</option>
+            </select>
+            <span className="text-[10px] text-zinc-500 block">
+              Default persona for forensic autopsies and audio debriefs.
+            </span>
+          </div>
+
+          {/* Default Accent */}
+          <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+            <label className="block text-zinc-300 font-semibold">Primary Regional Accent</label>
+            <select
+              value={voiceAccent}
+              onChange={(e) => setVoiceAccent(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-950 text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="US">American English (Samantha / Victoria)</option>
+              <option value="UK">British English (Stephanie / Martha)</option>
+              <option value="AU">Australian English (Karen / Catherine)</option>
+              <option value="GLOBAL">Global English (Clear Neutral Fallback)</option>
+            </select>
+            <span className="text-[10px] text-zinc-500 block">
+              Preferred regional dialect matching user locale.
+            </span>
+          </div>
+
+          {/* Speech Pitch */}
+          <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-zinc-300 font-semibold">Voice Pitch Tuning</label>
+              <span className="font-mono text-violet-400 font-bold">{voicePitch.toFixed(2)}x</span>
+            </div>
+            <input
+              type="range"
+              min={0.8}
+              max={1.4}
+              step={0.05}
+              value={voicePitch}
+              onChange={(e) => setVoicePitch(parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
+            />
+            <span className="text-[10px] text-zinc-500 block">
+              1.10x delivers optimal crisp clarity for female diction.
+            </span>
+          </div>
+
+          {/* Speech Speed */}
+          <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-zinc-300 font-semibold">Default Speech Pace</label>
+              <span className="font-mono text-violet-400 font-bold">{voiceSpeed.toFixed(2)}x</span>
+            </div>
+            <input
+              type="range"
+              min={0.8}
+              max={1.3}
+              step={0.05}
+              value={voiceSpeed}
+              onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-violet-500"
+            />
+            <span className="text-[10px] text-zinc-500 block">
+              Cadence pacing for trading session autopsies.
             </span>
           </div>
         </div>

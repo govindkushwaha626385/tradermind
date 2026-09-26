@@ -12,7 +12,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search,
   Download,
@@ -35,6 +35,7 @@ import {
   Sparkles,
   ArrowRight,
   ShieldAlert,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -50,6 +51,8 @@ import { TradeComparisonModal } from '@/components/chart/TradeComparisonModal';
 import { BrandedShareCardModal } from '@/components/social/BrandedShareCardModal';
 import { TradeAutopsyModal } from '@/components/ai/TradeAutopsyModal';
 import { TradeExportModal } from '@/components/trades/TradeExportModal';
+import { AskTradeMindQueryBar } from '@/components/trades/AskTradeMindQueryBar';
+import { MultimodalChartVisionModal } from '@/components/chart/MultimodalChartVisionModal';
 import type { DashboardStats } from '@trademind/shared';
 
 interface TradeExecution {
@@ -122,6 +125,8 @@ export default function TradesPage() {
   const [compareOpen, setCompareOpen]                   = useState(false);
   const [selectedShareTrade, setSelectedShareTrade]     = useState<any | null>(null);
   const [exportModalOpen, setExportModalOpen]           = useState(false);
+  const [visionModalOpen, setVisionModalOpen]           = useState(false);
+  const [aiFilteredTrades, setAiFilteredTrades]         = useState<JournalTradeItem[] | null>(null);
 
   useEffect(() => {
     document.title = viewMode === 'closed'
@@ -232,9 +237,12 @@ export default function TradesPage() {
     setPage(1);
   };
 
-  const filteredClosed = journalTrades.filter((t) =>
-    t.tradingsymbol.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredClosed: JournalTradeItem[] = useMemo(() => {
+    const base: JournalTradeItem[] = aiFilteredTrades !== null ? aiFilteredTrades : journalTrades;
+    return base.filter((t: JournalTradeItem) =>
+      t.tradingsymbol.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [aiFilteredTrades, journalTrades, search]);
 
   const filteredExecutions = executions.filter((t) =>
     t.tradingsymbol.toLowerCase().includes(search.toLowerCase()),
@@ -283,6 +291,14 @@ export default function TradesPage() {
             >
               <ArrowLeftRight className="w-4 h-4 text-purple-400" />
               Compare Studio
+            </button>
+            <button
+              onClick={() => setVisionModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+              title="Open Multimodal AI Chart Vision Inspector"
+            >
+              <Eye className="w-4 h-4 text-cyan-400" />
+              <span>AI Chart Vision</span>
             </button>
             <button
               onClick={() => setExportModalOpen(true)}
@@ -414,6 +430,20 @@ export default function TradesPage() {
           </div>
         )}
       </div>
+
+      {/* ── "Ask TradeMind" Natural Language Query Engine ── */}
+      {viewMode === 'closed' && (
+        <AskTradeMindQueryBar
+          trades={journalTrades}
+          onFilteredTradesChange={(filtered, predicate) => {
+            if (predicate) {
+              setAiFilteredTrades(filtered);
+            } else {
+              setAiFilteredTrades(null);
+            }
+          }}
+        />
+      )}
 
       {/* ── Filter Controls ─────────────────────── */}
       <div className="glass-card rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 flex-wrap">
@@ -1166,6 +1196,12 @@ export default function TradesPage() {
         isOpen={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
         defaultScope={viewMode === 'closed' ? 'journal' : 'executions'}
+      />
+
+      {/* ── Multimodal AI Chart Vision Inspector Modal ── */}
+      <MultimodalChartVisionModal
+        isOpen={visionModalOpen}
+        onClose={() => setVisionModalOpen(false)}
       />
     </div>
   );
