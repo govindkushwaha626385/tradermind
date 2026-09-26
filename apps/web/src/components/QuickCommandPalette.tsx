@@ -117,6 +117,18 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
         shortcut: '7',
       },
       {
+        id: 'act-macro-drawer',
+        title: 'Global Macro News & Economic Calendar Wire (Finnhub Live)',
+        category: 'Actions',
+        icon: Newspaper,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-macro-drawer'));
+        },
+        badge: 'Macro Wire',
+        shortcut: 'N',
+      },
+      {
         id: 'act-export-credential',
         title: 'Generate & Export Verified Trader Credential Card',
         category: 'Actions',

@@ -138,6 +138,10 @@ export function useGlobalHotkeys({
           e.preventDefault();
           window.dispatchEvent(new CustomEvent('open-seven-rules-protocol'));
           break;
+        case 'n':
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('open-macro-drawer'));
+          break;
         default:
           break;
       }

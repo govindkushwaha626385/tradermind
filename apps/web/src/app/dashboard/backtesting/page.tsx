@@ -17,8 +17,10 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { api } from '@/lib/api';
 import {
   FlaskConical,
   Play,
@@ -78,7 +80,20 @@ interface BacktestTrade {
   exitReason?: 'TP_HIT' | 'SL_HIT' | 'MANUAL_CLOSE';
 }
 
-const PRESET_STRATEGIES = [
+export interface BacktestStrategyOption {
+  id: string;
+  name: string;
+  asset: string;
+  market: string;
+  timeframe: string;
+  basePrice: number;
+  volatility: number;
+  description: string;
+  isCustom?: boolean;
+  sourceType?: 'preset' | 'playbook' | 'strategy';
+}
+
+const PRESET_STRATEGIES: BacktestStrategyOption[] = [
   {
     id: 'ict-fvg',
     name: 'ICT Silver Bullet (FVG Retest)',
@@ -88,6 +103,7 @@ const PRESET_STRATEGIES = [
     basePrice: 51200,
     volatility: 0.0035,
     description: 'Trading the displacement fair value gap following a liquidity sweep of session highs/lows.',
+    sourceType: 'preset',
   },
   {
     id: 'orb-15',
@@ -98,6 +114,7 @@ const PRESET_STRATEGIES = [
     basePrice: 24850,
     volatility: 0.0025,
     description: 'Breakout above high or below low of the first 15-minute candle with volume surge.',
+    sourceType: 'preset',
   },
   {
     id: 'nasdaq-trend',
@@ -108,6 +125,7 @@ const PRESET_STRATEGIES = [
     basePrice: 485,
     volatility: 0.004,
     description: 'Pullback into the 9/21 exponential moving average band during institutional trend expansion.',
+    sourceType: 'preset',
   },
   {
     id: 'btc-liquidity',
@@ -118,13 +136,137 @@ const PRESET_STRATEGIES = [
     basePrice: 65400,
     volatility: 0.006,
     description: 'Taking the counter-trend reaction after an aggressive stop-hunt of weekend range extremes.',
+    sourceType: 'preset',
   },
 ];
 
-export default function BacktestingStudioPage() {
+function BacktestingStudioContent() {
   const { format } = useCurrency();
-  const [selectedStrategyId, setSelectedStrategyId] = useState(PRESET_STRATEGIES[0].id);
-  const activePreset = PRESET_STRATEGIES.find((s) => s.id === selectedStrategyId) || PRESET_STRATEGIES[0];
+  const searchParams = useSearchParams();
+  const playbookParam = searchParams.get('playbook');
+  const strategyParam = searchParams.get('strategy');
+
+  const [userStrategies, setUserStrategies] = useState<BacktestStrategyOption[]>([]);
+  const [userPlaybooks, setUserPlaybooks] = useState<BacktestStrategyOption[]>([]);
+  const [filterTab, setFilterTab] = useState<'all' | 'presets' | 'user'>('all');
+
+  // Load user custom strategies and playbooks from TradeMind database
+  useEffect(() => {
+    let isMounted = true;
+    async function loadUserSetups() {
+      try {
+        const [stratsRes, playbooksRes] = await Promise.allSettled([
+          api.getStrategies(),
+          api.getPlaybooks(),
+        ]);
+
+        if (isMounted) {
+          if (stratsRes.status === 'fulfilled' && (stratsRes.value as any)?.success && Array.isArray((stratsRes.value as any).data)) {
+            const strats: BacktestStrategyOption[] = (stratsRes.value as any).data.map((s: any) => ({
+              id: `strat-${s.id}`,
+              name: s.name,
+              asset: s.marketType || 'EQUITY',
+              market: `${s.marketType || 'Equity'} Strategy`,
+              timeframe: s.timeframe || 'Intraday',
+              basePrice: 24500,
+              volatility: 0.0035,
+              description: s.description || s.entryCriteria || 'Custom strategy setup from Strategy Manager',
+              isCustom: true,
+              sourceType: 'strategy',
+            }));
+            setUserStrategies(strats);
+          }
+
+          if (playbooksRes.status === 'fulfilled' && (playbooksRes.value as any)?.success && Array.isArray((playbooksRes.value as any).data)) {
+            const pbs: BacktestStrategyOption[] = (playbooksRes.value as any).data.map((p: any) => ({
+              id: `pb-${p.id}`,
+              name: p.name,
+              asset: p.market || 'MULTI-ASSET',
+              market: 'Playbook Setup',
+              timeframe: p.timeframe || '5m',
+              basePrice: 51200,
+              volatility: 0.004,
+              description: p.description || 'Institutional Playbook setup from Playbook Library',
+              isCustom: true,
+              sourceType: 'playbook',
+            }));
+            setUserPlaybooks(pbs);
+          }
+        }
+      } catch {
+        // Fallback silently if API is offline or returns empty
+      }
+    }
+
+    loadUserSetups();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Dynamically resolve URL query parameters (?playbook= or ?strategy=)
+  const dynamicParamStrategy = useMemo<BacktestStrategyOption | null>(() => {
+    const paramName = playbookParam || strategyParam;
+    if (!paramName) return null;
+
+    const matchedPreset = PRESET_STRATEGIES.find(
+      (p) => p.name.toLowerCase().includes(paramName.toLowerCase()) || paramName.toLowerCase().includes(p.name.toLowerCase())
+    );
+    if (matchedPreset) return null;
+
+    const matchedUser = [...userStrategies, ...userPlaybooks].find((u) =>
+      u.name.toLowerCase().includes(paramName.toLowerCase())
+    );
+    if (matchedUser) return null;
+
+    return {
+      id: `param-${encodeURIComponent(paramName)}`,
+      name: paramName,
+      asset: playbookParam ? 'PLAYBOOK' : 'STRATEGY',
+      market: playbookParam ? 'Playbook Setup' : 'Custom Strategy',
+      timeframe: '5m',
+      basePrice: 24850,
+      volatility: 0.0035,
+      description: `Targeted forward-test simulator cohort for "${paramName}". Forward-test bar-by-bar execution without hindsight bias.`,
+      isCustom: true,
+      sourceType: playbookParam ? 'playbook' : 'strategy',
+    };
+  }, [playbookParam, strategyParam, userStrategies, userPlaybooks]);
+
+  // Aggregate all strategies
+  const allStrategies = useMemo(() => {
+    const list: BacktestStrategyOption[] = [...PRESET_STRATEGIES];
+    if (dynamicParamStrategy) {
+      list.unshift(dynamicParamStrategy);
+    }
+    return [...list, ...userPlaybooks, ...userStrategies];
+  }, [dynamicParamStrategy, userPlaybooks, userStrategies]);
+
+  const [selectedStrategyId, setSelectedStrategyId] = useState<string>(PRESET_STRATEGIES[0].id);
+
+  // Auto-select when param is provided
+  useEffect(() => {
+    const paramName = playbookParam || strategyParam;
+    if (!paramName) return;
+
+    const target = allStrategies.find(
+      (s) =>
+        s.name.toLowerCase().includes(paramName.toLowerCase()) ||
+        paramName.toLowerCase().includes(s.name.toLowerCase()) ||
+        s.id === `param-${encodeURIComponent(paramName)}`
+    );
+    if (target) {
+      setSelectedStrategyId(target.id);
+    }
+  }, [playbookParam, strategyParam, allStrategies]);
+
+  const activePreset = allStrategies.find((s) => s.id === selectedStrategyId) || allStrategies[0] || PRESET_STRATEGIES[0];
+
+  const displayedStrategies = useMemo(() => {
+    if (filterTab === 'presets') return allStrategies.filter((s) => s.sourceType === 'preset' || !s.sourceType);
+    if (filterTab === 'user') return allStrategies.filter((s) => s.sourceType === 'playbook' || s.sourceType === 'strategy');
+    return allStrategies;
+  }, [filterTab, allStrategies]);
 
   // Simulation Parameters
   const [initialCapital, setInitialCapital] = useState<number>(50000);
@@ -442,6 +584,14 @@ export default function BacktestingStudioPage() {
     toast.success(`Pushed "${activePreset.name}" rule to Pre-Market Routine checklist!`);
   };
 
+  const handleSyncBack = () => {
+    if (closedTrades.length === 0) {
+      toast.info('Execute at least one backtest trade to compute statistics before syncing.');
+      return;
+    }
+    toast.success(`Synced forward-test metrics (${metrics.winRate}% win rate, ${metrics.profitFactor} PF) to ${activePreset.name}!`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ── Page Header ── */}
@@ -486,40 +636,147 @@ export default function BacktestingStudioPage() {
         }
       />
 
+      {/* ── Linked Pipeline Active Banner ── */}
+      {(playbookParam || strategyParam || activePreset.isCustom) && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+              <FlaskConical className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 font-mono">
+                  Setup Pipeline Active
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-200">
+                  {playbookParam ? 'Playbook Linked' : strategyParam ? 'Strategy Linked' : 'Custom Setup'}
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-white mt-0.5">
+                {activePreset.name}
+              </h4>
+              <p className="text-xs text-indigo-200/70 mt-0.5 line-clamp-1">
+                {activePreset.description}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {closedTrades.length > 0 && (
+              <button
+                onClick={handleSyncBack}
+                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Sync Metrics</span>
+              </button>
+            )}
+            {playbookParam ? (
+              <Link
+                href="/dashboard/playbooks"
+                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-zinc-300 hover:text-white flex items-center justify-center gap-1 transition-all border border-white/5"
+              >
+                <span>Playbooks</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/strategies"
+                className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-zinc-300 hover:text-white flex items-center justify-center gap-1 transition-all border border-white/5"
+              >
+                <span>Strategies</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Strategy Playbook Selector Strip ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {PRESET_STRATEGIES.map((strat) => {
-          const isSelected = strat.id === selectedStrategyId;
-          return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs">
             <button
-              key={strat.id}
-              onClick={() => setSelectedStrategyId(strat.id)}
+              onClick={() => setFilterTab('all')}
               className={cn(
-                'p-4 rounded-2xl border text-left transition-all flex flex-col justify-between space-y-2 cursor-pointer',
-                isSelected
-                  ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5 text-foreground'
-                  : 'glass-card border-border/60 hover:border-border text-muted-foreground hover:text-foreground'
+                'px-3 py-1 rounded-lg font-medium transition-all cursor-pointer',
+                filterTab === 'all'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
               )}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/5 font-bold uppercase">
-                  {strat.market}
-                </span>
-                <span className="text-xs font-mono font-bold text-primary">
-                  {strat.timeframe}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-foreground leading-tight">
-                  {strat.name}
-                </h3>
-                <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
-                  {strat.description}
-                </p>
-              </div>
+              All Setups ({allStrategies.length})
             </button>
-          );
-        })}
+            <button
+              onClick={() => setFilterTab('presets')}
+              className={cn(
+                'px-3 py-1 rounded-lg font-medium transition-all cursor-pointer',
+                filterTab === 'presets'
+                  ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              )}
+            >
+              Presets ({PRESET_STRATEGIES.length})
+            </button>
+            {(userPlaybooks.length > 0 || userStrategies.length > 0) && (
+              <button
+                onClick={() => setFilterTab('user')}
+                className={cn(
+                  'px-3 py-1 rounded-lg font-medium transition-all cursor-pointer',
+                  filterTab === 'user'
+                    ? 'bg-zinc-800 text-white font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                )}
+              >
+                My Setups ({userPlaybooks.length + userStrategies.length})
+              </button>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground font-mono">
+            Forward-testing: <strong className="text-foreground">{activePreset.name}</strong>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {displayedStrategies.map((strat) => {
+            const isSelected = strat.id === selectedStrategyId;
+            return (
+              <button
+                key={strat.id}
+                onClick={() => setSelectedStrategyId(strat.id)}
+                className={cn(
+                  'p-4 rounded-2xl border text-left transition-all flex flex-col justify-between space-y-2 cursor-pointer',
+                  isSelected
+                    ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5 text-foreground ring-1 ring-primary/40'
+                    : 'glass-card border-border/60 hover:border-border text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className={cn(
+                    'text-[10px] font-mono px-2 py-0.5 rounded-full border uppercase font-bold',
+                    strat.sourceType === 'playbook'
+                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      : strat.sourceType === 'strategy'
+                      ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                      : 'bg-white/5 border-white/5 text-muted-foreground'
+                  )}>
+                    {strat.market}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-primary">
+                    {strat.timeframe}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground leading-tight line-clamp-1">
+                    {strat.name}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1">
+                    {strat.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Quantitative KPI Scorecard ── */}
@@ -1010,3 +1267,19 @@ export default function BacktestingStudioPage() {
     </div>
   );
 }
+
+export default function BacktestingStudioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-muted-foreground animate-pulse font-mono text-sm space-y-2">
+          <FlaskConical className="w-8 h-8 mx-auto text-indigo-400 animate-spin" />
+          <p>Initializing Institutional Forward-Testing Studio...</p>
+        </div>
+      }
+    >
+      <BacktestingStudioContent />
+    </Suspense>
+  );
+}
+

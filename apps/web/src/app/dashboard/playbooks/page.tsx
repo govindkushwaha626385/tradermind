@@ -35,6 +35,7 @@ import {
   BarChart3,
   Copy,
   Share2,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -626,10 +627,19 @@ export default function PlaybooksPage() {
                 <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
                   <Link
                     href={`/dashboard/journal?search=${encodeURIComponent(playbook.name)}`}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/80 border border-border text-xs font-semibold text-foreground transition-colors"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-accent hover:bg-accent/80 border border-border text-xs font-semibold text-foreground transition-colors"
                   >
                     <BarChart3 className="w-3 h-3 text-primary" />
                     Review Trades
+                  </Link>
+
+                  <Link
+                    href={`/dashboard/backtesting?playbook=${encodeURIComponent(playbook.name)}`}
+                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-semibold transition-colors"
+                    title="Forward-test this setup in the bar-by-bar simulator"
+                  >
+                    <FlaskConical className="w-3 h-3 text-indigo-400" />
+                    <span>Backtest</span>
                   </Link>
                   <button
                     onClick={() =>

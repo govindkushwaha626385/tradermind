@@ -82,6 +82,7 @@ import { EodVoiceBriefingModal } from '@/components/discipline/EodVoiceBriefingM
 import { InstitutionalVoiceBotModal } from '@/components/ai/InstitutionalVoiceBotModal';
 import { MultimodalChartVisionModal } from '@/components/chart/MultimodalChartVisionModal';
 import { SevenRulesProtocolModal } from '@/components/discipline/SevenRulesProtocolModal';
+import { GlobalMacroDrawer } from '@/components/news/GlobalMacroDrawer';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { Volume2 } from 'lucide-react';
 
@@ -475,6 +476,14 @@ export default function DashboardLayout({
     return () => window.removeEventListener('open-seven-rules-protocol', handleOpenSevenRules);
   }, []);
 
+  const [macroDrawerOpen, setMacroDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenMacro = () => setMacroDrawerOpen(true);
+    window.addEventListener('open-macro-drawer', handleOpenMacro);
+    return () => window.removeEventListener('open-macro-drawer', handleOpenMacro);
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const impStr = sessionStorage.getItem('trademind_impersonated_user');
@@ -779,6 +788,21 @@ export default function DashboardLayout({
               <span className="hidden xl:inline text-xs font-bold tracking-tight font-display">Aura Voice</span>
             </button>
 
+            {/* Live Macro News & Calendar Wire (Finnhub) */}
+            <button
+              onClick={() => setMacroDrawerOpen(true)}
+              className="relative p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-indigo-500/10 group"
+              title="Global Macro News & Economic Calendar (Press N)"
+              aria-label="Global Macro News Drawer"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Newspaper className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden xl:inline text-xs font-bold tracking-tight font-display">Macro Wire</span>
+            </button>
+
             {/* Platform Tour & Academy */}
             <button
               onClick={() => setShowTour(true)}
@@ -919,6 +943,12 @@ export default function DashboardLayout({
       <SevenRulesProtocolModal
         isOpen={sevenRulesOpen}
         onClose={() => setSevenRulesOpen(false)}
+      />
+
+      {/* ── Global Macro Intelligence & Live News Wire Drawer ── */}
+      <GlobalMacroDrawer
+        isOpen={macroDrawerOpen}
+        onClose={() => setMacroDrawerOpen(false)}
       />
     </div>
   );

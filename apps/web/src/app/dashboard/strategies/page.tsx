@@ -729,7 +729,7 @@ export default function StrategiesPage() {
                   </button>
 
                   <Link
-                    href="/dashboard/backtesting"
+                    href={`/dashboard/backtesting?strategy=${encodeURIComponent(strat.name)}`}
                     className="py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-xs font-medium text-indigo-300 flex items-center justify-center gap-1.5 transition-all border border-indigo-500/20 shrink-0"
                     title="Forward-test this setup in the bar-by-bar simulator"
                   >
