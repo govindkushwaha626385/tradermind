@@ -320,6 +320,23 @@ function SidebarContent({
 
         <div className={cn('space-y-0.5 pb-2', collapsed ? 'px-1' : 'px-2')}>
           <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-platform-tour'))}
+            className={cn(
+              'flex items-center rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--sidebar-item-hover-bg))] transition-all duration-150 w-full group/item relative cursor-pointer',
+              collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-2.5 px-3 py-2',
+            )}
+            title="Start Interactive Platform Tour"
+            aria-label="Platform Tour"
+          >
+            <Sparkles className={cn('flex-shrink-0 text-primary group-hover/item:scale-110 transition-transform', collapsed ? 'w-5 h-5' : 'w-4 h-4')} />
+            {!collapsed && <span className="truncate text-xs font-semibold">Product Tour</span>}
+            {collapsed && (
+              <span className="absolute left-full ml-2 px-2 py-1 text-xs font-medium bg-popover border border-border rounded-lg shadow-card-lg whitespace-nowrap z-50 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-opacity duration-150">
+                Product Tour
+              </span>
+            )}
+          </button>
+          <button
             onClick={onLogout}
             className={cn(
               'flex items-center rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--sidebar-item-hover-bg))] transition-all duration-150 w-full group/item relative',
@@ -378,6 +395,19 @@ export default function DashboardLayout({
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    // Check if new user has completed tour
+    if (typeof window !== 'undefined') {
+      const completed = localStorage.getItem('trademind_product_tour_completed_v2');
+      if (!completed) {
+        const timer = setTimeout(() => {
+          setShowTour(true);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleOpenTour = () => setShowTour(true);
