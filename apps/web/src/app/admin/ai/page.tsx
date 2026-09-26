@@ -36,11 +36,13 @@ import {
   Flame,
   Clock,
   Check,
+  Download,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { toast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/export-csv';
 
 interface AiAnalyticsData {
   totalRequestsCached: number;
@@ -210,6 +212,31 @@ export default function AdminAiPage() {
     setTimeout(() => setSavedSettings(false), 2000);
   };
 
+  const handleExportCsv = () => {
+    const rows = featureToggles.map((f) => ({
+      feature: f.name,
+      id: f.id,
+      status: f.enabled && masterAiEnabled ? 'ACTIVE' : 'PAUSED',
+      tier: f.tierRequired,
+      description: f.description,
+      primaryModel: primaryProvider === 'gemini' ? providerStatus.gemini.model : providerStatus.groq.model,
+      totalTokens: analytics?.totalTokensConsumed ?? 0,
+      cachedInferences: analytics?.totalRequestsCached ?? 0,
+    }));
+
+    downloadCsv('trademind-ai-engine-telemetry', rows, [
+      { header: 'Feature Name', accessor: (r) => r.feature },
+      { header: 'Feature ID', accessor: (r) => r.id },
+      { header: 'Status', accessor: (r) => r.status },
+      { header: 'Min Tier', accessor: (r) => r.tier },
+      { header: 'Active Model', accessor: (r) => r.primaryModel },
+      { header: 'Total Tokens Used', accessor: (r) => r.totalTokens },
+      { header: 'Cached Inferences', accessor: (r) => r.cachedInferences },
+      { header: 'Description', accessor: (r) => r.description },
+    ]);
+    toast.success('Exported AI engine telemetry & audit configuration to CSV');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
@@ -219,6 +246,15 @@ export default function AdminAiPage() {
         icon={Sparkles}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+              title="Export AI Telemetry & Toggles CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Export CSV</span>
+            </button>
+
             <button
               onClick={handleFlushCache}
               disabled={flushingCache}
