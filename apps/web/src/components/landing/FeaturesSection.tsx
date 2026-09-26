@@ -21,6 +21,9 @@ import {
   ArrowLeftRight,
   Scale,
   Award,
+  Volume2,
+  Layers,
+  FileText,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -31,6 +34,38 @@ const FEATURES = [
     title: 'Auto-Sync & Universal Import',
     desc: 'Direct real-time API sync for Zerodha, Dhan, Upstox, Groww, Delta Exchange, plus universal import for Binance, Bybit, MT4/5, and IBKR.',
     badge: '12+ Brokers',
+  },
+  {
+    icon: Volume2,
+    color: 'from-amber-500 to-yellow-500',
+    glow: 'group-hover:shadow-amber-500/20',
+    title: 'Automated EOD AI Voice Briefing',
+    desc: 'Instant 60-second synthesized audio debrief via Web Speech API with waveform equalizer summarizing executions, win rate, best trade, and emotional discipline.',
+    badge: 'Voice AI',
+  },
+  {
+    icon: Layers,
+    color: 'from-indigo-500 to-purple-600',
+    glow: 'group-hover:shadow-indigo-500/20',
+    title: 'Prop Firm Multi-Account Scaling Matrix',
+    desc: 'Unified multi-account scaling matrix with consolidated daily buffer, trailing drawdown HWM tracking, and real-time pass/breach simulation across 3x FTMO + 2x Apex.',
+    badge: 'Prop Scale',
+  },
+  {
+    icon: Clock,
+    color: 'from-indigo-500 to-violet-500',
+    glow: 'group-hover:shadow-indigo-500/20',
+    title: 'Multi-Timeframe Confluence Replay',
+    desc: 'Synchronized dual-chart split view (1H macro bias on the left, 5m execution on the right) with lockstep bar-by-bar stepping and real-time confluence scorecards.',
+    badge: 'MTF Replay',
+  },
+  {
+    icon: FileText,
+    color: 'from-teal-500 to-emerald-500',
+    glow: 'group-hover:shadow-teal-500/20',
+    title: 'Automated Weekly Edge Report',
+    desc: '1-Click generation of institutional weekly audit detailing win rate by day of week, top playbooks, slippage saved, and print-ready PDF export.',
+    badge: 'Audit PDF',
   },
   {
     icon: Brain,
@@ -87,14 +122,6 @@ const FEATURES = [
     title: 'Discipline Engine',
     desc: 'Pre-market checklists, trade plans, compliance scoring, and mistake tagging to build unbreakable routines.',
     badge: 'Discipline',
-  },
-  {
-    icon: Clock,
-    color: 'from-indigo-500 to-violet-500',
-    glow: 'group-hover:shadow-indigo-500/20',
-    title: 'TradingView Candle Replay',
-    desc: 'Interactive TradingView candlesticks, indicators, VWAP, Bollinger Bands & bar replay with hindsight clarity.',
-    badge: 'TradingView',
   },
   {
     icon: ArrowLeftRight,

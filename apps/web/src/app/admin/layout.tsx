@@ -40,6 +40,7 @@ import {
   Trash2,
   Target,
   Cpu,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -49,6 +50,7 @@ import { toast } from '@/components/Toast';
 
 const ADMIN_NAV = [
   { label: 'Dashboard',      href: '/admin',               icon: LayoutGrid },
+  { label: 'AI Engine',      href: '/admin/ai',            icon: Sparkles },
   { label: 'Partners',       href: '/admin/partners',      icon: Handshake },
   { label: 'Billing',        href: '/admin/billing',       icon: TrendingUp },
   { label: 'Leaderboard',    href: '/admin/leaderboard',   icon: Trophy },
