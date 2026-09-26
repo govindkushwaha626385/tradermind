@@ -39,6 +39,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { EconomicNewsAlertBanner } from '@/components/news/EconomicNewsAlertBanner';
 
 interface Rule {
   id: string;
@@ -349,6 +350,9 @@ export default function ChecklistStudioPage() {
           </div>
         }
       />
+
+      {/* High-Impact Macro Economic Risk Banner */}
+      <EconomicNewsAlertBanner />
 
       {/* Tab Switcher */}
       <div className="flex items-center gap-2 border-b border-border/50 pb-2">

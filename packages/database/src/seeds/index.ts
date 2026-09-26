@@ -298,6 +298,33 @@ const DEFAULT_ADMIN_CONFIGS = [
     category: 'general',
     isPublic: false,
   },
+  {
+    key: 'broker.finnhub.apiKey',
+    value: '',
+    type: 'string' as const,
+    label: 'Finnhub API Key',
+    description: 'API key for real-time global stock/crypto/forex news & economic calendar',
+    category: 'broker',
+    isPublic: false,
+  },
+  {
+    key: 'news.prop_firm_lockout_minutes',
+    value: 5,
+    type: 'number' as const,
+    label: 'Prop Firm News Lockout Window (Minutes)',
+    description: 'Minutes before & after high-impact red-folder economic releases to trigger news lockout warning',
+    category: 'general',
+    isPublic: true,
+  },
+  {
+    key: 'reports.retention_period_days',
+    value: 365,
+    type: 'number' as const,
+    label: 'Historical Reports Retention (Days)',
+    description: 'Number of days to compute deep historical multi-period win/loss reports',
+    category: 'general',
+    isPublic: false,
+  },
 ];
 
 const DEFAULT_PLANS = [

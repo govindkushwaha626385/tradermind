@@ -305,4 +305,32 @@ export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
     category: CONFIG_CATEGORIES.GENERAL,
     isPublic: true,
   },
+  // ── Finnhub & Market Intelligence ────────
+  {
+    key: 'broker.finnhub.apiKey',
+    label: 'Finnhub API Key',
+    description: 'API key for real-time global stock/crypto/forex news & economic calendar',
+    type: 'string',
+    defaultValue: '',
+    category: CONFIG_CATEGORIES.BROKER,
+    isPublic: false,
+  },
+  {
+    key: 'news.prop_firm_lockout_minutes',
+    label: 'Prop Firm News Lockout Window (Minutes)',
+    description: 'Minutes before & after high-impact red-folder economic releases to trigger news lockout warning',
+    type: 'number',
+    defaultValue: 5,
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'reports.retention_period_days',
+    label: 'Historical Reports Retention (Days)',
+    description: 'Number of days to compute deep historical multi-period win/loss reports',
+    type: 'number',
+    defaultValue: 365,
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: false,
+  },
 ];

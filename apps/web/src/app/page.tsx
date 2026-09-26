@@ -22,6 +22,7 @@ import { PricingSection } from '@/components/landing/PricingSection';
 import { TestimonialsSection } from '@/components/landing/TestimonialsSection';
 import { GlobalMarketTickerStrip } from '@/components/landing/GlobalMarketTickerStrip';
 import { TradingLeakCalculator } from '@/components/landing/TradingLeakCalculator';
+import { LandingNewsIntelligenceSection } from '@/components/landing/LandingNewsIntelligenceSection';
 import { Footer } from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
@@ -180,6 +181,9 @@ export default function HomePage() {
 
       {/* ── Behavioral Leak & Edge Recovery Calculator ── */}
       <TradingLeakCalculator />
+
+      {/* ── Real-Time Finnhub News & Economic Calendar Section ── */}
+      <LandingNewsIntelligenceSection />
 
       {/* ── Features Section ──────────────── */}
       <FeaturesSection />

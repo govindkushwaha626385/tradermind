@@ -52,6 +52,8 @@ import {
   Keyboard,
   HelpCircle,
   Compass,
+  Newspaper,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -103,6 +105,8 @@ const SIDEBAR_GROUPS = [
     label: 'Analysis',
     items: [
       { label: 'Analytics',   href: '/dashboard/analytics',   icon: BarChart3 },
+      { label: 'Reports',     href: '/dashboard/reports',     icon: FileText },
+      { label: 'Market News', href: '/dashboard/news',        icon: Newspaper },
       { label: 'Roadmap',     href: '/dashboard/roadmap',     icon: Compass },
       { label: 'Discipline',  href: '/dashboard/discipline',  icon: ClipboardCheck },
       { label: 'Insights',    href: '/dashboard/insights',    icon: Brain },

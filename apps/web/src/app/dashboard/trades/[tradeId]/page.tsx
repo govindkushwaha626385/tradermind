@@ -37,9 +37,11 @@ import {
   FileText,
   BadgePercent,
   Compass,
+  Newspaper,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useFinnhubWebSocket } from '@/hooks/useFinnhubWebSocket';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
 import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
 import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
@@ -63,10 +65,24 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
 
   const [replayData, setReplayData] = useState<TradeReplayData | null>(null);
   const [tradeData, setTradeData] = useState<any>(null);
+  const [marketNews, setMarketNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autopsyOpen, setAutopsyOpen] = useState(false);
   const [chartViewMode, setChartViewMode] = useState<'live' | 'replay'>('live');
+
+  const symbolForWs = replayData?.symbol
+    ? replayData.symbol.includes('BTC') || replayData.symbol.includes('ETH')
+      ? `BINANCE:${replayData.symbol.replace(/[^A-Z]/g, '')}USDT`
+      : replayData.symbol.replace(/[^A-Z]/g, '')
+    : 'AAPL';
+
+  const { trades: wsTrades } = useFinnhubWebSocket({
+    symbols: [symbolForWs],
+    enabled: Boolean(replayData?.symbol),
+  });
+
+  const liveTick = wsTrades[symbolForWs];
 
   useEffect(() => {
     if (!tradeId) return;
@@ -94,6 +110,14 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
       .finally(() => {
         setLoading(false);
       });
+
+    api.getMarketNews({ limit: 3 })
+      .then((newsRes) => {
+        if (newsRes?.success && Array.isArray(newsRes.data)) {
+          setMarketNews(newsRes.data);
+        }
+      })
+      .catch(() => {});
   }, [tradeId]);
 
   if (loading) {
@@ -208,6 +232,17 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
               <span className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono">
                 {replayData.exchange}
               </span>
+              {liveTick && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>
+                    Live: ${liveTick.price.toLocaleString(undefined, {
+                      minimumFractionDigits: liveTick.price > 500 ? 2 : 4,
+                      maximumFractionDigits: liveTick.price > 500 ? 2 : 4,
+                    })}
+                  </span>
+                </span>
+              )}
               <span
                 className={cn(
                   'text-xs font-semibold px-2 py-0.5 rounded-md',
@@ -548,6 +583,51 @@ export default function TradeDetailPage({ params }: TradeDetailProps) {
             'No journal reflection logged for this trade yet. Head over to the Journal tab to add entry notes, market context, and lessons.'}
         </div>
       </div>
+
+      {/* Real-Time Market Catalyst & News Wire */}
+      {marketNews.length > 0 && (
+        <div className="p-5 rounded-2xl border border-border/70 bg-card space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-5 h-5 text-indigo-400" />
+              <h2 className="font-bold text-foreground">Market Catalysts & Macro News Wire</h2>
+            </div>
+            <Link
+              href="/dashboard/news"
+              className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+            >
+              Open Live News Terminal <ArrowLeft className="w-3 h-3 rotate-180" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {marketNews.slice(0, 3).map((item, idx) => (
+              <a
+                key={idx}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3.5 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/40 transition-all space-y-2 group block"
+              >
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span className="font-bold text-primary uppercase">{item.category}</span>
+                  <span>{item.source}</span>
+                </div>
+                <p className="text-xs font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                  {item.headline}
+                </p>
+                <div className="flex items-center justify-between pt-1 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                    <TrendingUp className="w-3 h-3" />
+                    {item.sentiment || 'NEUTRAL'}
+                  </span>
+                  <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Multi-Timeframe Chart Screenshots & AI Vision */}
       <TradeScreenshotGallery

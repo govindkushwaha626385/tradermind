@@ -421,6 +421,39 @@ export const api = {
       params: params as Record<string, string | number | undefined>,
     }),
 
+  // ── Real-Time Market News & Economic Calendar (Finnhub) ─
+  getMarketNews: (params?: { category?: 'general' | 'forex' | 'crypto'; minId?: number; limit?: number }) =>
+    request<Array<{
+      id: string | number;
+      category: string;
+      datetime: number;
+      headline: string;
+      source: string;
+      url: string;
+      summary: string;
+      image?: string;
+      related?: string;
+      sentiment?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+    }>>('/news', {
+      params: params as Record<string, string | number | undefined>,
+    }),
+  getEconomicCalendar: (params?: { from?: string; to?: string }) =>
+    request<Array<{
+      id: string;
+      event: string;
+      country: string;
+      currency: string;
+      time: string;
+      impact: 'HIGH' | 'MEDIUM' | 'LOW';
+      actual?: number | string | null;
+      estimate?: number | string | null;
+      prev?: number | string | null;
+      unit?: string;
+      isHighImpact: boolean;
+    }>>('/news/calendar', {
+      params: params as Record<string, string | number | undefined>,
+    }),
+
   // ── Goals ─────────────────────────────────
   getGoals: () => request<any[]>('/goals'),
   createGoal: (body: {

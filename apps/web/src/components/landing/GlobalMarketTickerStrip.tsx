@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -16,6 +16,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFinnhubWebSocket } from '@/hooks/useFinnhubWebSocket';
 
 interface AssetTicker {
   symbol: string;
@@ -106,7 +107,32 @@ export function GlobalMarketTickerStrip() {
   const [assets, setAssets] = useState<AssetTicker[]>(INITIAL_ASSETS);
   const [pulsingIndex, setPulsingIndex] = useState<number | null>(null);
 
-  // Subtle real-time price fluctuation simulation to mimic live market tick feed
+  const handleWsTrade = useCallback((trade: any) => {
+    setAssets((prev) =>
+      prev.map((item, idx) => {
+        if (
+          (item.symbol.includes('BTC') && trade.symbol.includes('BTC')) ||
+          (item.symbol.includes('ETH') && trade.symbol.includes('ETH'))
+        ) {
+          setPulsingIndex(idx);
+          setTimeout(() => setPulsingIndex(null), 1000);
+          return {
+            ...item,
+            price: trade.price,
+          };
+        }
+        return item;
+      })
+    );
+  }, []);
+
+  const { status: wsStatus } = useFinnhubWebSocket({
+    symbols: ['BINANCE:BTCUSDT', 'BINANCE:ETHUSDT'],
+    onTrade: handleWsTrade,
+    enabled: true,
+  });
+
+  // Subtle real-time price fluctuation simulation to mimic live market tick feed for other assets
   useEffect(() => {
     const interval = setInterval(() => {
       const idx = Math.floor(Math.random() * assets.length);
@@ -146,7 +172,7 @@ export function GlobalMarketTickerStrip() {
           </span>
           <span className="hidden sm:inline text-slate-500">|</span>
           <span className="hidden sm:inline text-slate-400">
-            Real-Time Tick Ingestion
+            {wsStatus === 'CONNECTED' ? 'WebSocket Live Ticker' : 'Real-Time Tick Ingestion'}
           </span>
         </div>
 

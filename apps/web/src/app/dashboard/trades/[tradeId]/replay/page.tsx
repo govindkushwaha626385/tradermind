@@ -11,12 +11,18 @@ import {
   MessageSquare,
   AlertCircle,
   FileText,
+  Layers,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useCurrency } from '@/hooks/useCurrency';
+import { toast } from '@/components/Toast';
+import { cn } from '@/lib/utils';
 import { TradeReplayChart } from '@/components/chart/TradeReplayChart';
 import { LightweightCandleChart } from '@/components/chart/LightweightCandleChart';
 import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
+import { DualTimeframeReplayChart, type ReplayTrade, type Candle as MTFCandle } from '@/components/chart/DualTimeframeReplayChart';
 import { resolveTradingViewSymbol } from '@/lib/tradingview-symbols';
 import type { TradeReplayData } from '@trademind/shared';
 
@@ -29,7 +35,57 @@ export default function TradeReplayPage() {
   const [replayData, setReplayData] = useState<TradeReplayData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [chartMode, setChartMode] = useState<'live' | 'canvas' | 'scrubber'>('live');
+  const [chartMode, setChartMode] = useState<'live' | 'canvas' | 'scrubber' | 'confluence'>('live');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const toggleSpeechBriefing = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      toast.error('Voice synthesis is not supported in this browser.');
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    if (!replayData) return;
+
+    window.speechSynthesis.cancel();
+
+    const isWin = Number(replayData.realizedPnl ?? 0) > 0;
+    const holdDuration = replayData.entryTime && replayData.exitTime
+      ? `${Math.max(1, Math.round((new Date(replayData.exitTime).getTime() - new Date(replayData.entryTime).getTime()) / 60000))} minutes`
+      : 'intraday duration';
+
+    const narrative = `TradeMind Forensic Replay Briefing for ${replayData.symbol}. Direction: ${replayData.direction}. Entered at ${replayData.entryPrice}, exited at ${replayData.exitPrice ?? 'current market'}. Outcome: ${isWin ? 'Profitable trade' : 'Loss taken'} with realized PnL of ${Number(replayData.realizedPnl ?? 0).toFixed(2)}. Position was held for ${holdDuration}. Analyze candlestick progression and execution fills for psychological leaks and early exit tendencies.`;
+
+    const utterance = new SpeechSynthesisUtterance(narrative);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const naturalVoice = voices.find((v) => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel')));
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
+    }
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+    toast.info('Playing AI forensic audio briefing...');
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!tradeId) return;
@@ -106,6 +162,17 @@ export default function TradeReplayPage() {
               >
                 Step Replay Scrubber
               </button>
+              <button
+                onClick={() => setChartMode('confluence')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  chartMode === 'confluence'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Dual-MTF Confluence</span>
+              </button>
             </div>
 
             <Link
@@ -117,6 +184,19 @@ export default function TradeReplayPage() {
               <Sparkles className="w-3.5 h-3.5" />
               Analyze with AI
             </Link>
+            <button
+              onClick={toggleSpeechBriefing}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer',
+                isSpeaking
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                  : 'bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300'
+              )}
+              title="Listen to automated voice autopsy debrief"
+            >
+              {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              <span>{isSpeaking ? 'Stop Voice Debrief' : 'Voice Debrief'}</span>
+            </button>
             <Link
               href="/dashboard/journal"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition-colors"
@@ -159,6 +239,70 @@ export default function TradeReplayPage() {
                 onFallbackToCanvas={() => setChartMode('canvas')}
               />
             </div>
+          );
+        }
+        if (chartMode === 'confluence') {
+          const isLong = replayData.direction === 'LONG';
+          const entry = Number(replayData.entryPrice) || 100;
+          const exit = Number(replayData.exitPrice) || (isLong ? entry * 1.02 : entry * 0.98);
+          const mfe = replayData.mfe != null ? Number(replayData.mfe) : (isLong ? Math.max(entry, exit) * 1.025 : Math.min(entry, exit) * 0.975);
+          const mae = replayData.mae != null ? Number(replayData.mae) : (isLong ? Math.min(entry, exit) * 0.985 : Math.max(entry, exit) * 1.015);
+          const delta = Math.abs(exit - entry) || (entry * 0.015);
+
+          const tradeObj: ReplayTrade = {
+            id: tradeId,
+            tradingsymbol: replayData.symbol,
+            direction: replayData.direction,
+            openedAt: replayData.entryTime,
+            closedAt: replayData.exitTime || new Date().toISOString(),
+            netPnl: Number(replayData.realizedPnl ?? 0),
+            avgEntryPrice: entry,
+            avgExitPrice: exit,
+            maxFavorableExcursion: mfe,
+            maxAdverseExcursion: mae,
+            exchange: replayData.exchange,
+            currency: activeCurrency,
+          };
+
+          const totalBars = 24;
+          const ltfList: MTFCandle[] = [];
+          const baseTime = new Date(replayData.entryTime || Date.now()).getTime();
+
+          for (let i = 0; i < totalBars; i++) {
+            const t = baseTime + (i * 300 * 1000);
+            const progress = i / (totalBars - 1);
+            let target = entry;
+            if (progress < 0.4) {
+              target = entry + (isLong ? delta * progress * 1.5 : -delta * progress * 1.5);
+            } else if (progress < 0.7) {
+              target = isLong ? mfe * 0.98 : mae * 1.02;
+            } else {
+              target = exit;
+            }
+            const noise = (Math.sin(i * 1.5) * delta * 0.12);
+            const c = target + noise;
+            const o = i === 0 ? entry : ltfList[i - 1].c;
+            const h = Math.max(o, c) + Math.abs(noise * 0.6);
+            const l = Math.min(o, c) - Math.abs(noise * 0.6);
+
+            ltfList.push({
+              t,
+              o,
+              h,
+              l,
+              c,
+              isEntry: i === 0,
+              isExit: i === totalBars - 1,
+              label: i === 0 ? 'Execution Entry' : i === totalBars - 1 ? 'Target Exit' : undefined,
+            });
+          }
+
+          return (
+            <DualTimeframeReplayChart
+              trade={tradeObj}
+              ltfCandles={ltfList}
+              currency={activeCurrency}
+            />
           );
         }
         return chartMode === 'canvas' ? (

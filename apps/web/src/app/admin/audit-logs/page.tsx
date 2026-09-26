@@ -17,12 +17,15 @@ import {
   ShieldCheck,
   FileText,
   Activity,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { downloadCsv } from '@/lib/export-csv';
+import { toast } from '@/components/Toast';
 
 interface AuditEntry {
   id: string;
@@ -114,6 +117,26 @@ export default function AdminAuditLogsPage() {
     return matchesSearch && matchesAction;
   });
 
+  const handleExportCsv = () => {
+    if (filteredLogs.length === 0) {
+      toast.error('No audit records to export');
+      return;
+    }
+    const filename = `TradeMind_Audit_Logs_${new Date().toISOString().split('T')[0]}`;
+    const columns = [
+      { header: 'Timestamp', accessor: (entry: AuditEntry) => entry.createdAt },
+      { header: 'Admin Actor', accessor: (entry: AuditEntry) => entry.actorEmail },
+      { header: 'Action Code', accessor: (entry: AuditEntry) => entry.action },
+      { header: 'Action Label', accessor: (entry: AuditEntry) => ACTION_MAP[entry.action]?.label ?? entry.action },
+      { header: 'Entity Type', accessor: (entry: AuditEntry) => entry.entityType },
+      { header: 'Entity ID', accessor: (entry: AuditEntry) => entry.entityId ?? '' },
+      { header: 'IP Address', accessor: (entry: AuditEntry) => entry.ipAddress ?? '' },
+      { header: 'Metadata', accessor: (entry: AuditEntry) => entry.metadata ? JSON.stringify(entry.metadata) : '' },
+    ];
+    downloadCsv(filename, filteredLogs, columns);
+    toast.success(`Exported ${filteredLogs.length} audit records to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl">
       <PageHeader
@@ -121,13 +144,24 @@ export default function AdminAuditLogsPage() {
         description="Immutable, chronological record of all administrative actions & security events"
         icon={ShieldCheck}
         actions={
-        <button
-          onClick={() => fetchLogs(pagination.page)}
-          className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
-          title="Refresh"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={filteredLogs.length === 0}
+              className="px-3.5 py-2 rounded-xl bg-card hover:bg-accent text-foreground transition-all border border-border/80 text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              title="Export Audit Ledger as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              onClick={() => fetchLogs(pagination.page)}
+              className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50 cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         }
       />
 
@@ -148,13 +182,12 @@ export default function AdminAuditLogsPage() {
           onChange={(e) => setActionFilter(e.target.value)}
           className="px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="">All Actions</option>
-          <option value="config.update">Config Updates</option>
-          <option value="user.role.update">Role Changes</option>
-          <option value="subscription.update">Subscription Updates</option>
-          <option value="plan.create">Plan Creates</option>
-          <option value="plan.update">Plan Updates</option>
-          <option value="plan.delete">Plan Deactivations</option>
+          <option value="">All Actions ({Object.keys(ACTION_MAP).length})</option>
+          {Object.entries(ACTION_MAP).map(([key, config]) => (
+            <option key={key} value={key}>
+              {config.label}
+            </option>
+          ))}
         </select>
       </div>
 

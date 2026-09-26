@@ -24,12 +24,14 @@ import {
   ArrowUpRight,
   Layers,
   Zap,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import { SkeletonStatRow } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { downloadCsv } from '@/lib/export-csv';
 
 // ── Types ──────────────────────────────────────
 
@@ -248,6 +250,28 @@ export default function AdminBillingPage() {
       ]
     : [];
 
+  const handleExportCsv = () => {
+    if (!data || !data.recentInvoices || data.recentInvoices.length === 0) {
+      toast.error('No invoice records to export');
+      return;
+    }
+    const filename = `TradeMind_Invoices_Ledger_${new Date().toISOString().split('T')[0]}`;
+    const columns = [
+      { header: 'Invoice ID', accessor: (inv: any) => inv.id },
+      { header: 'User Email', accessor: (inv: any) => inv.userEmail },
+      { header: 'User Name', accessor: (inv: any) => inv.userName },
+      { header: 'Payment Provider', accessor: (inv: any) => inv.provider },
+      { header: 'Amount (Paise)', accessor: (inv: any) => inv.amountPaid },
+      { header: 'Amount (INR)', accessor: (inv: any) => (inv.amountPaid / 100).toFixed(2) },
+      { header: 'Currency', accessor: (inv: any) => inv.currency },
+      { header: 'Status', accessor: (inv: any) => inv.status },
+      { header: 'Paid At', accessor: (inv: any) => inv.paidAt ?? '' },
+      { header: 'Created At', accessor: (inv: any) => inv.createdAt },
+    ];
+    downloadCsv(filename, data.recentInvoices, columns);
+    toast.success(`Exported ${data.recentInvoices.length} invoice records to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl">
 
@@ -257,13 +281,24 @@ export default function AdminBillingPage() {
         description="Real-time subscription revenue, MRR/ARR, and payment intelligence"
         icon={BarChart3}
         actions={
-        <button
-          onClick={() => fetch(true)}
-          className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"
-          title="Refresh"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={!data?.recentInvoices?.length}
+              className="px-3.5 py-2 rounded-xl bg-card hover:bg-accent text-foreground transition-all border border-border/80 text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              title="Export Invoices as CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              onClick={() => fetch(true)}
+              className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50 cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         }
       />
 

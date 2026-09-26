@@ -44,6 +44,7 @@ import {
   type PropFirmCertificateData,
 } from '@/components/prop-firm/PropFirmCertificateModal';
 import { PropFirmMultiAccountMatrix } from '@/components/prop-firm/PropFirmMultiAccountMatrix';
+import { EconomicNewsAlertBanner } from '@/components/news/EconomicNewsAlertBanner';
 
 interface PropFirmAccount {
   id: string;
@@ -1028,6 +1029,8 @@ export default function PropFirmPage() {
           </div>
         }
       />
+
+      <EconomicNewsAlertBanner />
 
       {viewMode === 'matrix' ? (
         <PropFirmMultiAccountMatrix

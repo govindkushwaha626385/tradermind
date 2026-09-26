@@ -58,6 +58,7 @@ import { RiskGuard } from '@/components/dashboard/RiskGuard';
 import { RiskKillSwitchWidget } from '@/components/dashboard/RiskKillSwitchWidget';
 import { StatCard } from '@/components/ui/StatCard';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { EconomicNewsAlertBanner } from '@/components/news/EconomicNewsAlertBanner';
 import { Badge } from '@/components/ui/Badge';
 import { LiveDot } from '@/components/ui/LiveDot';
 import { TradingViewLiveWidget } from '@/components/chart/TradingViewLiveWidget';
@@ -277,6 +278,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {/* ── High-Impact Economic News Alert Ribbon ── */}
+      <EconomicNewsAlertBanner />
+
       {/* ── Hero greeting row ─────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
