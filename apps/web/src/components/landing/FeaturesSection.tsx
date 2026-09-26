@@ -24,9 +24,27 @@ import {
   Volume2,
   Layers,
   FileText,
+  Flame,
+  Share2,
 } from 'lucide-react';
 
 const FEATURES = [
+  {
+    icon: Flame,
+    color: 'from-amber-500 via-orange-500 to-rose-600',
+    glow: 'group-hover:shadow-amber-500/25',
+    title: 'The 7 Golden Rules Operating System',
+    desc: 'The viral discipline blueprint followed by top 1% institutional traders: Pre-defined SL, 1-2% risk cap, setup fidelity, 1:2.5+ R:R, armed kill-switch, daily journal autopsy, and profit compounding.',
+    badge: 'Viral Blueprint',
+  },
+  {
+    icon: Share2,
+    color: 'from-emerald-500 to-teal-500',
+    glow: 'group-hover:shadow-emerald-500/25',
+    title: 'Retina 4K Verified P&L Share Cards',
+    desc: 'Cryptographically sealed high-res social cards with scannable QR codes linking to /verify/[tradeId] for Twitter/X, Discord spoiler embeds, and Telegram proof-of-trade.',
+    badge: 'Proof-of-Trade',
+  },
   {
     icon: RefreshCw,
     color: 'from-blue-500 to-cyan-500',

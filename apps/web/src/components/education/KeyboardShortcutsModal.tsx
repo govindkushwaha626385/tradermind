@@ -26,6 +26,7 @@ import {
   Moon,
   HelpCircle,
   Compass,
+  Flame,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,7 @@ const SHORTCUT_ITEMS: ShortcutItem[] = [
   { keys: ['K'], description: 'Open Checklist & Rulebook Studio', category: 'Navigation', icon: Zap, href: '/dashboard/checklists' },
 
   // Actions & Rituals
+  { keys: ['7'], description: 'The 7 Golden Rules Execution Protocol', category: 'Actions & Rituals', icon: Flame },
   { keys: ['⌘', 'K'], description: 'Open Universal Command Palette', category: 'Actions & Rituals', icon: Command },
   { keys: ['P'], description: 'Launch Pre-Market Morning Routine', category: 'Actions & Rituals', icon: Sun },
   { keys: ['E'], description: 'Launch Post-Market EOD Wrap-Up', category: 'Actions & Rituals', icon: Moon },

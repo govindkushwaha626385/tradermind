@@ -37,6 +37,10 @@ import {
   Play,
   Compass,
   Flag,
+  FlaskConical,
+  FileText,
+  Newspaper,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +54,10 @@ const PRIMARY_TABS = [
 
 const MORE_ITEMS = [
   { label: 'AI Copilot',  href: '/dashboard/ai-assistant', icon: Sparkles },
+  { label: 'Reports',     href: '/dashboard/reports',     icon: FileText },
+  { label: 'Backtesting', href: '/dashboard/backtesting', icon: FlaskConical },
+  { label: 'Market News', href: '/dashboard/news',        icon: Newspaper },
+  { label: 'Tax Ledger',  href: '/dashboard/taxes',       icon: Receipt },
   { label: 'Roadmap',     href: '/dashboard/roadmap',     icon: Compass },
   { label: 'Replay',      href: '/dashboard/replay',      icon: Play },
   { label: 'Prop Firm',   href: '/dashboard/prop-firm',    icon: Award },

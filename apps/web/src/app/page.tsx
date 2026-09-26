@@ -86,6 +86,14 @@ const FAQS = [
     a: 'We support Zerodha, Dhan, Angel One, Upstox, Groww, and Delta Exchange via official direct APIs. We also support Binance, Bybit, Interactive Brokers (IBKR), MetaTrader 4 & 5, Sahi, Lemonn, and 50+ international brokers through our smart universal CSV auto-importer.',
   },
   {
+    q: 'What is The 7 Golden Rules Operating System?',
+    a: 'TradeMind embeds the viral institutional execution standard directly into your trading workflow: 1) Hard stop-loss on every entry, 2) 1-2% max capital risk per trade, 3) Strict setup checklist rules, 4) 1:2.5+ minimum asymmetric risk-to-reward ratio, 5) Automatic daily loss kill switch lockout, 6) Detailed trade journaling with emotion tagging, and 7) Systematic capital compounding without revenge sizing.',
+  },
+  {
+    q: 'How do the Retina 4K Verified P&L Share Cards work?',
+    a: 'TradeMind generates ultra-high-resolution 2400x1350 (4K supersampled) share cards with a cryptographic SHA-256 seal and scannable QR code. When anyone scans the QR code or clicks your link, it resolves to a tamper-proof public verification page at trademind.app/verify/[tradeId], verifying broker execution timestamps and eliminating fake P&L inspect-element screenshots.',
+  },
+  {
     q: 'Can I cancel my subscription?',
     a: 'Yes, anytime. Your access continues until the end of the current billing period. Downgrading to the free plan keeps your historical data intact.',
   },

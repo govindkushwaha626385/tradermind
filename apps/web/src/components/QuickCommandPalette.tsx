@@ -42,6 +42,9 @@ import {
   Eye,
   Volume2,
   FlaskConical,
+  FileText,
+  Newspaper,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -86,6 +89,10 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-roadmap', title: 'Trader Progression Roadmap & Evolution Levels', category: 'Navigation', icon: Compass, href: '/dashboard/roadmap', shortcut: 'M', badge: 'Levels 1-4' },
       { id: 'nav-academy', title: 'Trader Evolution Academy & Public Track Blueprints', category: 'Navigation', icon: BookOpen, href: '/education', badge: 'Academy' },
       { id: 'nav-blog', title: 'Quantitative Masterclasses & Educational Articles', category: 'Navigation', icon: BookMarked, href: '/blog', badge: 'Guides' },
+      { id: 'nav-strategies', title: 'Trading Strategies Builder & Setup Engine', category: 'Navigation', icon: Target, href: '/dashboard/strategies', shortcut: 'S', badge: 'Playbooks' },
+      { id: 'nav-reports', title: 'Institutional Reports & Forensic Audits', category: 'Navigation', icon: FileText, href: '/dashboard/reports', shortcut: 'P', badge: 'Reports' },
+      { id: 'nav-news', title: 'Finnhub Live Market News & Macro Calendar', category: 'Navigation', icon: Newspaper, href: '/dashboard/news', shortcut: 'N', badge: 'Live Wire' },
+      { id: 'nav-taxes', title: 'Statutory Tax & Regulatory Ledger (ICAI / IRS)', category: 'Navigation', icon: Receipt, href: '/dashboard/taxes', badge: 'Tax' },
       { id: 'nav-goals', title: 'Trader Goals & Targets', category: 'Navigation', icon: Target, href: '/dashboard/goals' },
       { id: 'nav-ai', title: 'AI Copilot & Chart Vision', category: 'Navigation', icon: Brain, href: '/dashboard/ai-assistant', badge: 'AI' },
       { id: 'nav-playbooks', title: 'Setup Playbooks', category: 'Navigation', icon: Flame, href: '/dashboard/playbooks' },
@@ -97,6 +104,18 @@ export function QuickCommandPalette({ isOpen, onClose, userRole, onTriggerTilt }
       { id: 'nav-settings', title: 'Preferences & Currency Settings', category: 'Navigation', icon: Settings, href: '/dashboard/settings' },
 
       // Quick Actions
+      {
+        id: 'act-seven-rules',
+        title: 'The 7 Golden Rules Execution Protocol (Top 1% Trader Standard)',
+        category: 'Actions',
+        icon: Flame,
+        action: () => {
+          onClose();
+          window.dispatchEvent(new CustomEvent('open-seven-rules-protocol'));
+        },
+        badge: 'Viral Standard',
+        shortcut: '7',
+      },
       {
         id: 'act-export-credential',
         title: 'Generate & Export Verified Trader Credential Card',

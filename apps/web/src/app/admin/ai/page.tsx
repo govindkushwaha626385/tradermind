@@ -120,6 +120,22 @@ export default function AdminAiPage() {
       tierRequired: 'Elite',
     },
     {
+      id: 'seven_rules_gate',
+      name: 'The 7 Golden Rules Execution Gatekeeper',
+      description: 'Algorithmic real-time enforcement of the viral 7-rule standard (Stop-loss, 1-2% risk, setup rules, 1:2.5+ R:R, kill switch, trade journal, compounding)',
+      icon: Shield,
+      enabled: true,
+      tierRequired: 'Free',
+    },
+    {
+      id: 'verified_retina_cards',
+      name: 'Retina 4K Verified P&L Share Engine',
+      description: 'Cryptographically sealed P&L social cards with scannable QR verification and dynamic Discord/Telegram spoiler tags',
+      icon: Sparkles,
+      enabled: true,
+      tierRequired: 'Free',
+    },
+    {
       id: 'chat_copilot',
       name: 'AI Trading Assistant Copilot',
       description: 'Multi-turn conversational journal query engine and mentor',

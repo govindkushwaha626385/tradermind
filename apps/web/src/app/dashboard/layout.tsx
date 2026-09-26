@@ -81,6 +81,7 @@ import { TraderCredentialModal } from '@/components/education/TraderCredentialMo
 import { EodVoiceBriefingModal } from '@/components/discipline/EodVoiceBriefingModal';
 import { InstitutionalVoiceBotModal } from '@/components/ai/InstitutionalVoiceBotModal';
 import { MultimodalChartVisionModal } from '@/components/chart/MultimodalChartVisionModal';
+import { SevenRulesProtocolModal } from '@/components/discipline/SevenRulesProtocolModal';
 import { useGlobalHotkeys } from '@/hooks/useGlobalHotkeys';
 import { Volume2 } from 'lucide-react';
 
@@ -464,6 +465,14 @@ export default function DashboardLayout({
     const handleOpenVision = () => setChartVisionOpen(true);
     window.addEventListener('open-chart-vision', handleOpenVision);
     return () => window.removeEventListener('open-chart-vision', handleOpenVision);
+  }, []);
+
+  const [sevenRulesOpen, setSevenRulesOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSevenRules = () => setSevenRulesOpen(true);
+    window.addEventListener('open-seven-rules-protocol', handleOpenSevenRules);
+    return () => window.removeEventListener('open-seven-rules-protocol', handleOpenSevenRules);
   }, []);
 
   useEffect(() => {
@@ -904,6 +913,12 @@ export default function DashboardLayout({
       <MultimodalChartVisionModal
         isOpen={chartVisionOpen}
         onClose={() => setChartVisionOpen(false)}
+      />
+
+      {/* ── The 7 Golden Rules Execution Protocol Modal (Global Access) ── */}
+      <SevenRulesProtocolModal
+        isOpen={sevenRulesOpen}
+        onClose={() => setSevenRulesOpen(false)}
       />
     </div>
   );

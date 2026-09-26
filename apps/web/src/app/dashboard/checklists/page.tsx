@@ -65,6 +65,23 @@ const DEFAULT_RULE = (order: number): Rule => ({
 // Institutional pre-built rulebooks that traders can import in 1 click
 const INSTITUTIONAL_RULEBOOKS = [
   {
+    id: 'seven_golden_rules',
+    name: 'The 7 Golden Rules Execution Standard',
+    tag: 'Institutional Core',
+    badge: 'Elite Protocol',
+    description: 'The viral discipline blueprint followed by top 1% institutional traders: Stop-loss, 1-2% risk, setup fidelity, 1:2.5+ R:R, kill switch, trade journal, profit compounding.',
+    color: 'from-amber-500 via-orange-500 to-rose-600',
+    rules: [
+      'Pre-defined stop-loss entered with bracket before order submission',
+      'Capital at risk capped strictly at 1% to 2% of total account balance',
+      'Setup meets 100% of predefined playbook rules (zero impulsive FOMO)',
+      'Target provides minimum 1 : 2.5 Risk-to-Reward mathematical edge',
+      'Daily kill-switch armed (step away after 2 consecutive stop-outs)',
+      'Forensic trade log & emotional state recorded in journal immediately',
+      'Profits preserved & compounded; zero revenge sizing on next trade',
+    ],
+  },
+  {
     id: 'ict_smc',
     name: 'ICT / Smart Money Concepts',
     tag: 'Institutional SMC',
@@ -192,8 +209,9 @@ export default function ChecklistStudioPage() {
     }
   }
 
-  // Active template in runner
-  const activeTemplate = templates.find((t) => t.id === selectedTemplateId) || templates[0];
+  // Active template in runner (defensively guarded against undefined / null rules)
+  const activeTemplate = templates.find((t) => t.id === selectedTemplateId) || templates[0] || null;
+  const activeRules: Rule[] = activeTemplate && Array.isArray(activeTemplate.rules) ? activeTemplate.rules : [];
 
   // Runner check toggle
   const toggleRunnerRule = (ruleId: string) => {
@@ -211,8 +229,8 @@ export default function ChecklistStudioPage() {
   };
 
   // Calculate runner progress
-  const totalRulesCount = activeTemplate?.rules?.length || 0;
-  const checkedCount = activeTemplate?.rules?.filter((r) => checkedRules[r.id]).length || 0;
+  const totalRulesCount = activeRules.length;
+  const checkedCount = activeRules.filter((r) => r && checkedRules[r.id]).length;
   const compliancePct = totalRulesCount > 0 ? Math.round((checkedCount / totalRulesCount) * 100) : 0;
 
   // Complete runner session
@@ -341,6 +359,13 @@ export default function ChecklistStudioPage() {
         actions={
           <div className="flex items-center gap-2">
             <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-seven-rules-protocol'))}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold transition-all shadow-sm group cursor-pointer"
+            >
+              <Flame className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>7 Golden Rules Protocol</span>
+            </button>
+            <button
               onClick={openNewForm}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
@@ -386,7 +411,7 @@ export default function ChecklistStudioPage() {
           <BookOpen className="w-4 h-4" />
           <span>Institutional Rulebooks</span>
           <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px]">
-            5 Ready
+            {INSTITUTIONAL_RULEBOOKS.length} Ready
           </span>
         </button>
 
@@ -404,16 +429,60 @@ export default function ChecklistStudioPage() {
         </button>
       </div>
 
-      {/* TAB 1: LIVE CHECKLIST RUNNER */}
-      {activeTab === 'runner' && (
+      {/* LOADING SKELETON */}
+      {loading ? (
         <div className="space-y-6">
-          {templates.length === 0 && !loading ? (
-            <EmptyState
-              icon={ClipboardCheck}
-              title="No checklists created yet"
-              description="Import an institutional rulebook or build your first custom checklist to start the live runner."
-              action={{ label: 'Explore Rulebooks', onClick: () => setActiveTab('rulebooks') }}
-            />
+          <div className="grid lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-4">
+              <SkeletonCard className="h-20 rounded-2xl" />
+              <SkeletonCard className="h-96 rounded-2xl" />
+            </div>
+            <div className="lg:col-span-5 space-y-4">
+              <SkeletonCard className="h-64 rounded-2xl" />
+              <SkeletonCard className="h-44 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'runner' ? (
+        /* TAB 1: LIVE CHECKLIST RUNNER */
+        <div className="space-y-6">
+          {templates.length === 0 ? (
+            <div className="glass-card rounded-3xl p-8 border border-border/70 text-center space-y-5 bg-gradient-to-b from-card via-card to-background">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto border border-primary/20">
+                <ClipboardCheck className="w-7 h-7" />
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="text-lg font-bold font-display text-foreground">
+                  No Active Checklists Configured
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Enforce institutional discipline on every trade fill. Import the battle-tested 7 Golden Rules or SMC rulebook in 1 click to activate the live runner.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => handleImportRulebook(INSTITUTIONAL_RULEBOOKS[0])}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                >
+                  <Flame className="w-4 h-4" />
+                  <span>1-Click Import 7 Golden Rules</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('rulebooks')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:bg-accent text-foreground text-xs font-semibold transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 text-blue-400" />
+                  <span>Browse All {INSTITUTIONAL_RULEBOOKS.length} Rulebooks</span>
+                </button>
+                <button
+                  onClick={openNewForm}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-xs font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Build Custom Checklist</span>
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="grid lg:grid-cols-12 gap-6">
               {/* Left Column: Interactive Checklist (7 cols) */}
@@ -425,7 +494,7 @@ export default function ChecklistStudioPage() {
                       Select Active Strategy Checklist
                     </label>
                     <select
-                      value={selectedTemplateId}
+                      value={selectedTemplateId || (templates[0]?.id ?? '')}
                       onChange={(e) => {
                         setSelectedTemplateId(e.target.value);
                         setCheckedRules({});
@@ -434,7 +503,7 @@ export default function ChecklistStudioPage() {
                     >
                       {templates.map((tpl) => (
                         <option key={tpl.id} value={tpl.id}>
-                          {tpl.name} ({tpl.rules.length} rules)
+                          {tpl.name} ({(tpl.rules ?? []).length} rules)
                         </option>
                       ))}
                     </select>
@@ -468,7 +537,7 @@ export default function ChecklistStudioPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {activeTemplate?.rules.map((rule, idx) => {
+                    {activeRules.map((rule, idx) => {
                       const isChecked = !!checkedRules[rule.id];
                       return (
                         <div
@@ -634,7 +703,7 @@ export default function ChecklistStudioPage() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* TAB 2: INSTITUTIONAL RULEBOOKS */}
       {activeTab === 'rulebooks' && (
@@ -734,14 +803,14 @@ export default function ChecklistStudioPage() {
 
                     {/* Rules Preview */}
                     <div className="space-y-1.5 mb-4">
-                      {tpl.rules.slice(0, 4).map((rule) => (
+                      {(tpl.rules || []).slice(0, 4).map((rule) => (
                         <div key={rule.id} className="flex items-start gap-2 text-xs">
                           <CheckCircle2 className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">{rule.label}</span>
                         </div>
                       ))}
-                      {tpl.rules.length > 4 && (
-                        <div className="text-xs text-muted-foreground pl-5">+{tpl.rules.length - 4} more rules</div>
+                      {(tpl.rules || []).length > 4 && (
+                        <div className="text-xs text-muted-foreground pl-5">+{(tpl.rules || []).length - 4} more rules</div>
                       )}
                     </div>
                   </div>

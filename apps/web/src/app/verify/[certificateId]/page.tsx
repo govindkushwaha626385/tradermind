@@ -32,13 +32,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     maximumFractionDigits: 0,
   }).format(certificate.accountSize);
 
-  const title = `Verified: ${certificate.firmName} ${formattedSize} (${certificate.phase}) — ${certificate.maskedTraderName}`;
-  const description = `Cryptographically authenticated Prop Firm Credential for ${certificate.firmName} ${formattedSize}. Consistency Score: ${certificate.consistencyScore}/100 · Drawdown: ${certificate.actualDrawdownPct}% (Compliant) · 100% Rule Adherence.`;
+  const isTrade = certificate.phase.toLowerCase().includes('trade') || certificate.phase.toLowerCase().includes('execution');
+
+  const title = isTrade
+    ? `Verified Trade: ${certificate.accountName} | Net P&L: ${certificate.curSymbol}${certificate.profitEarned.toLocaleString('en-US', { minimumFractionDigits: 2 })} — TradeMind`
+    : `Verified: ${certificate.firmName} ${formattedSize} (${certificate.phase}) — ${certificate.maskedTraderName}`;
+
+  const description = isTrade
+    ? `Cryptographically authenticated trade execution for ${certificate.accountName}. Net Realized P&L: ${certificate.curSymbol}${certificate.profitEarned.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${certificate.profitTargetPct}% ROI) · Consistency Score: ${certificate.consistencyScore}/100 · SHA-256 Hash: ${certificate.verificationHash}`
+    : `Cryptographically authenticated Prop Firm Credential for ${certificate.firmName} ${formattedSize}. Consistency Score: ${certificate.consistencyScore}/100 · Drawdown: ${certificate.actualDrawdownPct}% (Compliant) · 100% Rule Adherence.`;
 
   return {
     title,
     description,
     keywords: [
+      'verified trade execution',
+      'cryptographic trading journal proof',
+      'verified P&L card',
       'prop firm verification',
       'FTMO certificate verification',
       'Topstep combine pass verification',

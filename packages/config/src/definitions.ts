@@ -333,4 +333,62 @@ export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
     category: CONFIG_CATEGORIES.GENERAL,
     isPublic: false,
   },
+  // ── The 7 Golden Rules OS ────────────────
+  {
+    key: 'seven_rules.enforcement_mode',
+    label: 'The 7 Golden Rules Enforcement Mode',
+    description: 'Enforcement level for the viral 7-rule standard: strict (hard gate), advisory (warning modal), or off',
+    type: 'string',
+    defaultValue: 'advisory',
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'seven_rules.min_rr_threshold',
+    label: 'The 7 Golden Rules Min Risk:Reward Ratio',
+    description: 'Minimum required R:R threshold for institutional setup validation (Standard is 1:2.5+)',
+    type: 'number',
+    defaultValue: 2.5,
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: true,
+  },
+  {
+    key: 'seven_rules.max_capital_risk_percent',
+    label: 'The 7 Golden Rules Max Capital Risk %',
+    description: 'Maximum allowable capital loss risk percentage per trade (Standard is 1% to 2%)',
+    type: 'number',
+    defaultValue: 2.0,
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: true,
+  },
+  // ── Social & Verification ────────────────
+  {
+    key: 'social.verified_retina_cards_enabled',
+    label: 'Retina 4K Verified P&L Share Cards Active',
+    description: 'Enables cryptographic SHA-256 sealed 4K social cards with QR code verification link',
+    type: 'boolean',
+    defaultValue: true,
+    category: CONFIG_CATEGORIES.GENERAL,
+    isPublic: true,
+  },
+  // ── Aura Voice AI & Multimodal ───────────
+  {
+    key: 'voice.aura_copilot_enabled',
+    label: 'Aura Voice AI Copilot Active',
+    description: 'Enables interactive 3D orb voice debriefing and conversational journal queries',
+    type: 'boolean',
+    defaultValue: true,
+    category: CONFIG_CATEGORIES.AI,
+    isPublic: true,
+  },
+  // ── Tax Ledger Engine ────────────────────
+  {
+    key: 'tax.default_jurisdiction',
+    label: 'Default Statutory Tax Jurisdiction',
+    description: 'Default tax computation schedule (e.g. IN_SEBI_FNOTAX, US_IRS_SECTION1256, UK_HMRC_CGT)',
+    type: 'string',
+    defaultValue: 'IN_SEBI_FNOTAX',
+    category: CONFIG_CATEGORIES.TAX,
+    isPublic: true,
+  },
 ];

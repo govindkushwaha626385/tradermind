@@ -134,6 +134,10 @@ export function useGlobalHotkeys({
           e.preventDefault();
           onTriggerSync ? onTriggerSync() : window.dispatchEvent(new CustomEvent('trigger-broker-sync'));
           break;
+        case '7':
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('open-seven-rules-protocol'));
+          break;
         default:
           break;
       }
