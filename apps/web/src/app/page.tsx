@@ -13,6 +13,7 @@ import { APP_NAME } from '@trademind/shared';
 import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { LiveTradingSimulationTerminal } from '@/components/landing/LiveTradingSimulationTerminal';
+import { InteractiveEdgeSimulator } from '@/components/landing/InteractiveEdgeSimulator';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { CompetitorComparisonSection } from '@/components/landing/CompetitorComparisonSection';
@@ -178,6 +179,9 @@ export default function HomePage() {
 
       {/* ── Interactive Live Trading Terminal & Simulation ── */}
       <LiveTradingSimulationTerminal />
+
+      {/* ── Interactive Backtesting & Edge Simulator ── */}
+      <InteractiveEdgeSimulator />
 
       {/* ── Behavioral Leak & Edge Recovery Calculator ── */}
       <TradingLeakCalculator />
