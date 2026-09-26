@@ -10,6 +10,7 @@ const FOOTER_LINKS = {
   Product: [
     { label: 'Live Demo Sandbox', href: '/demo' },
     { label: 'Features Overview', href: '/#features' },
+    { label: 'Market News & Calendar', href: '/#news' },
     { label: 'Prop Firm Verification', href: '/verify' },
     { label: '19 Free Calculators', href: '/calculators' },
     { label: 'Trader Academy & Roadmap', href: '/education' },

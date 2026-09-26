@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { BLOG_POSTS } from '@/lib/blog-data';
 import { BlogIndexClient } from '@/components/blog/BlogIndexClient';
+import { LandingNavbar } from '@/components/landing/LandingNavbar';
+import { Footer } from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
   title: 'Trading Intelligence & Research Blog — TradeMind',
@@ -36,11 +38,13 @@ export const metadata: Metadata = {
 
 export default function BlogPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground animate-fade-in">
+    <div className="min-h-screen bg-background text-foreground animate-fade-in flex flex-col justify-between">
+      <LandingNavbar />
+
       {/* Top Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-indigo-500/10 via-purple-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-12 flex-1 w-full">
         {/* Header */}
         <div className="space-y-4 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold tracking-wide uppercase">
@@ -86,6 +90,7 @@ export default function BlogPage() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

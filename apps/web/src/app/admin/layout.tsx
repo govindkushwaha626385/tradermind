@@ -41,6 +41,7 @@ import {
   Target,
   Cpu,
   Sparkles,
+  Newspaper,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -50,6 +51,7 @@ import { toast } from '@/components/Toast';
 
 const ADMIN_NAV = [
   { label: 'Dashboard',      href: '/admin',               icon: LayoutGrid },
+  { label: 'News & Macro',   href: '/admin/news',          icon: Newspaper },
   { label: 'AI Engine',      href: '/admin/ai',            icon: Sparkles },
   { label: 'Partners',       href: '/admin/partners',      icon: Handshake },
   { label: 'Billing',        href: '/admin/billing',       icon: TrendingUp },

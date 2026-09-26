@@ -17,9 +17,8 @@ import { APP_NAME } from '@trademind/shared';
 
 const DESKTOP_NAV_ITEMS = [
   { label: 'Live Demo', href: '/demo', isSpecial: true },
-  { label: 'Terminal Simulation', href: '#simulation' },
   { label: 'Features', href: '#features' },
-  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'News Wire', href: '/#news' },
   { label: 'Academy', href: '/education' },
   { label: 'Calculators', href: '/calculators' },
   { label: 'Blog', href: '/blog' },
@@ -28,6 +27,7 @@ const DESKTOP_NAV_ITEMS = [
 
 const ALL_NAV_ITEMS = [
   { label: 'Live Sandbox Demo', href: '/demo', badge: 'Instant' },
+  { label: 'Live News Wire & Calendar', href: '/#news', badge: 'Live Ticks' },
   { label: 'Terminal Simulation', href: '#simulation', badge: 'Live Replay' },
   { label: 'Features & Edge', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },

@@ -107,7 +107,7 @@ export function LandingNewsIntelligenceSection() {
   );
 
   return (
-    <section className="relative py-20 lg:py-28 overflow-hidden bg-slate-950 border-t border-white/[0.06]">
+    <section id="news" className="relative py-20 lg:py-28 overflow-hidden bg-slate-950 border-t border-white/[0.06]">
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />

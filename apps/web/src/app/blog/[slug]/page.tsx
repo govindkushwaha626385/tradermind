@@ -26,6 +26,8 @@ import { BLOG_POSTS, type BlogPost } from '@/lib/blog-data';
 import { ArticleShareActions } from '@/components/blog/ArticleShareActions';
 import { InlineRiskCalculatorWidget } from '@/components/blog/InlineRiskCalculatorWidget';
 import { ArticleReadingProgressBar } from '@/components/blog/ArticleReadingProgressBar';
+import { LandingNavbar } from '@/components/landing/LandingNavbar';
+import { Footer } from '@/components/landing/Footer';
 
 interface ArticlePageProps {
   params: Promise<{
@@ -101,6 +103,7 @@ export default async function BlogPostPage({ params }: ArticlePageProps) {
     <div className="min-h-screen bg-background text-foreground animate-fade-in">
       {/* Viewport Top Reading Progress Bar */}
       <ArticleReadingProgressBar />
+      <LandingNavbar />
 
       {/* Inject JSON-LD Schema */}
       <script
@@ -111,7 +114,7 @@ export default async function BlogPostPage({ params }: ArticlePageProps) {
       {/* Top Ambient Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-96 bg-gradient-to-b from-indigo-500/10 via-purple-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-8 flex-1 w-full">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between">
           <Link
@@ -264,6 +267,7 @@ export default async function BlogPostPage({ params }: ArticlePageProps) {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
