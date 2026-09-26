@@ -42,6 +42,7 @@ import {
   Cpu,
   Sparkles,
   Newspaper,
+  Sliders,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -69,6 +70,7 @@ const ADMIN_NAV = [
   { label: 'Worker Queue',   href: '/admin/jobs',          icon: Cpu },
   { label: 'Sync Logs',      href: '/admin/sync-logs',     icon: RefreshCw },
   { label: 'Audit Logs',     href: '/admin/audit-logs',    icon: Shield },
+  { label: 'System Config',  href: '/admin/config',        icon: Sliders },
   { label: 'Tax Rates',      href: '/admin/tax-rates',     icon: Percent },
 ];
 

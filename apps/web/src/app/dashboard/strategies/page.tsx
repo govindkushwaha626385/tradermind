@@ -5,6 +5,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Target,
   Plus,
@@ -27,6 +28,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Award,
+  FlaskConical,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
@@ -404,6 +406,14 @@ export default function StrategiesPage() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href="/dashboard/backtesting"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-medium transition-all group shadow-sm"
+          >
+            <FlaskConical className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Backtesting Studio</span>
+          </Link>
+
           <button
             onClick={() => {
               setAiGeneratedStrategy(null);
@@ -707,15 +717,26 @@ export default function StrategiesPage() {
                   )}
                 </div>
 
-                {/* Footer Action */}
-                <button
-                  onClick={() => handleOpenPerformance(strat)}
-                  className="w-full mt-2 py-2 px-3 rounded-xl bg-zinc-800/60 hover:bg-zinc-800 text-xs font-medium text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all"
-                >
-                  <BarChart2 className="w-3.5 h-3.5 text-brand-400" />
-                  <span>Performance Breakdown</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-zinc-500 ml-auto" />
-                </button>
+                {/* Footer Actions */}
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={() => handleOpenPerformance(strat)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-zinc-800/60 hover:bg-zinc-800 text-xs font-medium text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5 text-brand-400" />
+                    <span>Performance</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500 ml-auto" />
+                  </button>
+
+                  <Link
+                    href="/dashboard/backtesting"
+                    className="py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-xs font-medium text-indigo-300 flex items-center justify-center gap-1.5 transition-all border border-indigo-500/20 shrink-0"
+                    title="Forward-test this setup in the bar-by-bar simulator"
+                  >
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Backtest</span>
+                  </Link>
+                </div>
               </div>
             );
           })}
