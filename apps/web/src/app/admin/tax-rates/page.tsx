@@ -21,6 +21,7 @@ import {
   Edit2,
   AlertCircle,
   Loader2,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -29,6 +30,7 @@ import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { downloadCsv } from '@/lib/export-csv';
 
 interface TaxRate {
   id: string;
@@ -157,6 +159,23 @@ export default function AdminTaxRatesPage() {
     return matchesSearch && matchesSegment;
   });
 
+  const handleExportCsv = () => {
+    if (taxRates.length === 0) {
+      toast.error('No tax rates available to export');
+      return;
+    }
+    downloadCsv('trademind-statutory-tax-rates', taxRates, [
+      { header: 'Rule Name', accessor: (r) => r.name },
+      { header: 'Segment', accessor: (r) => r.segment },
+      { header: 'Applies On', accessor: (r) => r.appliedOn },
+      { header: 'Rate Type', accessor: (r) => r.rateType },
+      { header: 'Rate Value', accessor: (r) => r.rateValue },
+      { header: 'Active', accessor: (r) => r.isActive ? 'Active' : 'Disabled' },
+      { header: 'Description', accessor: (r) => r.description ?? '' },
+    ]);
+    toast.success('Exported statutory tax rates to CSV');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl">
       {/* ConfirmDialog for deletion */}
@@ -185,6 +204,15 @@ export default function AdminTaxRatesPage() {
         icon={Percent}
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={taxRates.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border/80 hover:bg-accent text-xs font-semibold text-foreground transition-colors cursor-pointer disabled:opacity-50"
+              title="Export CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>Export CSV</span>
+            </button>
             <button
               onClick={fetchRates}
               className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50"

@@ -46,6 +46,7 @@ import { toast } from '@/components/Toast';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SkeletonCard, SkeletonTable } from '@/components/ui/SkeletonCard';
 import { WeeklyEdgeReportModal } from '@/components/analytics/WeeklyEdgeReportModal';
+import { StatutoryTaxLedger } from '@/components/reports/StatutoryTaxLedger';
 import type { JournalTrade } from '@trademind/shared';
 
 type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
@@ -53,6 +54,7 @@ type OutcomeFilter = 'all' | 'wins' | 'losses';
 
 export default function ReportsPage() {
   const { currency, format } = useCurrency();
+  const [reportTab, setReportTab] = useState<'performance' | 'tax_ledger'>('performance');
   const [period, setPeriod] = useState<ReportPeriod>('monthly');
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [assetFilter, setAssetFilter] = useState<string>('all');
@@ -279,6 +281,34 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* Report Mode Switcher: Performance Forensics vs Statutory Tax Ledger */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/60 border border-border/80 rounded-2xl w-fit print:hidden">
+        <button
+          onClick={() => setReportTab('performance')}
+          className={cn(
+            'px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+            reportTab === 'performance'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Performance &amp; Win/Loss Forensics</span>
+        </button>
+        <button
+          onClick={() => setReportTab('tax_ledger')}
+          className={cn(
+            'px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer',
+            reportTab === 'tax_ledger'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <Receipt className="w-4 h-4" />
+          <span>Statutory Tax &amp; Regulatory Ledger</span>
+        </button>
+      </div>
+
       {/* Period Selector & Filter Controls (Hidden in Print) */}
       <div className="p-4 rounded-3xl border border-border/80 bg-card/60 space-y-4 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -368,16 +398,27 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* Printable Report Header */}
-      <div className="hidden print:block border-b-2 border-zinc-900 pb-4 space-y-1">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black text-black">TradeMind Institutional Execution Report</h1>
-          <span className="text-xs font-mono text-zinc-600">Generated: {new Date().toLocaleString()}</span>
-        </div>
-        <p className="text-xs text-zinc-600 font-mono">
-          Audit Period: {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()} · Filter: {outcomeFilter.toUpperCase()} · Asset: {assetFilter}
-        </p>
-      </div>
+      {/* Conditional View: Statutory Tax Ledger vs Performance Forensics */}
+      {reportTab === 'tax_ledger' ? (
+        <StatutoryTaxLedger
+          trades={filteredTrades}
+          startDate={startDate}
+          endDate={endDate}
+          currency={currency}
+          format={format}
+        />
+      ) : (
+        <>
+          {/* Printable Report Header */}
+          <div className="hidden print:block border-b-2 border-zinc-900 pb-4 space-y-1">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-black text-black">TradeMind Institutional Execution Report</h1>
+              <span className="text-xs font-mono text-zinc-600">Generated: {new Date().toLocaleString()}</span>
+            </div>
+            <p className="text-xs text-zinc-600 font-mono">
+              Audit Period: {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()} · Filter: {outcomeFilter.toUpperCase()} · Asset: {assetFilter}
+            </p>
+          </div>
 
       {/* Report Summary Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -604,6 +645,8 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Institutional Weekly Edge Forensic Modal */}
       <WeeklyEdgeReportModal

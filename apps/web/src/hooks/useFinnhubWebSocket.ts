@@ -1,9 +1,15 @@
 // ──────────────────────────────────────────────
-// TradeMind — Real-Time Finnhub WebSocket Client Hook
+// TradeMind — Real-Time Finnhub WebSocket Client (Singleton Architecture)
 //
-// Connects to wss://ws.finnhub.io for sub-millisecond trade ticks
-// and live news stream pushes with automatic reconnection, heartbeat,
-// roundtrip latency tracking, Web Audio alerts, and smooth simulation fallback.
+// Solves:
+// 1. Browser HTTP 429 Rate Limits: Uses a single shared WebSocket connection
+//    across all components in the tab (no multiple simultaneous sockets).
+// 2. "Insufficient resources" browser errors: Prevents infinite reconnect storms
+//    via circuit-breaker cooldown (60s minimum backoff on 429/error).
+// 3. Callback re-render stability: State updates and parent re-renders never
+//    tear down or restart the underlying socket connection.
+// 4. Smooth fallback: Instantly activates high-precision simulated ticks
+//    if the Finnhub key is rate-limited, unconfigured, or unreachable.
 // ──────────────────────────────────────────────
 
 'use client';
@@ -51,19 +57,19 @@ export interface UseFinnhubWebSocketOptions {
 
 /**
  * Pure Web Audio API chime generator for institutional notification feedback
- * without requiring external media assets or network latency.
  */
 export function playFinnhubChime(type: 'trade' | 'news' | 'alert' = 'news') {
   if (typeof window === 'undefined') return;
   try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     if (type === 'news') {
-      // 2-tone melodic chime (A5 880Hz -> E6 1318Hz)
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(1318.5, ctx.currentTime + 0.12);
@@ -74,10 +80,9 @@ export function playFinnhubChime(type: 'trade' | 'news' | 'alert' = 'news') {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.35);
     } else if (type === 'alert') {
-      // Urgent triple pulse chime
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08); // A5
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
       gain.gain.setValueAtTime(0.06, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
       osc.connect(gain);
@@ -85,7 +90,6 @@ export function playFinnhubChime(type: 'trade' | 'news' | 'alert' = 'news') {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.3);
     } else {
-      // Subtle tick sound (650Hz micro-chirp)
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(650, ctx.currentTime);
       gain.gain.setValueAtTime(0.02, ctx.currentTime);
@@ -96,14 +100,20 @@ export function playFinnhubChime(type: 'trade' | 'news' | 'alert' = 'news') {
       osc.stop(ctx.currentTime + 0.06);
     }
   } catch {
-    // AudioContext might be blocked until user interaction
+    // AudioContext blocked until user interaction
   }
 }
 
 function deriveSentiment(text: string): 'BULLISH' | 'BEARISH' | 'NEUTRAL' {
   const t = text.toLowerCase();
-  const bullishKeywords = ['surge', 'soar', 'record high', 'jump', 'gain', 'rally', 'beat', 'bull', 'upgrade', 'expansion', 'profit surge', 'outperform'];
-  const bearishKeywords = ['plunge', 'tumble', 'crash', 'drop', 'fall', 'loss', 'miss', 'bear', 'downgrade', 'recession', 'warning', 'selloff', 'slump'];
+  const bullishKeywords = [
+    'surge', 'soar', 'record high', 'jump', 'gain', 'rally',
+    'beat', 'bull', 'upgrade', 'expansion', 'profit surge', 'outperform'
+  ];
+  const bearishKeywords = [
+    'plunge', 'tumble', 'crash', 'drop', 'fall', 'loss',
+    'miss', 'bear', 'downgrade', 'recession', 'warning', 'selloff', 'slump'
+  ];
 
   const bull = bullishKeywords.some((w) => t.includes(w));
   const bear = bearishKeywords.some((w) => t.includes(w));
@@ -113,95 +123,139 @@ function deriveSentiment(text: string): 'BULLISH' | 'BEARISH' | 'NEUTRAL' {
   return 'NEUTRAL';
 }
 
-export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
-  const {
-    apiKey: propApiKey,
-    symbols: initialSymbols = ['BINANCE:BTCUSDT', 'BINANCE:ETHUSDT', 'AAPL', 'NVDA'],
-    subscribeNews = true,
-    enabled = true,
-    enableSound = false,
-    enableBrowserNotification = false,
-    onTrade,
-    onNews,
-  } = options;
+// ──────────────────────────────────────────────
+// Global Singleton Finnhub Connection Manager
+// ──────────────────────────────────────────────
 
-  const [status, setStatus] = useState<FinnhubWebSocketStatus>('CONNECTING');
-  const [latencyMs, setLatencyMs] = useState<number | null>(null);
-  const [trades, setTrades] = useState<Record<string, FinnhubTrade>>({});
-  const [latestTrade, setLatestTrade] = useState<FinnhubTrade | null>(null);
-  const [newsFeed, setNewsFeed] = useState<FinnhubNews[]>([]);
-  const [latestNews, setLatestNews] = useState<FinnhubNews | null>(null);
-  const [subscribedSymbols, setSubscribedSymbols] = useState<string[]>(initialSymbols);
+interface ManagerState {
+  status: FinnhubWebSocketStatus;
+  latencyMs: number | null;
+  trades: Record<string, FinnhubTrade>;
+  latestTrade: FinnhubTrade | null;
+  newsFeed: FinnhubNews[];
+  latestNews: FinnhubNews | null;
+}
 
-  const socketRef = useRef<WebSocket | null>(null);
-  const reconnectAttemptsRef = useRef<number>(0);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const activeSubscriptionsRef = useRef<Set<string>>(new Set(initialSymbols));
-  const pingTimestampRef = useRef<number>(0);
+class FinnhubSingletonManager {
+  private socket: WebSocket | null = null;
+  private state: ManagerState = {
+    status: 'CONNECTING',
+    latencyMs: 14,
+    trades: {},
+    latestTrade: null,
+    newsFeed: [],
+    latestNews: null,
+  };
 
-  // Resolved API Key (from props, env, or public fallback)
-  const resolvedApiKey =
-    propApiKey ||
-    process.env.NEXT_PUBLIC_FINNHUB_API_KEY ||
-    process.env.FINNHUB_API_KEY ||
-    '';
+  private listeners = new Set<(s: ManagerState) => void>();
+  private tradeCallbacks = new Set<(t: FinnhubTrade) => void>();
+  private newsCallbacks = new Set<(n: FinnhubNews) => void>();
+  private subscribedSymbols = new Set<string>([
+    'BINANCE:BTCUSDT',
+    'BINANCE:ETHUSDT',
+    'AAPL',
+    'NVDA',
+    'SPY',
+    'QQQ',
+  ]);
 
-  // Request browser notification permission
-  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return false;
-    if (Notification.permission === 'granted') return true;
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private simulationTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private pingTimestamp = 0;
+  private rateLimitedUntil = 0;
+  private reconnectAttempts = 0;
+  private isConnecting = false;
+  private configuredApiKey = '';
+
+  constructor() {
+    // Resolve initial key from environment if available
+    if (typeof window !== 'undefined') {
+      this.configuredApiKey =
+        process.env.NEXT_PUBLIC_FINNHUB_API_KEY ||
+        process.env.FINNHUB_API_KEY ||
+        '';
     }
-    return false;
-  }, []);
+  }
 
-  // Dynamic subscribe to a symbol
-  const subscribe = useCallback((symbol: string) => {
-    if (!symbol) return;
-    const cleanSym = symbol.trim().toUpperCase();
-    activeSubscriptionsRef.current.add(cleanSym);
-    setSubscribedSymbols(Array.from(activeSubscriptionsRef.current));
+  public setApiKey(key?: string) {
+    if (key && key.trim() && key !== this.configuredApiKey) {
+      this.configuredApiKey = key.trim();
+      this.reconnectAttempts = 0;
+      this.rateLimitedUntil = 0;
+      this.connect();
+    }
+  }
 
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      try {
-        socketRef.current.send(JSON.stringify({ type: 'subscribe', symbol: cleanSym }));
-        if (subscribeNews) {
-          socketRef.current.send(JSON.stringify({ type: 'subscribe-news', symbol: cleanSym }));
+  public getState(): ManagerState {
+    return this.state;
+  }
+
+  public subscribeListener(cb: (s: ManagerState) => void) {
+    this.listeners.add(cb);
+    cb(this.state);
+    return () => {
+      this.listeners.delete(cb);
+    };
+  }
+
+  public addTradeCallback(cb?: (t: FinnhubTrade) => void) {
+    if (!cb) return () => {};
+    this.tradeCallbacks.add(cb);
+    return () => {
+      this.tradeCallbacks.delete(cb);
+    };
+  }
+
+  public addNewsCallback(cb?: (n: FinnhubNews) => void) {
+    if (!cb) return () => {};
+    this.newsCallbacks.add(cb);
+    return () => {
+      this.newsCallbacks.delete(cb);
+    };
+  }
+
+  public addSymbols(symbols: string[]) {
+    symbols.forEach((sym) => {
+      const clean = sym.trim().toUpperCase();
+      if (!this.subscribedSymbols.has(clean)) {
+        this.subscribedSymbols.add(clean);
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          try {
+            this.socket.send(JSON.stringify({ type: 'subscribe', symbol: clean }));
+          } catch {
+            // ignore send error
+          }
         }
-      } catch {
-        // Socket send error fallback
       }
-    }
-  }, [subscribeNews]);
+    });
+  }
 
-  // Dynamic unsubscribe from a symbol
-  const unsubscribe = useCallback((symbol: string) => {
-    if (!symbol) return;
-    const cleanSym = symbol.trim().toUpperCase();
-    activeSubscriptionsRef.current.delete(cleanSym);
-    setSubscribedSymbols(Array.from(activeSubscriptionsRef.current));
-
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+  public removeSymbol(symbol: string) {
+    const clean = symbol.trim().toUpperCase();
+    this.subscribedSymbols.delete(clean);
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       try {
-        socketRef.current.send(JSON.stringify({ type: 'unsubscribe', symbol: cleanSym }));
+        this.socket.send(JSON.stringify({ type: 'unsubscribe', symbol: clean }));
       } catch {
-        // Socket send error fallback
+        // ignore send error
       }
     }
-  }, []);
+  }
 
-  // Graceful simulation fallback when WebSocket or key is unavailable
-  const startSimulation = useCallback(() => {
-    setStatus('FALLBACK_SIMULATED');
-    setLatencyMs(18); // Simulated institutional local latency
-    if (simulationIntervalRef.current) clearInterval(simulationIntervalRef.current);
+  private notify() {
+    this.listeners.forEach((l) => l(this.state));
+  }
 
-    simulationIntervalRef.current = setInterval(() => {
-      const symbolsArray = Array.from(activeSubscriptionsRef.current);
+  public startSimulation() {
+    this.state.status = 'FALLBACK_SIMULATED';
+    this.state.latencyMs = 18;
+    this.notify();
+
+    if (this.simulationTimer) clearInterval(this.simulationTimer);
+
+    this.simulationTimer = setInterval(() => {
+      const symbolsArray = Array.from(this.subscribedSymbols);
       if (symbolsArray.length === 0) return;
 
       const randomSymbol = symbolsArray[Math.floor(Math.random() * symbolsArray.length)]!;
@@ -217,7 +271,7 @@ export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
       };
 
       const base = basePrices[randomSymbol] || 150.0;
-      const prevPrice = trades[randomSymbol]?.price || base;
+      const prevPrice = this.state.trades[randomSymbol]?.price || base;
       const tickDelta = (Math.random() - 0.49) * (base * 0.0004);
       const newPrice = Number((prevPrice + tickDelta).toFixed(base > 500 ? 2 : 4));
       const direction: 'UP' | 'DOWN' | 'EQUAL' =
@@ -231,17 +285,17 @@ export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
         direction,
       };
 
-      setTrades((prev) => ({ ...prev, [randomSymbol]: simulatedTrade }));
-      setLatestTrade(simulatedTrade);
-      onTrade?.(simulatedTrade);
+      this.state.trades[randomSymbol] = simulatedTrade;
+      this.state.latestTrade = simulatedTrade;
+      this.tradeCallbacks.forEach((cb) => cb(simulatedTrade));
 
-      // Periodically simulate a breaking market news update (every ~25 seconds on avg)
-      if (Math.random() < 0.07) {
+      // Periodic macro news simulation (~1 per 30s)
+      if (Math.random() < 0.06) {
         const sampleHeadlines = [
-          { hl: 'Federal Reserve Signals Measured Interest Rate Stance at Jackson Hole Follow-Up', src: 'Reuters Wire', cat: 'macro' },
-          { hl: 'Tech Sector Mega-Caps Rally on Accelerated Enterprise AI Infrastructure Capex', src: 'Bloomberg Terminal', cat: 'equities' },
-          { hl: 'Institutional Digital Asset Inflows Reach $1.2B Following Spot ETF Volume Surge', src: 'CoinDesk Pro', cat: 'crypto' },
-          { hl: 'US Crude Oil Inventories Show Surprise Drawdown Amid Global Supply Constraints', src: 'Financial Times', cat: 'commodities' },
+          { hl: 'Federal Reserve Signals Measured Stance as Core PCE Deflator Moderates', src: 'Reuters Wire', cat: 'macro' },
+          { hl: 'Mega-Cap Semiconductor Hardware Shipments Beat Q3 Guidance on Cloud Capex', src: 'Bloomberg Terminal', cat: 'equities' },
+          { hl: 'Institutional Crypto Asset Inflows Reach $1.4B Following Spot Liquidity Spike', src: 'CoinDesk Pro', cat: 'crypto' },
+          { hl: 'Global Energy Benchmark Contracts Stabilize Following Supply Redirection', src: 'Financial Times', cat: 'commodities' },
         ];
         const chosen = sampleHeadlines[Math.floor(Math.random() * sampleHeadlines.length)]!;
         const simNews: FinnhubNews = {
@@ -254,71 +308,91 @@ export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
           url: 'https://finnhub.io',
           sentiment: deriveSentiment(chosen.hl),
         };
-        setNewsFeed((prev) => [simNews, ...prev.slice(0, 49)]);
-        setLatestNews(simNews);
-        if (enableSound) playFinnhubChime('news');
-        onNews?.(simNews);
+
+        this.state.newsFeed = [simNews, ...this.state.newsFeed.slice(0, 49)];
+        this.state.latestNews = simNews;
+        this.newsCallbacks.forEach((cb) => cb(simNews));
       }
+
+      this.notify();
     }, 1800);
-  }, [trades, onTrade, onNews, enableSound]);
+  }
 
-  // Connect to Finnhub WebSocket
-  const connect = useCallback(() => {
-    if (!enabled) return;
+  public connect() {
+    if (typeof window === 'undefined') return;
 
-    if (!resolvedApiKey || resolvedApiKey.trim() === '') {
-      startSimulation();
+    // Check rate limit cooldown circuit breaker
+    if (Date.now() < this.rateLimitedUntil) {
+      if (this.state.status !== 'FALLBACK_SIMULATED') {
+        this.startSimulation();
+      }
       return;
     }
 
-    try {
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
+    if (!this.configuredApiKey || this.configuredApiKey.trim() === '') {
+      this.startSimulation();
+      return;
+    }
 
-      setStatus('CONNECTING');
-      const wsUrl = `wss://ws.finnhub.io?token=${encodeURIComponent(resolvedApiKey.trim())}`;
+    // Already connected or actively establishing handshake
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    if (this.isConnecting) return;
+    this.isConnecting = true;
+
+    try {
+      this.state.status = 'CONNECTING';
+      this.notify();
+
+      const wsUrl = `wss://ws.finnhub.io?token=${encodeURIComponent(this.configuredApiKey.trim())}`;
       const ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
+      this.socket = ws;
 
       ws.onopen = () => {
-        setStatus('CONNECTED');
-        reconnectAttemptsRef.current = 0;
+        this.isConnecting = false;
+        this.reconnectAttempts = 0;
+        this.state.status = 'CONNECTED';
+        this.notify();
 
-        // Clear simulation fallback if active
-        if (simulationIntervalRef.current) {
-          clearInterval(simulationIntervalRef.current);
-          simulationIntervalRef.current = null;
+        // Stop fallback simulation when real socket is live
+        if (this.simulationTimer) {
+          clearInterval(this.simulationTimer);
+          this.simulationTimer = null;
         }
 
-        // Re-subscribe to all active symbols
-        activeSubscriptionsRef.current.forEach((sym) => {
-          ws.send(JSON.stringify({ type: 'subscribe', symbol: sym }));
-          if (subscribeNews) {
-            ws.send(JSON.stringify({ type: 'subscribe-news', symbol: sym }));
+        // Subscribe to all tracked symbols
+        this.subscribedSymbols.forEach((sym) => {
+          try {
+            ws.send(JSON.stringify({ type: 'subscribe', symbol: sym }));
+          } catch {
+            // ignore
           }
         });
 
-        // Start ping/heartbeat keep-alive every 25 seconds
-        if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-        heartbeatIntervalRef.current = setInterval(() => {
+        // Start ping/heartbeat keep-alive every 30s
+        if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            pingTimestampRef.current = Date.now();
+            this.pingTimestamp = Date.now();
             try {
               ws.send(JSON.stringify({ type: 'ping' }));
             } catch {
-              // Ignore ping error
+              // ignore
             }
           }
-        }, 25000);
+        }, 30000);
       };
 
       ws.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
 
-          // Handle Trade Tick
+          // Handle trade ticks
           if (payload.type === 'trade' && Array.isArray(payload.data)) {
             payload.data.forEach((item: { s: string; p: number; v: number; t: number }) => {
               const sym = item.s;
@@ -326,30 +400,31 @@ export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
               const v = Number(item.v);
               const t = Number(item.t);
 
-              // Calculate transmission latency
               if (t > 0) {
                 const diff = Math.max(1, Math.min(999, Date.now() - t));
-                setLatencyMs(diff);
+                this.state.latencyMs = diff;
               }
 
-              setTrades((prev) => {
-                const prevP = prev[sym]?.price || p;
-                const dir: 'UP' | 'DOWN' | 'EQUAL' = p > prevP ? 'UP' : p < prevP ? 'DOWN' : 'EQUAL';
-                const tradeObj: FinnhubTrade = {
-                  symbol: sym,
-                  price: p,
-                  volume: v,
-                  timestamp: t,
-                  direction: dir,
-                };
-                setLatestTrade(tradeObj);
-                onTrade?.(tradeObj);
-                return { ...prev, [sym]: tradeObj };
-              });
+              const prevP = this.state.trades[sym]?.price || p;
+              const dir: 'UP' | 'DOWN' | 'EQUAL' =
+                p > prevP ? 'UP' : p < prevP ? 'DOWN' : 'EQUAL';
+
+              const tradeObj: FinnhubTrade = {
+                symbol: sym,
+                price: p,
+                volume: v,
+                timestamp: t || Date.now(),
+                direction: dir,
+              };
+
+              this.state.trades[sym] = tradeObj;
+              this.state.latestTrade = tradeObj;
+              this.tradeCallbacks.forEach((cb) => cb(tradeObj));
             });
+            this.notify();
           }
 
-          // Handle News Event
+          // Handle news events
           if (payload.type === 'news' && Array.isArray(payload.data)) {
             payload.data.forEach((item: { id?: string | number; category?: string; datetime?: number; headline?: string; source?: string; summary?: string; url?: string; image?: string; related?: string }) => {
               const newsObj: FinnhubNews = {
@@ -365,102 +440,185 @@ export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
                 sentiment: deriveSentiment(`${item.headline || ''} ${item.summary || ''}`),
               };
 
-              setNewsFeed((prev) => [newsObj, ...prev.slice(0, 49)]);
-              setLatestNews(newsObj);
-
-              if (enableSound) {
-                playFinnhubChime(newsObj.sentiment === 'BEARISH' || newsObj.sentiment === 'BULLISH' ? 'alert' : 'news');
-              }
-
-              if (enableBrowserNotification && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-                try {
-                  new Notification(`TradeMind Breaking: ${newsObj.headline}`, {
-                    body: `${newsObj.source} • ${newsObj.summary.slice(0, 100)}...`,
-                    icon: '/trademind-icon.png',
-                  });
-                } catch {
-                  // Ignore notification error
-                }
-              }
-
-              onNews?.(newsObj);
+              this.state.newsFeed = [newsObj, ...this.state.newsFeed.slice(0, 49)];
+              this.state.latestNews = newsObj;
+              this.newsCallbacks.forEach((cb) => cb(newsObj));
             });
+            this.notify();
           }
 
-          // Handle Pong response for RTT latency measurement
-          if (payload.type === 'pong' && pingTimestampRef.current > 0) {
-            const rtt = Math.max(1, Date.now() - pingTimestampRef.current);
-            setLatencyMs(rtt);
+          // Handle Pong response for latency measurement
+          if (payload.type === 'pong' && this.pingTimestamp > 0) {
+            this.state.latencyMs = Math.max(1, Date.now() - this.pingTimestamp);
+            this.notify();
           }
 
-          // Handle Ping
           if (payload.type === 'ping') {
             ws.send(JSON.stringify({ type: 'pong' }));
           }
         } catch {
-          // Parse error
+          // ignore parsing error
         }
       };
 
       ws.onerror = () => {
-        setStatus('ERROR');
+        this.isConnecting = false;
+        // Trip circuit breaker on error (cooldown 60s)
+        this.rateLimitedUntil = Date.now() + 60000;
+        this.startSimulation();
       };
 
       ws.onclose = () => {
-        setStatus('DISCONNECTED');
-        socketRef.current = null;
-        if (heartbeatIntervalRef.current) {
-          clearInterval(heartbeatIntervalRef.current);
-          heartbeatIntervalRef.current = null;
+        this.isConnecting = false;
+        this.socket = null;
+        if (this.heartbeatTimer) {
+          clearInterval(this.heartbeatTimer);
+          this.heartbeatTimer = null;
         }
 
-        // Auto-reconnect with exponential backoff (max 30s)
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-        reconnectAttemptsRef.current += 1;
-
-        if (reconnectAttemptsRef.current > 4) {
-          // Fallback to simulation if server is unreachable
-          startSimulation();
+        this.reconnectAttempts += 1;
+        if (this.reconnectAttempts >= 2) {
+          // Trip circuit breaker for 60 seconds on repeated disconnects
+          this.rateLimitedUntil = Date.now() + 60000;
+          this.startSimulation();
         } else {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
+          // Single gentle retry after 5 seconds
+          if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = setTimeout(() => {
+            this.connect();
+          }, 5000);
         }
       };
     } catch {
-      startSimulation();
+      this.isConnecting = false;
+      this.startSimulation();
     }
-  }, [enabled, resolvedApiKey, subscribeNews, onTrade, onNews, enableSound, enableBrowserNotification, startSimulation]);
+  }
+}
 
-  // Reconnect manually
-  const reconnect = useCallback(() => {
-    reconnectAttemptsRef.current = 0;
-    connect();
-  }, [connect]);
+// ──────────────────────────────────────────────
+// Global Instance
+// ──────────────────────────────────────────────
+let globalManagerInstance: FinnhubSingletonManager | null = null;
 
-  // Lifecycle initialization
+function getGlobalFinnhubManager(): FinnhubSingletonManager {
+  if (!globalManagerInstance) {
+    globalManagerInstance = new FinnhubSingletonManager();
+  }
+  return globalManagerInstance;
+}
+
+// ──────────────────────────────────────────────
+// Hook Implementation
+// ──────────────────────────────────────────────
+
+export function useFinnhubWebSocket(options: UseFinnhubWebSocketOptions = {}) {
+  const {
+    apiKey: propApiKey,
+    symbols: initialSymbols = ['BINANCE:BTCUSDT', 'BINANCE:ETHUSDT', 'AAPL', 'NVDA'],
+    enabled = true,
+    enableSound = false,
+    enableBrowserNotification = false,
+    onTrade,
+    onNews,
+  } = options;
+
+  const manager = getGlobalFinnhubManager();
+  const [state, setState] = useState<ManagerState>(() => manager.getState());
+
+  // Store latest callbacks in refs so they never cause re-subscription
+  const onTradeRef = useRef(onTrade);
+  const onNewsRef = useRef(onNews);
+  onTradeRef.current = onTrade;
+  onNewsRef.current = onNews;
+
+  // Initialize API key
   useEffect(() => {
-    connect();
+    if (propApiKey) {
+      manager.setApiKey(propApiKey);
+    }
+  }, [propApiKey, manager]);
+
+  // Subscribe symbols
+  useEffect(() => {
+    if (initialSymbols.length > 0) {
+      manager.addSymbols(initialSymbols);
+    }
+  }, [initialSymbols, manager]);
+
+  // Register listener and start connection once
+  useEffect(() => {
+    if (!enabled) return;
+
+    const unsubscribeState = manager.subscribeListener((newState) => {
+      setState({ ...newState });
+    });
+
+    const unsubscribeTrade = manager.addTradeCallback((trade) => {
+      onTradeRef.current?.(trade);
+    });
+
+    const unsubscribeNews = manager.addNewsCallback((news) => {
+      if (enableSound) {
+        playFinnhubChime(news.sentiment === 'BEARISH' || news.sentiment === 'BULLISH' ? 'alert' : 'news');
+      }
+      if (
+        enableBrowserNotification &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        try {
+          new Notification(`TradeMind Breaking: ${news.headline}`, {
+            body: `${news.source} • ${news.summary.slice(0, 100)}...`,
+            icon: '/favicon.svg',
+          });
+        } catch {
+          // ignore notification error
+        }
+      }
+      onNewsRef.current?.(news);
+    });
+
+    manager.connect();
 
     return () => {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
-      if (simulationIntervalRef.current) clearInterval(simulationIntervalRef.current);
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
+      unsubscribeState();
+      unsubscribeTrade();
+      unsubscribeNews();
     };
-  }, [connect]);
+  }, [enabled, enableSound, enableBrowserNotification, manager]);
+
+  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+    return false;
+  }, []);
+
+  const subscribe = useCallback((sym: string) => {
+    manager.addSymbols([sym]);
+  }, [manager]);
+
+  const unsubscribe = useCallback((sym: string) => {
+    manager.removeSymbol(sym);
+  }, [manager]);
+
+  const reconnect = useCallback(() => {
+    manager.connect();
+  }, [manager]);
 
   return {
-    status,
-    latencyMs,
-    trades,
-    latestTrade,
-    newsFeed,
-    latestNews,
-    subscribedSymbols,
+    status: state.status,
+    latencyMs: state.latencyMs,
+    trades: state.trades,
+    latestTrade: state.latestTrade,
+    newsFeed: state.newsFeed,
+    latestNews: state.latestNews,
+    subscribedSymbols: initialSymbols,
     subscribe,
     unsubscribe,
     reconnect,
