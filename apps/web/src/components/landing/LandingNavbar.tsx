@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X, ArrowRight, TrendingUp } from 'lucide-react';
 import { APP_NAME } from '@trademind/shared';
 
@@ -45,6 +46,7 @@ const ALL_NAV_ITEMS = [
 ];
 
 export function LandingNavbar() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('');
@@ -110,20 +112,29 @@ export function LandingNavbar() {
         <div className="hidden lg:flex items-center gap-1">
           {DESKTOP_NAV_ITEMS.map((item) => {
             const isInternal = item.href.startsWith('/');
+            const resolvedHref = item.href.startsWith('#') && pathname !== '/' ? `/${item.href}` : item.href;
             const sectionId = item.href.replace('#', '');
-            const isActive = activeSection === sectionId;
+            const isActive = isInternal ? pathname === item.href : (pathname === '/' && activeSection === sectionId);
             const linkClass = `relative px-3 py-1.5 text-sm transition-colors rounded-lg ${
               item.isSpecial
                 ? 'text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 mr-1'
                 : isActive
-                ? 'text-white'
+                ? 'text-white font-semibold'
                 : 'text-white/60 hover:text-white'
             }`;
 
-            if (isInternal) {
+            if (isInternal || resolvedHref.startsWith('/')) {
               return (
-                <Link key={item.href} href={item.href} className={linkClass}>
+                <Link key={item.href} href={resolvedHref} className={linkClass}>
                   {item.label}
+                  {isActive && !item.isSpecial && (
+                    <span
+                      className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full"
+                      style={{
+                        background: 'linear-gradient(90deg, #7c3aed, #2563eb)',
+                      }}
+                    />
+                  )}
                 </Link>
               );
             }
@@ -133,7 +144,7 @@ export function LandingNavbar() {
                 {item.label}
                 {isActive && (
                   <span
-                    className="absolute bottom-0 left-3 right-3 h-px rounded-full"
+                    className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full"
                     style={{
                       background: 'linear-gradient(90deg, #7c3aed, #2563eb)',
                     }}
@@ -203,16 +214,27 @@ export function LandingNavbar() {
         <div className="px-4 py-4 space-y-1">
           {ALL_NAV_ITEMS.map((item) => {
             const isInternal = item.href.startsWith('/');
-            const linkClass = "block text-sm py-2.5 px-3 rounded-lg transition-colors text-white/70 hover:text-white hover:bg-white/[0.04]";
-            if (isInternal) {
+            const resolvedHref = item.href.startsWith('#') && pathname !== '/' ? `/${item.href}` : item.href;
+            const isActive = isInternal ? pathname === item.href : false;
+            const linkClass = `block text-sm py-2.5 px-3 rounded-lg transition-colors flex items-center justify-between ${
+              isActive
+                ? 'text-white font-semibold bg-white/[0.08]'
+                : 'text-white/70 hover:text-white hover:bg-white/[0.04]'
+            }`;
+            if (isInternal || resolvedHref.startsWith('/')) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={resolvedHref}
                   className={linkClass}
                   onClick={closeMobile}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             }
@@ -223,7 +245,12 @@ export function LandingNavbar() {
                 className={linkClass}
                 onClick={closeMobile}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.badge && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    {item.badge}
+                  </span>
+                )}
               </a>
             );
           })}

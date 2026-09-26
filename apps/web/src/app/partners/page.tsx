@@ -22,6 +22,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
 import type { Partner } from '@trademind/shared';
+import { LandingNavbar } from '@/components/landing/LandingNavbar';
+import { Footer } from '@/components/landing/Footer';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Partners' },
@@ -76,57 +78,11 @@ export default function PartnersPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0B0F] text-zinc-100 selection:bg-emerald-500/30 selection:text-emerald-200">
-      {/* ── Top Navigation Bar ─────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#0A0B0F]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/30 transition-all">
-              <div className="w-full h-full bg-zinc-950 rounded-[11px] flex items-center justify-center">
-                <Zap className="w-4 h-4 text-emerald-400" />
-              </div>
-            </div>
-            <span className="font-bold text-lg text-white tracking-tight">
-              Trade<span className="text-emerald-400">Mind</span>
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-400">
-            <Link href="/" className="hover:text-white transition-colors">
-              Home
-            </Link>
-            <Link href="/calculators" className="hover:text-white transition-colors">
-              Calculators
-            </Link>
-            <Link href="/leaderboard" className="hover:text-white transition-colors">
-              Leaderboard
-            </Link>
-            <Link href="/partners" className="text-emerald-400 font-medium">
-              Partners
-            </Link>
-            <Link href="/store" className="hover:text-white transition-colors">
-              Store
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-3.5 py-1.5 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 text-sm font-semibold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* ── Public Top Nav ── */}
+      <LandingNavbar />
 
       {/* ── Hero Section ──────────────────────────────────── */}
-      <section className="relative overflow-hidden pt-16 pb-12 border-b border-zinc-800/60">
+      <section className="relative overflow-hidden pt-28 pb-12 border-b border-zinc-800/60">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -410,31 +366,8 @@ export default function PartnersPage() {
         </div>
       </section>
 
-      {/* ── Footer ────────────────────────────────────────── */}
-      <footer className="border-t border-zinc-800/80 py-8 bg-zinc-950/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-          <div>
-            © {new Date().getFullYear()} TradeMind Platform. All rights reserved.
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/" className="hover:text-zinc-400 transition-colors">
-              Home
-            </Link>
-            <Link href="/calculators" className="hover:text-zinc-400 transition-colors">
-              Calculators
-            </Link>
-            <Link href="/partners" className="text-emerald-400 font-medium">
-              Partners
-            </Link>
-            <Link href="/privacy" className="hover:text-zinc-400 transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="hover:text-zinc-400 transition-colors">
-              Terms
-            </Link>
-          </div>
-        </div>
-      </footer>
+      {/* ── Unified Footer ── */}
+      <Footer />
     </div>
   );
 }

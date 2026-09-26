@@ -28,9 +28,11 @@ import {
   BookOpen,
   DollarSign,
   PieChart,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { downloadCsv } from '@/lib/export-csv';
 import { toast } from '@/components/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonCard';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -172,6 +174,31 @@ export default function AdminStrategiesPage() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (strategies.length === 0) {
+      toast.error('No strategies available to export');
+      return;
+    }
+    downloadCsv('trademind-admin-strategies', strategies, [
+      { header: 'Strategy Name', accessor: (s) => s.name },
+      { header: 'Trader Name', accessor: (s) => s.userName },
+      { header: 'Trader Email', accessor: (s) => s.userEmail },
+      { header: 'Market Type', accessor: (s) => s.marketType },
+      { header: 'Timeframe', accessor: (s) => s.timeframe ?? 'N/A' },
+      {
+        header: 'Win Rate (%)',
+        accessor: (s) =>
+          s.totalTrades > 0 ? ((s.winCount / s.totalTrades) * 100).toFixed(1) : '0.0',
+      },
+      { header: 'Total Trades', accessor: (s) => s.totalTrades },
+      { header: 'Net P&L', accessor: (s) => s.totalPnl },
+      { header: 'Avg R-Multiple', accessor: (s) => s.avgRMultiple ?? '' },
+      { header: 'Active Status', accessor: (s) => (s.isActive ? 'Active' : 'Disabled') },
+      { header: 'Created At', accessor: (s) => s.createdAt },
+    ]);
+    toast.success(`Exported ${strategies.length} strategies to CSV`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl">
       <PageHeader
@@ -179,14 +206,25 @@ export default function AdminStrategiesPage() {
         description="Inspect user trading strategies, verify playbook rules, and manage platform strategy visibility"
         icon={Target}
         actions={
-          <button
-            onClick={fetchStrategies}
-            disabled={loading}
-            className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50 cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportCsv}
+              disabled={loading || strategies.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border/80 hover:bg-accent text-xs font-semibold text-foreground transition-colors cursor-pointer disabled:opacity-50"
+              title="Export all strategies to RFC-4180 CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              onClick={fetchStrategies}
+              disabled={loading}
+              className="p-2 rounded-xl hover:bg-accent text-muted-foreground transition-colors border border-border/50 cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+            </button>
+          </div>
         }
       />
 

@@ -41,6 +41,7 @@ import {
   Activity,
   Sliders,
   DollarSign,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,13 +56,13 @@ export interface TourStep {
   ctaHref: string;
   icon: React.ElementType;
   gradient: string;
-  mockupType: 'sidebar' | 'prop_firm' | 'replay' | 'news' | 'discipline' | 'reports';
+  mockupType: 'sidebar' | 'prop_firm' | 'replay' | 'news' | 'discipline' | 'reports' | 'backtesting';
 }
 
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'sidebar',
-    badge: 'Step 1 of 6 · Navigation Architecture',
+    badge: 'Step 1 of 7 · Navigation Architecture',
     title: 'Grouped Navigation & Command Studio',
     subtitle: 'Lightning-fast workflow with global shortcuts and portfolio switching',
     description:
@@ -80,7 +81,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'prop-firm',
-    badge: 'Step 2 of 6 · Capital Scaling',
+    badge: 'Step 2 of 7 · Capital Scaling',
     title: 'Prop Firm Evaluation Matrix',
     subtitle: 'Multi-account challenge defense for FTMO, Topstep, Apex & The5ers',
     description:
@@ -99,7 +100,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'replay',
-    badge: 'Step 3 of 6 · Execution Forensics',
+    badge: 'Step 3 of 7 · Execution Forensics',
     title: 'TradingView Candlestick Replay & Voice Autopsy',
     subtitle: 'Step through trades bar-by-bar with AI audio debriefing',
     description:
@@ -118,7 +119,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'news',
-    badge: 'Step 4 of 6 · Real-Time Market Intelligence',
+    badge: 'Step 4 of 7 · Real-Time Market Intelligence',
     title: 'Finnhub Real-Time WebSocket & Macro Calendar',
     subtitle: 'Sub-millisecond trade ticks and breaking news push streaming',
     description:
@@ -137,7 +138,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'discipline',
-    badge: 'Step 5 of 6 · Psychological Armor',
+    badge: 'Step 5 of 7 · Psychological Armor',
     title: 'Behavioral Shield & Tilt Lockout',
     subtitle: 'Algorithmic prevention of FOMO, revenge trading, and oversized bets',
     description:
@@ -156,7 +157,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'reports',
-    badge: 'Step 6 of 6 · Auditing & Tax Ledgers',
+    badge: 'Step 6 of 7 · Auditing & Tax Ledgers',
     title: 'Institutional Multi-Period Reports',
     subtitle: 'Daily, Weekly, Monthly, Yearly & Custom Range audit statements',
     description:
@@ -172,6 +173,25 @@ export const TOUR_STEPS: TourStep[] = [
     icon: FileText,
     gradient: 'from-purple-600 to-indigo-600',
     mockupType: 'reports',
+  },
+  {
+    id: 'backtesting',
+    badge: 'Step 7 of 7 · Quantitative Validation',
+    title: 'Strategy Backtesting & Simulator Studio',
+    subtitle: 'Forward-test trading setups bar-by-bar without risking capital or lookahead bias',
+    description:
+      'Step forward through historical candles with bracket orders (Entry, Stop Loss, Target). Monitor real-time equity curves, Sharpe & Sortino ratios, and calculate mathematical trade expectancy before risking live capital.',
+    keyFeatures: [
+      'Strict forward bar-by-bar stepping with zero peek-ahead lookahead bias',
+      'Bracket order simulator (Long/Short entry with Take Profit & Stop Loss)',
+      'Live trade-by-trade equity curve with baseline and peak trajectory',
+      'Quantitative scorecards: Win Rate, Profit Factor, Expected Value (R), and Sortino Ratio',
+    ],
+    ctaText: 'Launch Backtesting Studio',
+    ctaHref: '/dashboard/backtesting',
+    icon: FlaskConical,
+    gradient: 'from-indigo-600 to-purple-600',
+    mockupType: 'backtesting',
   },
 ];
 
@@ -450,6 +470,38 @@ export function PlatformTourModal({ isOpen, onClose }: PlatformTourModalProps) {
                   <div className="p-2 rounded-xl bg-card border border-border/60 text-center">
                     <span className="text-muted-foreground block text-[10px]">EXPORTS</span>
                     <span className="text-primary font-bold">RFC-4180 CSV</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {current.mockupType === 'backtesting' && (
+              <div className="space-y-3 font-mono text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                  <div className="flex items-center gap-2 text-foreground font-bold">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Bar-by-Bar Forward-Testing Studio</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+                    Expectancy: +0.62R
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="p-2 rounded-xl bg-card border border-border/60 text-center">
+                    <span className="text-muted-foreground block text-[10px]">WIN RATE</span>
+                    <span className="text-emerald-400 font-bold">64.2%</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-card border border-border/60 text-center">
+                    <span className="text-muted-foreground block text-[10px]">PROFIT FACTOR</span>
+                    <span className="text-emerald-400 font-bold">2.41</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-card border border-border/60 text-center">
+                    <span className="text-muted-foreground block text-[10px]">SORTINO RATIO</span>
+                    <span className="text-indigo-400 font-bold">2.88</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-card border border-border/60 text-center">
+                    <span className="text-muted-foreground block text-[10px]">SIMULATED P&L</span>
+                    <span className="text-emerald-400 font-bold">+$14,250</span>
                   </div>
                 </div>
               </div>

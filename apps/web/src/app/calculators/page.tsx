@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { APP_NAME } from '@trademind/shared';
 import { CalculatorSuite } from '@/components/calculators/CalculatorSuite';
+import { LandingNavbar } from '@/components/landing/LandingNavbar';
+import { Footer } from '@/components/landing/Footer';
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trademind.app';
 
@@ -120,53 +122,10 @@ export default function PublicCalculatorsPage() {
       />
 
       {/* ── Public Top Nav ── */}
-      <header className="sticky top-0 z-50 glass border-b border-border/60 bg-background/80 backdrop-blur-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-sm">TM</span>
-            </div>
-            <span className="font-semibold text-lg text-foreground">{APP_NAME}</span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
-            <Link href="/#features" className="hover:text-foreground transition-colors">
-              Features
-            </Link>
-            <Link href="/calculators" className="text-primary font-bold">
-              Calculators
-            </Link>
-            <Link href="/store" className="hover:text-foreground transition-colors">
-              Store
-            </Link>
-            <Link href="/leaderboard" className="hover:text-foreground transition-colors">
-              Leaderboard
-            </Link>
-            <Link href="/#pricing" className="hover:text-foreground transition-colors">
-              Pricing
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md hover:shadow-primary/20"
-            >
-              <span>Get Started Free</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </header>
+      <LandingNavbar />
 
       {/* ── Hero Section ── */}
-      <div className="relative overflow-hidden pt-10 pb-6 border-b border-border/40 bg-gradient-to-b from-primary/5 via-background to-background">
+      <div className="relative overflow-hidden pt-28 pb-10 border-b border-border/40 bg-gradient-to-b from-primary/5 via-background to-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
@@ -231,29 +190,8 @@ export default function PublicCalculatorsPage() {
         </div>
       </section>
 
-      {/* ── Simple Footer ── */}
-      <footer className="border-t border-border/60 py-8 bg-card text-xs text-muted-foreground">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">
-              TM
-            </div>
-            <span>© {new Date().getFullYear()} TradeMind Technologies. All rights reserved.</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/contact" className="hover:text-foreground transition-colors">
-              Contact Support
-            </Link>
-          </div>
-        </div>
-      </footer>
+      {/* ── Unified Footer ── */}
+      <Footer />
     </div>
   );
 }
